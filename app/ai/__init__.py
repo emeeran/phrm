@@ -271,7 +271,7 @@ def create_gpt_summary(record, summary_type='standard'):
         for doc in documents:
             document_names.append(doc.filename)
             try:
-                if doc.file_type.lower() == 'pdf':
+                if (doc.file_type.lower() == 'pdf'):
                     current_app.logger.info(f"Attempting to extract text from PDF: {doc.filename}")
                     # Use enhanced extraction function
                     text = extract_text_from_pdf(doc.file_path)
@@ -298,7 +298,6 @@ def create_gpt_summary(record, summary_type='standard'):
                             else:
                                 extraction_failed = True
                     except UnicodeDecodeError:
-                        # Try binary mode for non-text files
                         current_app.logger.warning(f"Could not read {doc.filename} as text")
                         extraction_failed = True
             except Exception as e:
@@ -553,11 +552,11 @@ def chat():
             if record.description:
                 context += f"Description: {record.description[:100]}...\n"
 
-    # System message for the chatbot
-    system_message = "You are a helpful health assistant. You can provide general health information and help users interpret their health records. Always remind users to consult healthcare professionals for medical advice."
+    # System message for the chatbot - Updated to request Markdown formatting
+    system_message = "You are a helpful health assistant. You can provide general health information and help users interpret their health records. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
 
     # Combine context and user message
-    prompt = f"Context:\n{context}\n\nUser question: {user_message}"
+    prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
     # First try using Llama API
     current_app.logger.info(f"Attempting to generate chat response using Llama API")
@@ -588,6 +587,7 @@ def chat():
     if not assistant_message:
         return jsonify({'error': 'Failed to generate response'}), 500
 
+    # Return only the AI response without the standard message
     return jsonify({
         'response': assistant_message
     })
@@ -629,11 +629,11 @@ def check_symptoms():
             if record.record_type in ['complaint', 'doctor_visit', 'lab_report']:
                 context += f"- {record.record_type.capitalize()}: {record.title} ({record.date.strftime('%Y-%m-%d')})\n"
 
-    # System message for symptom checker
-    system_message = "You are a helpful health assistant that can provide information about symptoms. You should never diagnose, but you can suggest when users should seek medical attention. Always include a disclaimer that this is not medical advice and recommend consulting a healthcare professional."
+    # System message for symptom checker - Updated to request Markdown formatting
+    system_message = "You are a helpful health assistant that can provide information about symptoms. You should never diagnose, but you can suggest when users should seek medical attention. Always include a disclaimer that this is not medical advice and recommend consulting a healthcare professional. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
 
     # User prompt
-    prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer."
+    prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
     # First try using Llama API
     current_app.logger.info(f"Attempting to analyze symptoms using Llama API")
@@ -664,6 +664,7 @@ def check_symptoms():
     if not assistant_message:
         return jsonify({'error': 'Failed to analyze symptoms'}), 500
 
+    # Return only the AI response without the standard message
     return jsonify({
         'analysis': assistant_message
     })

@@ -115,26 +115,160 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // AI Chat Interface
+    // Enhanced AI Chat Interface
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const chatMessages = document.getElementById('chat-messages');
+    const voiceInputBtn = document.getElementById('voice-input-btn');
+    const clearChatBtn = document.getElementById('clear-chat');
+    const suggestionBtns = document.querySelectorAll('.suggestion-btn');
 
     if (chatForm && chatInput && chatMessages) {
+        // Store conversation history
+        let conversationHistory = [];
+
+        // Load conversation from localStorage if available
+        try {
+            const savedConversation = localStorage.getItem('chatConversation');
+            if (savedConversation) {
+                const parsedHistory = JSON.parse(savedConversation);
+
+                // Only restore if there's actual history and it's properly formatted
+                if (Array.isArray(parsedHistory) && parsedHistory.length > 0) {
+                    // Don't show the first welcome message again if we're restoring history
+                    chatMessages.innerHTML = '';
+
+                    parsedHistory.forEach(entry => {
+                        appendMessage(entry.role, entry.content, entry.timestamp);
+                    });
+
+                    conversationHistory = parsedHistory;
+
+                    // Scroll to bottom
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+        } catch (e) {
+            console.error('Error loading conversation history:', e);
+            // If loading fails, just continue with empty history
+        }
+
+        // Set focus to chat input
+        chatInput.focus();
+
+        // Handle suggestion buttons
+        if (suggestionBtns) {
+            suggestionBtns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const questionText = this.textContent.trim();
+                    chatInput.value = questionText;
+                    chatForm.dispatchEvent(new Event('submit'));
+                });
+            });
+        }
+
+        // Clear chat history
+        if (clearChatBtn) {
+            clearChatBtn.addEventListener('click', function () {
+                if (confirm('Are you sure you want to clear the conversation history?')) {
+                    // Clear the chat UI
+                    chatMessages.innerHTML = '';
+
+                    // Clear conversation history
+                    conversationHistory = [];
+                    localStorage.removeItem('chatConversation');
+                }
+            });
+        }
+
+        // Voice input functionality
+        if (voiceInputBtn && 'webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            let isListening = false;
+
+            voiceInputBtn.addEventListener('click', function () {
+                if (!isListening) {
+                    // Start listening
+                    recognition.start();
+                    isListening = true;
+                    voiceInputBtn.classList.add('voice-active');
+                    voiceInputBtn.title = 'Stop listening';
+
+                    // Show feedback to user
+                    chatInput.placeholder = 'Listening...';
+                } else {
+                    // Stop listening
+                    recognition.stop();
+                    isListening = false;
+                    voiceInputBtn.classList.remove('voice-active');
+                    voiceInputBtn.title = 'Voice input';
+
+                    // Restore placeholder
+                    chatInput.placeholder = 'Type your health question here...';
+                }
+            });
+
+            recognition.onresult = function (event) {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0])
+                    .map(result => result.transcript)
+                    .join('');
+
+                chatInput.value = transcript;
+            };
+
+            recognition.onend = function () {
+                isListening = false;
+                voiceInputBtn.classList.remove('voice-active');
+                voiceInputBtn.title = 'Voice input';
+                chatInput.placeholder = 'Type your health question here...';
+            };
+        } else if (voiceInputBtn) {
+            // Hide the button if speech recognition is not supported
+            voiceInputBtn.style.display = 'none';
+        }
+
+        // Submit message on enter key (but allow shift+enter for new line)
+        chatInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
         chatForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
             const message = chatInput.value.trim();
             if (message) {
-                // Add user message to chat
-                appendMessage('user', message);
+                // Add user message to chat with current time
+                const timestamp = new Date().toISOString();
+                appendMessage('user', message, timestamp);
                 chatInput.value = '';
 
-                // Show loading spinner
-                const loadingElement = document.createElement('div');
-                loadingElement.className = 'chat-message bot-message';
-                loadingElement.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Thinking...';
-                chatMessages.appendChild(loadingElement);
+                // Save to conversation history
+                conversationHistory.push({
+                    role: 'user',
+                    content: message,
+                    timestamp: timestamp
+                });
+
+                // Save to localStorage
+                localStorage.setItem('chatConversation', JSON.stringify(conversationHistory));
+
+                // Show typing indicator
+                const typingIndicator = document.createElement('div');
+                typingIndicator.className = 'typing-indicator';
+                typingIndicator.innerHTML = `
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                `;
+                chatMessages.appendChild(typingIndicator);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 // Send message to backend
@@ -147,24 +281,80 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                     .then(response => response.json())
                     .then(data => {
-                        // Remove loading element
-                        chatMessages.removeChild(loadingElement);
+                        // Remove typing indicator
+                        chatMessages.removeChild(typingIndicator);
 
-                        // Add AI response
-                        appendMessage('bot', data.response);
+                        // Add AI response with current time
+                        const responseTimestamp = new Date().toISOString();
+                        appendMessage('assistant', data.response, responseTimestamp);
+
+                        // Save to conversation history
+                        conversationHistory.push({
+                            role: 'assistant',
+                            content: data.response,
+                            timestamp: responseTimestamp
+                        });
+
+                        // Save to localStorage
+                        localStorage.setItem('chatConversation', JSON.stringify(conversationHistory));
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        chatMessages.removeChild(loadingElement);
-                        appendMessage('bot', 'Sorry, there was an error processing your request.');
+                        chatMessages.removeChild(typingIndicator);
+
+                        const errorTimestamp = new Date().toISOString();
+                        appendMessage('assistant', 'Sorry, there was an error processing your request. Please try again.', errorTimestamp);
+
+                        // Save error message to history
+                        conversationHistory.push({
+                            role: 'assistant',
+                            content: 'Sorry, there was an error processing your request. Please try again.',
+                            timestamp: errorTimestamp
+                        });
+
+                        // Save to localStorage
+                        localStorage.setItem('chatConversation', JSON.stringify(conversationHistory));
                     });
             }
         });
 
-        function appendMessage(sender, text) {
+        function appendMessage(sender, text, timestamp) {
             const messageElement = document.createElement('div');
             messageElement.className = `chat-message ${sender}-message`;
-            messageElement.textContent = text;
+
+            const time = new Date(timestamp);
+            const formattedTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Create message structure with avatar
+            let avatarIcon = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+            let senderName = sender === 'user' ? 'You' : 'Health Assistant';
+
+            // For user messages, display as plain text. For assistant messages, render markdown.
+            let messageContent;
+            if (sender === 'user') {
+                messageContent = `<div>${text}</div>`;
+            } else {
+                // Use the marked library to render markdown to HTML
+                try {
+                    // Add markdown-body class for GitHub-style markdown
+                    messageContent = `<div class="markdown-body">${marked.parse(text)}</div>`;
+                } catch (e) {
+                    console.error('Error rendering markdown:', e);
+                    messageContent = `<div>${text}</div>`;
+                }
+            }
+
+            messageElement.innerHTML = `
+                <div class="chat-avatar">
+                    ${avatarIcon}
+                </div>
+                <div class="message-content">
+                    <div class="message-sender">${senderName} <span class="message-time">${formattedTime}</span></div>
+                    ${messageContent}
+                </div>
+            `;
+
+            // Add to chat container and scroll to bottom
             chatMessages.appendChild(messageElement);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
