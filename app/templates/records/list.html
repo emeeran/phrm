@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Health Records{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0"><i class="fas fa-file-medical me-2"></i>Health Records</h2>
+            <a href="{{ url_for('records.create_record') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add Record
+            </a>
+        </div>
+        <form class="row g-3 mb-3" method="get">
+            <div class="col-md-3">
+                <select name="type" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Types</option>
+                    <option value="complaint" {% if record_type=='complaint' %}selected{% endif %}>Complaint/Symptom
+                    </option>
+                    <option value="doctor_visit" {% if record_type=='doctor_visit' %}selected{% endif %}>Doctor Visit
+                    </option>
+                    <option value="investigation" {% if record_type=='investigation' %}selected{% endif %}>Investigation
+                    </option>
+                    <option value="prescription" {% if record_type=='prescription' %}selected{% endif %}>Prescription
+                    </option>
+                    <option value="lab_report" {% if record_type=='lab_report' %}selected{% endif %}>Lab Report</option>
+                    <option value="note" {% if record_type=='note' %}selected{% endif %}>Doctor's Note</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" name="family_member" class="form-control" placeholder="Family Member ID"
+                    value="{{ family_member_id or '' }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+            </div>
+        </form>
+        {% if records.items %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Title</th>
+                        <th>Date</th>
+                        <th>Owner</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records.items %}
+                    <tr>
+                        <td>
+                            <span class="badge {{ get_record_badge_class(record.record_type) }}">
+                                <i class="fas {{ get_record_icon(record.record_type) }} me-1"></i>
+                                {{ record.record_type|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('records.view_record', record_id=record.id) }}">{{ record.title }}</a>
+                        </td>
+                        <td>{{ record.date|format_date }}</td>
+                        <td>
+                            {% if record.user_id %}Myself{% elif record.family_member %}{{
+                            record.family_member.first_name }}{% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('records.edit_record', record_id=record.id) }}"
+                                class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>
+                            <form action="{{ url_for('records.delete_record', record_id=record.id) }}" method="post"
+                                class="d-inline-block" onsubmit="return confirm('Delete this record?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                        class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if records.has_prev %}
+                <li class="page-item"><a class="page-link"
+                        href="{{ url_for('records.list_records', page=records.prev_num, type=record_type, family_member=family_member_id) }}">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ records.page }} of {{ records.pages
+                        }}</span></li>
+                {% if records.has_next %}
+                <li class="page-item"><a class="page-link"
+                        href="{{ url_for('records.list_records', page=records.next_num, type=record_type, family_member=family_member_id) }}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% else %}
+        <div class="alert alert-info text-center my-5">
+            <i class="fas fa-info-circle me-2"></i>No health records found.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

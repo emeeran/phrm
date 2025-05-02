@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create an Account</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.register') }}">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.first_name.label(class="form-label") }}
+                            {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else ""),
+                            placeholder="Enter your first name") }}
+                            {% if form.first_name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.first_name.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.last_name.label(class="form-label") }}
+                            {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else ""),
+                            placeholder="Enter your last name") }}
+                            {% if form.last_name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.last_name.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""),
+                        placeholder="Choose a username") }}
+                        {% if form.username.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.username.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""),
+                        placeholder="Enter your email address") }}
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.email.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.date_of_birth.label(class="form-label") }}
+                        {{ form.date_of_birth(class="form-control" + (" is-invalid" if form.date_of_birth.errors else
+                        ""), type="date") }}
+                        {% if form.date_of_birth.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.date_of_birth.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.password.label(class="form-label") }}
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""),
+                            placeholder="Create a password") }}
+                            {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">Password must be at least 8 characters long.</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.password2.label(class="form-label") }}
+                            {{ form.password2(class="form-control" + (" is-invalid" if form.password2.errors else ""),
+                            placeholder="Repeat your password") }}
+                            {% if form.password2.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password2.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="termsCheck" required>
+                        <label class="form-check-label" for="termsCheck">
+                            I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and
+                                Conditions</a>
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Privacy and Data Usage</h6>
+                <p>
+                    The Personal Health Record Manager is designed to help you manage your health records.
+                    Your data privacy is important to us. We store your health information securely and do not share it
+                    with third parties without your consent.
+                </p>
+
+                <h6>Medical Disclaimer</h6>
+                <p>
+                    The information provided by this application is not medical advice and is not intended to replace
+                    consultation with qualified healthcare professionals. Always consult with your healthcare provider
+                    for medical advice.
+                </p>
+
+                <h6>AI Features</h6>
+                <p>
+                    This application uses artificial intelligence to provide summaries, suggestions, and insights about
+                    your health data.
+                    These AI features are intended to assist you but should not be relied upon for medical decisions.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I Understand</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

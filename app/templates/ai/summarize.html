@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Summarize Health Record{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-robot me-2"></i>AI Summary Generator</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This tool uses AI to create a summary of your health record that's easier to understand.
+                            The summary is created just for you and is not shared with anyone else.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <h5 class="mb-3">Record Details</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 150px;">Record Type</th>
+                                <td>{{ record.record_type | capitalize }}</td>
+                            </tr>
+                            <tr>
+                                <th>Title</th>
+                                <td>{{ record.title }}</td>
+                            </tr>
+                            <tr>
+                                <th>Date</th>
+                                <td>{{ record.date.strftime('%B %d, %Y') }}</td>
+                            </tr>
+                            {% if record.description %}
+                            <tr>
+                                <th>Description</th>
+                                <td>{{ record.description }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+
+                        {% if existing_summary %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            This record already has an AI summary. Generating a new one will replace the existing
+                            summary.
+                        </div>
+                        <a href="{{ url_for('ai.view_summary', record_id=record.id) }}" class="btn btn-info">
+                            <i class="fas fa-eye me-1"></i>View Existing Summary
+                        </a>
+                        {% endif %}
+
+                        <form method="POST" class="mt-4">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-magic me-1"></i>{{ 'Regenerate Summary' if existing_summary else
+                                    'Generate Summary' }}
+                                </button>
+                                <a href="{{ url_for('records.view_record', record_id=record.id) }}"
+                                    class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>Back to Record
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt me-1"></i>Your health data is kept private and secure
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

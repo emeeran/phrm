@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Health Record{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Edit Health Record</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% for error in form.title.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.record_type.label(class="form-label") }}
+                        {{ form.record_type(class="form-select" + (" is-invalid" if form.record_type.errors else "")) }}
+                        {% for error in form.record_type.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""),
+                        rows=4) }}
+                        {% for error in form.description.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.date.label(class="form-label") }}
+                        {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else ""), type="date") }}
+                        {% for error in form.date.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.family_member.label(class="form-label") }}
+                        {{ form.family_member(class="form-select" + (" is-invalid" if form.family_member.errors else
+                        "")) }}
+                        {% for error in form.family_member.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.documents.label(class="form-label") }}
+                        {{ form.documents(class="form-control" + (" is-invalid" if form.documents.errors else "")) }}
+                        {% for error in form.documents.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Optional. Upload images or PDFs (max 16MB).</div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

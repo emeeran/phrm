@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to PHRM - Your Personal Health Record Manager{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h1 class="display-4 fw-bold mb-4">Your Health Records in One Place</h1>
+            <p class="lead mb-4">
+                Welcome to Personal Health Record Manager, the secure platform to store, manage, and analyze all your
+                health data in one place.
+            </p>
+            <div class="d-grid gap-2 d-md-flex mb-5">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('records.dashboard') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-columns me-2"></i>Go to Dashboard
+                </a>
+                {% else %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-user-plus me-2"></i>Get Started
+                </a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </a>
+                {% endif %}
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start">
+                        <div class="bg-primary bg-gradient p-3 rounded-3 text-white me-3">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div>
+                            <h5>Secure Storage</h5>
+                            <p class="text-muted">Your health data is encrypted and securely stored.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start">
+                        <div class="bg-success bg-gradient p-3 rounded-3 text-white me-3">
+                            <i class="fas fa-share-alt"></i>
+                        </div>
+                        <div>
+                            <h5>Easy Sharing</h5>
+                            <p class="text-muted">Share your records with doctors and family.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start">
+                        <div class="bg-info bg-gradient p-3 rounded-3 text-white me-3">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div>
+                            <h5>AI-Powered Insights</h5>
+                            <p class="text-muted">Get personalized health insights and analysis.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start">
+                        <div class="bg-warning bg-gradient p-3 rounded-3 text-white me-3">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div>
+                            <h5>Access Anywhere</h5>
+                            <p class="text-muted">Access your records on any device, anytime.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 d-none d-md-block">
+            <img src="{{ url_for('static', filename='img/health-records.svg') }}" alt="Health Records Illustration"
+                class="img-fluid">
+        </div>
+    </div>
+
+    <hr class="my-5">
+
+    <!-- Features Section -->
+    <div class="row text-center mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">Features That Make Managing Health Records Easier</h2>
+        </div>
+    </div>
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 d-inline-block mb-3">
+                        <i class="fas fa-clipboard-list fs-2 text-primary"></i>
+                    </div>
+                    <h4>Comprehensive Records</h4>
+                    <p class="text-muted">Store all types of health records including doctor visits, lab reports,
+                        prescriptions, and more.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 d-inline-block mb-3">
+                        <i class="fas fa-history fs-2 text-success"></i>
+                    </div>
+                    <h4>Health Timeline</h4>
+                    <p class="text-muted">Visualize your health journey with an interactive timeline of all your medical
+                        events.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3 d-inline-block mb-3">
+                        <i class="fas fa-robot fs-2 text-info"></i>
+                    </div>
+                    <h4>AI Health Assistant</h4>
+                    <p class="text-muted">Chat with our AI assistant to get answers about your health records and
+                        general medical questions.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testimonials Section -->
+    <div class="row text-center mb-5">
+        <div class="col-12">
+            <h2 class="mb-4">What Our Users Say</h2>
+        </div>
+    </div>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-primary text-white p-3 me-3">JS</div>
+                        <div>
+                            <h5 class="mb-0">John S.</h5>
+                            <small class="text-muted">Patient with chronic conditions</small>
+                        </div>
+                    </div>
+                    <p class="fst-italic">"Having all my health records in one place has made managing my chronic
+                        conditions so much easier. I can share my complete history with any new specialist I see."</p>
+                    <div class="text-warning">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-success text-white p-3 me-3">ML</div>
+                        <div>
+                            <h5 class="mb-0">Maria L.</h5>
+                            <small class="text-muted">Caregiver for elderly parent</small>
+                        </div>
+                    </div>
+                    <p class="fst-italic">"As a caregiver for my elderly mother, this app has been a lifesaver. I can
+                        keep track of all her medications, appointments, and test results in one secure place."</p>
+                    <div class="text-warning">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star-half-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-info text-white p-3 me-3">DR</div>
+                        <div>
+                            <h5 class="mb-0">Dr. Robert T.</h5>
+                            <small class="text-muted">Family Physician</small>
+                        </div>
+                    </div>
+                    <p class="fst-italic">"I recommend this platform to all my patients. When they share their complete
+                        records with me, I can provide better care with a more complete picture of their health
+                        history."</p>
+                    <div class="text-warning">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

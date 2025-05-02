@@ -1,0 +1,362 @@
+/* Main CSS for Personal Health Record Manager */
+
+/* Global Styles */
+:root {
+    --primary-color: #4287f5;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* Card Styles */
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+/* Health Record Type Badges */
+.badge-complaint {
+    background-color: #dc3545;
+}
+
+.badge-doctor_visit {
+    background-color: #0d6efd;
+}
+
+.badge-investigation {
+    background-color: #6f42c1;
+}
+
+.badge-prescription {
+    background-color: #198754;
+}
+
+.badge-lab_report {
+    background-color: #fd7e14;
+}
+
+.badge-note {
+    background-color: #6c757d;
+}
+
+/* Dashboard Styles */
+.dashboard-card {
+    height: 100%;
+    transition: transform 0.3s;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+}
+
+.dashboard-icon {
+    font-size: 2rem;
+    color: #0d6efd;
+}
+
+/* Health Record Timeline */
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: #0d6efd;
+}
+
+/* AI Chat Interface */
+.chat-container {
+    height: 70vh;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.chat-message {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    max-width: 80%;
+}
+
+.user-message {
+    background-color: #e9ecef;
+    margin-left: auto;
+}
+
+.assistant-message {
+    background-color: #cfe2ff;
+}
+
+/* Loading Indicator */
+.loading-spinner {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #0d6efd;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 1.5rem;
+    }
+
+    .timeline-item::before {
+        left: -1.5rem;
+    }
+
+    .chat-container {
+        height: 400px;
+    }
+
+    .chat-message {
+        max-width: 90%;
+    }
+}
+
+/* Dashboard Cards */
+.record-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.record-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.record-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Health Record Types Color Coding */
+.record-doctor_visit {
+    border-left: 4px solid var(--primary-color);
+}
+
+.record-prescription {
+    border-left: 4px solid var(--success-color);
+}
+
+.record-lab_report {
+    border-left: 4px solid var(--info-color);
+}
+
+.record-complaint {
+    border-left: 4px solid var(--warning-color);
+}
+
+.record-imaging {
+    border-left: 4px solid var(--secondary-color);
+}
+
+.record-other {
+    border-left: 4px solid var(--dark-color);
+}
+
+/* Form styling */
+.form-card {
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary-color);
+}
+
+/* Family members section */
+.family-member-card {
+    transition: transform 0.3s ease;
+}
+
+.family-member-card:hover {
+    transform: translateY(-5px);
+}
+
+.relationship-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* Chatbot UI */
+.chat-container {
+    height: 70vh;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.chat-message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    max-width: 75%;
+}
+
+.user-message {
+    background-color: var(--primary-color);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 0;
+}
+
+.bot-message {
+    background-color: #e9ecef;
+    color: #212529;
+    margin-right: auto;
+    border-bottom-left-radius: 0;
+}
+
+/* Record Summary */
+.summary-container {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--primary-color);
+    padding: 1.5rem;
+    border-radius: 5px;
+}
+
+/* Health Timeline */
+.timeline {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.timeline::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    background-color: var(--primary-color);
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    margin-left: -1px;
+}
+
+.timeline-container {
+    padding: 10px 40px;
+    position: relative;
+    width: 50%;
+}
+
+.timeline-container::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border: 4px solid var(--primary-color);
+    border-radius: 50%;
+    top: 15px;
+    z-index: 1;
+}
+
+.left {
+    left: 0;
+}
+
+.right {
+    left: 50%;
+}
+
+.left::after {
+    right: -10px;
+}
+
+.right::after {
+    left: -10px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+    .timeline::after {
+        left: 31px;
+    }
+
+    .timeline-container {
+        width: 100%;
+        padding-left: 70px;
+        padding-right: 25px;
+    }
+
+    .left::after,
+    .right::after {
+        left: 15px;
+    }
+
+    .right {
+        left: 0;
+    }
+}
