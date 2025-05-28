@@ -68,6 +68,40 @@ main.container-fluid {
     font-size: 14px;
 }
 
+/* Chat Header Dropdown Styles */
+.card-header .form-select-sm {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 0.875rem;
+}
+
+.card-header .form-select-sm:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.card-header .form-select-sm option {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.card-header .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+#patient-selector-container {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#patient-selector-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
 /* Health Record Type Badges */
 .badge-complaint {
     background-color: #dc3545;
@@ -821,4 +855,32 @@ main.container-fluid {
 
 .chat-sidebar .border-bottom i {
     font-size: 18px;
+}
+
+/* Additional responsive adjustments for chat header */
+@media (max-width: 992px) {
+    .card-header .d-flex.align-items-center.gap-3 h4 {
+        font-size: 1.1rem;
+    }
+    
+    .card-header .form-select-sm {
+        font-size: 0.8rem;
+    }
+    
+    .card-header .form-label {
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 576px) {
+    .card-header .d-flex.align-items-center.gap-3 {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.5rem !important;
+    }
+    
+    .card-header .d-flex.align-items-center:not(.gap-3) {
+        margin-top: 0.5rem;
+    }
 }

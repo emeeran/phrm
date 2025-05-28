@@ -361,13 +361,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 chatMessages.appendChild(typingIndicator);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
+                // Get current mode and patient selection
+                const mode = document.getElementById('mode-selector')?.value || 'private';
+                const patient = document.getElementById('patient-selector')?.value || 'self';
+
                 // Send message to backend
                 fetch('/ai/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message }),
+                    body: JSON.stringify({ 
+                        message: message,
+                        mode: mode,
+                        patient: patient
+                    }),
                 })
                     .then(response => response.json())
                     .then(data => {
@@ -486,5 +494,74 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
+    }
+
+    // Chat Mode and Patient Selector Functionality
+    const modeSelector = document.getElementById('mode-selector');
+    const patientSelectorContainer = document.getElementById('patient-selector-container');
+    const patientSelector = document.getElementById('patient-selector');
+
+    if (modeSelector && patientSelectorContainer) {
+        // Handle mode changes
+        modeSelector.addEventListener('change', function() {
+            const isPrivate = this.value === 'private';
+            
+            if (isPrivate) {
+                patientSelectorContainer.classList.remove('hidden');
+            } else {
+                patientSelectorContainer.classList.add('hidden');
+                // Reset to self when switching to public mode
+                if (patientSelector) {
+                    patientSelector.value = 'self';
+                }
+            }
+            
+            // Update welcome message based on mode
+            updateWelcomeMessage();
+        });
+
+        // Handle patient selection changes
+        if (patientSelector) {
+            patientSelector.addEventListener('change', function() {
+                updateWelcomeMessage();
+            });
+        }
+
+        // Function to update welcome message based on current selections
+        function updateWelcomeMessage() {
+            const welcomeMessage = document.querySelector('.welcome-message');
+            if (!welcomeMessage) return;
+
+            const mode = modeSelector.value;
+            const patient = patientSelector?.value || 'self';
+            
+            let messageText = '';
+            let contextInfo = '';
+
+            if (mode === 'public') {
+                messageText = 'Welcome to your Health Assistant';
+                contextInfo = 'Ask me general health questions. I won\'t access your personal medical records in this mode.';
+            } else {
+                if (patient === 'self') {
+                    messageText = 'Welcome to your Health Assistant';
+                    contextInfo = 'Ask me anything about your health, medications, or use the quick questions. I have access to your personal medical records.';
+                } else {
+                    // Get patient name from selector option text
+                    const selectedOption = patientSelector.options[patientSelector.selectedIndex];
+                    const patientName = selectedOption.text;
+                    messageText = `Health Assistant for ${patientName}`;
+                    contextInfo = `Ask me about ${patientName}'s health records, medications, or medical history.`;
+                }
+            }
+
+            welcomeMessage.innerHTML = `
+                <i class="fas fa-comment-medical fa-3x mb-3"></i>
+                <h5>${messageText}</h5>
+                <p>${contextInfo}</p>
+            `;
+        }
+
+        // Initialize the welcome message
+        updateWelcomeMessage();
     }
 });

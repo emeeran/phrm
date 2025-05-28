@@ -4,7 +4,7 @@ import os
 import openai
 import json
 import requests
-from ..models import db, HealthRecord, Document, AISummary
+from ..models import db, HealthRecord, Document, AISummary, FamilyMember
 from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -534,7 +534,9 @@ def view_summary(record_id):
 @login_required
 def chatbot():
     """Interactive health chatbot interface"""
-    return render_template('ai/chatbot.html', title='Health Assistant')
+    # Get family members for the patient selector
+    family_members = current_user.family_members
+    return render_template('ai/chatbot.html', title='Health Assistant', family_members=family_members)
 
 @ai_bp.route('/chat', methods=['POST'])
 @login_required
@@ -546,45 +548,108 @@ def chat():
         return jsonify({'error': 'Invalid request'}), 400
 
     user_message = data['message']
+    mode = data.get('mode', 'private')  # 'private' or 'public'
+    patient = data.get('patient', 'self')  # 'self' or family member ID
 
-    # Get user records for context
-    user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
+    # Handle different modes and patient contexts
+    if mode == 'public':
+        # Public mode - no access to personal records
+        context = "You are a general health assistant. Provide general health information only. Do not reference any personal medical records."
+        system_message = "You are a helpful general health assistant. Provide general health information and advice, but always remind users to consult healthcare professionals for medical advice. Do not reference any personal medical records. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+    else:
+        # Private mode - access to records based on patient selection
+        if patient == 'self':
+            # User's own records
+            user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
+            context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
+            context += f"They have {len(user_records)} personal health records.\n"
+            target_records = user_records
+            patient_name = "your"
+        else:
+            # Family member's records
+            try:
+                family_member_id = int(patient)
+                family_member = FamilyMember.query.get(family_member_id)
+                
+                # Verify the family member belongs to the current user
+                if not family_member or family_member not in current_user.family_members:
+                    return jsonify({'error': 'Family member not found'}), 404
+                
+                family_records = family_member.records.all()
+                context = f"The user is asking about {family_member.first_name} {family_member.last_name}.\n"
+                context += f"{family_member.first_name} has {len(family_records)} health records.\n"
+                target_records = family_records
+                patient_name = f"{family_member.first_name}'s"
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid patient ID'}), 400
 
-    # Get family records
-    family_records = []
-    for family_member in current_user.family_members:
-        family_records.extend(family_member.records.all())
+        # Check if user is asking about specific record types
+        record_type_keywords = {
+            'prescription': ['prescription', 'medicine', 'drug', 'medication'],
+            'lab_report': ['lab', 'test', 'blood', 'result'],
+            'doctor_visit': ['visit', 'appointment', 'doctor', 'consultation'],
+            'complaint': ['symptom', 'pain', 'feeling', 'complaint']
+        }
 
-    # Create context from records (simplified, a real implementation would be more sophisticated)
-    context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
-    context += f"They have {len(user_records)} personal health records and {len(family_records)} family health records.\n"
+        # Always include all medical records for the selected patient in context
+        if target_records:
+            patient_display_name = patient_name.replace('your', 'the user').replace("'s", '')
+            context += f"\n--- Complete Medical History for {patient_display_name} ---\n"
+            
+            # Group records by type for better organization
+            records_by_type = {}
+            for record in target_records:
+                record_type = record.record_type
+                if record_type not in records_by_type:
+                    records_by_type[record_type] = []
+                records_by_type[record_type].append(record)
+            
+            # Add summary of record types
+            context += f"Total records: {len(target_records)}\n"
+            for record_type, records in records_by_type.items():
+                context += f"- {record_type.replace('_', ' ').title()}: {len(records)} records\n"
+            
+            context += "\n--- Recent Medical Records (Most Recent First) ---\n"
+            # Sort records by date (most recent first) and include details
+            sorted_records = sorted(target_records, key=lambda x: x.date, reverse=True)
+            for idx, record in enumerate(sorted_records[:10]):  # Limit to 10 most recent records
+                context += f"\n{idx+1}. {record.title}\n"
+                context += f"   Type: {record.record_type.replace('_', ' ').title()}\n"
+                context += f"   Date: {record.date.strftime('%Y-%m-%d')}\n"
+                if record.description:
+                    # Include more of the description for better context
+                    description = record.description[:300] + "..." if len(record.description) > 300 else record.description
+                    context += f"   Description: {description}\n"
+                
+                # Include document information if available
+                if record.documents.count() > 0:
+                    doc_count = record.documents.count()
+                    context += f"   Documents: {doc_count} attached file(s)\n"
 
-    # Check if user is asking about specific record types
-    record_type_keywords = {
-        'prescription': ['prescription', 'medicine', 'drug', 'medication'],
-        'lab_report': ['lab', 'test', 'blood', 'result'],
-        'doctor_visit': ['visit', 'appointment', 'doctor', 'consultation'],
-        'complaint': ['symptom', 'pain', 'feeling', 'complaint']
-    }
+        # Simple record matching logic for highlighting relevant records
+        matching_records = []
+        for record_type, keywords in record_type_keywords.items():
+            if any(keyword in user_message.lower() for keyword in keywords):
+                # Find records of this type
+                matches = [r for r in target_records if r.record_type == record_type]
+                if matches:
+                    matching_records.extend(matches)
 
-    # Simple record matching logic (a real implementation would use RAG)
-    matching_records = []
-    for record_type, keywords in record_type_keywords.items():
-        if any(keyword in user_message.lower() for keyword in keywords):
-            # Find records of this type
-            matches = [r for r in user_records if r.record_type == record_type]
-            if matches:
-                matching_records.extend(matches)
+        if matching_records:
+            context += f"\n--- Records Most Relevant to Your Question ---\n"
+            for idx, record in enumerate(matching_records[:3]):  # Limit to 3 most relevant records
+                context += f"\nHighlighted Record {idx+1}: {record.title}\n"
+                context += f"Date: {record.date.strftime('%Y-%m-%d')}\n"
+                context += f"Type: {record.record_type.replace('_', ' ').title()}\n"
+                if record.description:
+                    context += f"Details: {record.description}\n"
 
-    if matching_records:
-        context += "Here are some relevant records that might help answer your query:\n"
-        for idx, record in enumerate(matching_records[:3]):  # Limit to 3 records
-            context += f"Record {idx+1}: {record.title} ({record.date.strftime('%Y-%m-%d')})\n"
-            if record.description:
-                context += f"Description: {record.description[:100]}...\n"
-
-    # System message for the chatbot - Updated to request Markdown formatting
-    system_message = "You are a helpful health assistant. You can provide general health information and help users interpret their health records. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+        # System message for the chatbot - Updated to request Markdown formatting
+        if patient == 'self':
+            system_message = f"You are a helpful health assistant with access to the user's complete medical history. You can provide health information and help interpret their health records. Reference specific records, dates, and medical details when relevant to answer their questions. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+        else:
+            family_member_name = family_member.first_name if 'family_member' in locals() else "the family member"
+            system_message = f"You are a helpful health assistant with access to {family_member_name}'s complete medical history. You can provide health information and help interpret {family_member_name}'s health records. Reference specific records, dates, and medical details when relevant to answer questions about {family_member_name}'s health. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
 
     # Combine context and user message
     prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
