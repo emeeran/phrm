@@ -44,11 +44,39 @@ def create_app(config_name=None):
     from .api import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    # Inject 'now' into all templates
+    # Inject utility functions into all templates
     from datetime import datetime
     @app.context_processor
-    def inject_now():
-        return {'now': datetime.now()}
+    def inject_utilities():
+        def get_record_badge_class(record_type):
+            """Get the appropriate badge class for a record type"""
+            badge_classes = {
+                'complaint': 'bg-danger',
+                'doctor_visit': 'bg-primary',
+                'investigation': 'bg-purple',
+                'prescription': 'bg-success',
+                'lab_report': 'bg-warning',
+                'note': 'bg-secondary'
+            }
+            return badge_classes.get(record_type, 'bg-info')
+
+        def get_record_icon(record_type):
+            """Get the appropriate icon for a record type"""
+            icons = {
+                'complaint': 'fa-face-frown',
+                'doctor_visit': 'fa-user-doctor',
+                'investigation': 'fa-microscope',
+                'prescription': 'fa-prescription',
+                'lab_report': 'fa-flask',
+                'note': 'fa-clipboard'
+            }
+            return icons.get(record_type, 'fa-file-medical')
+
+        return {
+            'now': datetime.now(),
+            'get_record_badge_class': get_record_badge_class,
+            'get_record_icon': get_record_icon
+        }
 
     # Register custom Jinja2 filters
     def format_date(value, format='%b %d, %Y'):
