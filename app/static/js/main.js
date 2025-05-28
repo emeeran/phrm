@@ -181,6 +181,96 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Copy chat conversation
+        const copyChatBtn = document.getElementById('copy-chat');
+        if (copyChatBtn) {
+            copyChatBtn.addEventListener('click', function () {
+                if (conversationHistory.length === 0) {
+                    alert('No conversation to copy');
+                    return;
+                }
+
+                const chatText = conversationHistory.map(entry => {
+                    const sender = entry.role === 'user' ? 'You' : 'Health Assistant';
+                    const time = new Date(entry.timestamp).toLocaleString();
+                    return `${sender} (${time}):\n${entry.content}\n`;
+                }).join('\n');
+
+                navigator.clipboard.writeText(chatText).then(() => {
+                    // Show temporary success feedback
+                    const originalHTML = copyChatBtn.innerHTML;
+                    copyChatBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    copyChatBtn.classList.add('btn-success');
+                    copyChatBtn.classList.remove('btn-outline-light');
+                    
+                    setTimeout(() => {
+                        copyChatBtn.innerHTML = originalHTML;
+                        copyChatBtn.classList.remove('btn-success');
+                        copyChatBtn.classList.add('btn-outline-light');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                    alert('Failed to copy conversation to clipboard');
+                });
+            });
+        }
+
+        // Export chat to Markdown
+        const exportMdBtn = document.getElementById('export-md');
+        if (exportMdBtn) {
+            exportMdBtn.addEventListener('click', function () {
+                if (conversationHistory.length === 0) {
+                    alert('No conversation to export');
+                    return;
+                }
+
+                const today = new Date();
+                const dateStr = today.toISOString().split('T')[0];
+                const timeStr = today.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                let markdownContent = `# Health Assistant Conversation\n\n`;
+                markdownContent += `**Date:** ${dateStr} at ${timeStr}\n\n`;
+                markdownContent += `**Total Messages:** ${conversationHistory.length}\n\n`;
+                markdownContent += `---\n\n`;
+
+                conversationHistory.forEach((entry, index) => {
+                    const sender = entry.role === 'user' ? '👤 You' : '🤖 Health Assistant';
+                    const time = new Date(entry.timestamp).toLocaleString();
+                    
+                    markdownContent += `## ${sender}\n`;
+                    markdownContent += `*${time}*\n\n`;
+                    markdownContent += `${entry.content}\n\n`;
+                    
+                    if (index < conversationHistory.length - 1) {
+                        markdownContent += `---\n\n`;
+                    }
+                });
+
+                // Create and download the file
+                const blob = new Blob([markdownContent], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `health_conversation_${dateStr}_${timeStr.replace(':', '-')}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Show temporary success feedback
+                const originalHTML = exportMdBtn.innerHTML;
+                exportMdBtn.innerHTML = '<i class="fas fa-check"></i>';
+                exportMdBtn.classList.add('btn-success');
+                exportMdBtn.classList.remove('btn-outline-light');
+                
+                setTimeout(() => {
+                    exportMdBtn.innerHTML = originalHTML;
+                    exportMdBtn.classList.remove('btn-success');
+                    exportMdBtn.classList.add('btn-outline-light');
+                }, 2000);
+            });
+        }
+
         // Voice input functionality
         if (voiceInputBtn && 'webkitSpeechRecognition' in window) {
             const recognition = new webkitSpeechRecognition();

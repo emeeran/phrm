@@ -17,25 +17,44 @@ import io
 import logging
 import subprocess
 import tempfile
+# Import Google Generative AI
+import google.generativeai as genai
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
 # Helper functions
 def get_openai_api_key():
-    """Get OpenAI API key from app config"""
+    """Get OpenAI API key from Doppler via app config"""
     api_key = current_app.config.get('OPENAI_API_KEY')
     if not api_key:
-        current_app.logger.error("OpenAI API key not configured")
+        current_app.logger.error("OpenAI API key not configured in Doppler")
         return None
     return api_key
 
-def get_llama_api_key():
-    """Get Meta Llama API key from app config"""
-    return current_app.config.get('META_LLAMA_API_KEY') or os.environ.get('META_LLAMA_API_KEY')
+def get_gemini_api_key():
+    """Get Gemini API key from app config"""
+    api_key = current_app.config.get('GEMINI_API_KEY')
+    if not api_key:
+        current_app.logger.error("Gemini API key not configured")
+        return None
+    return api_key
+
+def initialize_gemini():
+    """Initialize the Gemini API"""
+    api_key = get_gemini_api_key()
+    if not api_key:
+        return False
+    
+    try:
+        genai.configure(api_key=api_key)
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Failed to initialize Gemini API: {e}")
+        return False
 
 # Default AI model configuration
-DEFAULT_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
-# Whether to use OpenAI as fallback if Llama fails
+DEFAULT_MODEL = "gemini-1.5-pro"
+# Whether to use OpenAI as fallback if Gemini fails
 USE_OPENAI_FALLBACK = True
 
 def extract_text_from_pdf(file_path):
@@ -192,9 +211,9 @@ def extract_text_from_pdf(file_path):
     current_app.logger.error(f"All PDF extraction methods failed for {file_path}")
     return f"ERROR: Unable to extract text from this PDF file ({os.path.basename(file_path)}). The document may be encrypted, password-protected, or contain only scanned images without OCR text. Please contact support for assistance with this document."
 
-def call_llama_api(system_message, prompt, temperature=0.3, max_tokens=1500):
+def call_gemini_api(system_message, prompt, temperature=0.3, max_tokens=1500):
     """
-    Call the Meta Llama API with the given prompt
+    Call the Gemini API with the given prompt
 
     Args:
         system_message: The system message for the model
@@ -205,40 +224,52 @@ def call_llama_api(system_message, prompt, temperature=0.3, max_tokens=1500):
     Returns:
         The model's response text or None if there was an error
     """
-    api_key = get_llama_api_key()
+    api_key = get_gemini_api_key()
     if not api_key:
-        current_app.logger.error("Meta Llama API key not configured")
+        current_app.logger.error("Gemini API key not configured")
         return None
 
     try:
-        url = "https://api.mistral.ai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": DEFAULT_MODEL,
-            "messages": [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-
-        current_app.logger.info(f"Sending request to Llama API using model: {DEFAULT_MODEL}")
-        response = requests.post(url, headers=headers, json=payload)
-
-        if response.status_code == 200:
-            result = response.json()
-            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            return content.strip()
-        else:
-            current_app.logger.error(f"Llama API error: Status {response.status_code}, Response: {response.text}")
+        # Initialize Gemini API
+        if not initialize_gemini():
+            return None
+        
+        # Get the model
+        model_name = current_app.config.get('GEMINI_MODEL', DEFAULT_MODEL)
+        
+        try:
+            # Create a generative model instance
+            model = genai.GenerativeModel(model_name=model_name)
+            
+            # Combine system message and prompt
+            full_prompt = f"{system_message}\n\n{prompt}"
+            
+            # Generate content
+            current_app.logger.info(f"Sending request to Gemini API using model: {model_name}")
+            response = model.generate_content(
+                full_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                    top_p=0.95,
+                )
+            )
+            
+            if response.text:
+                return response.text.strip()
+            else:
+                current_app.logger.error("Gemini API returned empty response")
+                return None
+                
+        except genai.types.BlockedPromptException as e:
+            current_app.logger.error(f"Gemini API blocked the prompt: {e}")
+            return "I'm unable to respond to this request as it may violate content safety policies."
+        except ValueError as e:
+            current_app.logger.error(f"Gemini API value error: {e}")
             return None
 
     except Exception as e:
-        current_app.logger.error(f"Error calling Llama API: {e}")
+        current_app.logger.error(f"Error calling Gemini API: {e}")
         return None
 
 def create_gpt_summary(record, summary_type='standard'):
@@ -330,13 +361,13 @@ def create_gpt_summary(record, summary_type='standard'):
     else:
         system_message = "You are a medical assistant helping patients understand their health records. This record does not have attached documents, so provide a summary based on the available metadata. Format your response with appropriate HTML paragraph tags."
 
-    # First try using Llama API
-    current_app.logger.info(f"Attempting to generate summary for record {record.id} using Llama API")
-    explanation = call_llama_api(system_message, prompt)
+    # First try using Gemini API
+    current_app.logger.info(f"Attempting to generate summary for record {record.id} using Gemini API")
+    explanation = call_gemini_api(system_message, prompt)
 
-    # If Llama API fails and fallback is enabled, try OpenAI
+    # If Gemini API fails and fallback is enabled, try OpenAI
     if explanation is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Llama API failed, falling back to OpenAI for record {record.id}")
+        current_app.logger.warning(f"Gemini API failed, falling back to OpenAI for record {record.id}")
         api_key = get_openai_api_key()
 
         if api_key:
@@ -558,13 +589,13 @@ def chat():
     # Combine context and user message
     prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
-    # First try using Llama API
-    current_app.logger.info(f"Attempting to generate chat response using Llama API")
-    assistant_message = call_llama_api(system_message, prompt, temperature=0.5)
+    # First try using Gemini API
+    current_app.logger.info(f"Attempting to generate chat response using Gemini API")
+    assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
 
-    # If Llama API fails and fallback is enabled, try OpenAI
+    # If Gemini API fails and fallback is enabled, try OpenAI
     if assistant_message is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Llama API failed for chat, falling back to OpenAI")
+        current_app.logger.warning(f"Gemini API failed for chat, falling back to OpenAI")
         try:
             api_key = get_openai_api_key()
             if not api_key:
@@ -635,13 +666,13 @@ def check_symptoms():
     # User prompt
     prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
-    # First try using Llama API
-    current_app.logger.info(f"Attempting to analyze symptoms using Llama API")
-    assistant_message = call_llama_api(system_message, prompt, temperature=0.5)
+    # First try using Gemini API
+    current_app.logger.info(f"Attempting to analyze symptoms using Gemini API")
+    assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
 
-    # If Llama API fails and fallback is enabled, try OpenAI
+    # If Gemini API fails and fallback is enabled, try OpenAI
     if assistant_message is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Llama API failed for symptom checking, falling back to OpenAI")
+        current_app.logger.warning(f"Gemini API failed for symptom checking, falling back to OpenAI")
         try:
             api_key = get_openai_api_key()
             if not api_key:

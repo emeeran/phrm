@@ -5,6 +5,8 @@ Main entry point for the application.
 """
 
 import os
+import sys
+import requests
 from dotenv import load_dotenv
 from app import create_app, db
 from app.models import User, FamilyMember, HealthRecord, Document, AISummary
@@ -28,7 +30,46 @@ def make_shell_context():
         'AISummary': AISummary
     }
 
+# Check if Gemini API is configured
+def check_gemini_configuration():
+    """Check if Gemini API is properly configured"""
+    gemini_api_key = app.config.get('GEMINI_API_KEY')
+    gemini_model = app.config.get('GEMINI_MODEL', 'gemini-1.5-pro')
+    
+    if not gemini_api_key:
+        print("⚠️ Gemini API key is not configured")
+        print("   AI features will fall back to OpenAI if configured.")
+        return False
+    
+    try:
+        # Import here to avoid circular imports
+        import google.generativeai as genai
+        genai.configure(api_key=gemini_api_key)
+        print(f"✅ Gemini API configured successfully")
+        print(f"   Using model: {gemini_model}")
+        return True
+    except ImportError:
+        print("⚠️ Google Generative AI package not installed")
+        print("   Run: pip install google-generativeai")
+        return False
+    except Exception as e:
+        print(f"⚠️ Error configuring Gemini API: {e}")
+        return False
+
+# Try to check Gemini configuration on startup
+check_gemini_configuration()
+
 # Custom Jinja2 filter to format dates and other template helpers
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Run the Personal Health Record Manager')
+    parser.add_argument('--port', type=int, default=5000, help='Port to run the application on')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to run the application on')
+    args = parser.parse_args()
+    
+    app.run(host=args.host, port=args.port, debug=True)
 @app.template_filter('format_date')
 def format_date_filter(date):
     """Format a date object to a readable string"""
