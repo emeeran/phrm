@@ -575,9 +575,9 @@ def chat():
                 if not family_member or family_member not in current_user.family_members:
                     return jsonify({'error': 'Family member not found'}), 404
                 
+                # Use the enhanced medical context method
+                context = family_member.get_complete_medical_context()
                 family_records = family_member.records.all()
-                context = f"The user is asking about {family_member.first_name} {family_member.last_name}.\n"
-                context += f"{family_member.first_name} has {len(family_records)} health records.\n"
                 target_records = family_records
                 patient_name = f"{family_member.first_name}'s"
             except (ValueError, TypeError):

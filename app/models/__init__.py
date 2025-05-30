@@ -50,11 +50,96 @@ class FamilyMember(db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=True)
     relationship = db.Column(db.String(50), nullable=True)  # e.g., spouse, child, parent
+    
+    # Basic Information (existing fields)
+    gender = db.Column(db.String(20), nullable=True)
+    blood_type = db.Column(db.String(10), nullable=True)
+    height = db.Column(db.Float, nullable=True)
+    weight = db.Column(db.Float, nullable=True)
+    
+    # Contact Information (existing fields)
+    emergency_contact_name = db.Column(db.String(100), nullable=True)
+    emergency_contact_phone = db.Column(db.String(20), nullable=True)
+    primary_doctor = db.Column(db.String(100), nullable=True)
+    
+    # Insurance Information (existing fields)
+    insurance_provider = db.Column(db.String(100), nullable=True)
+    insurance_number = db.Column(db.String(50), nullable=True)
+    
+    # Medical History Fields (existing fields)
+    allergies = db.Column(db.Text, nullable=True)  # Known allergies
+    chronic_conditions = db.Column(db.Text, nullable=True)  # Chronic conditions
+    current_medications = db.Column(db.Text, nullable=True)  # Current medications
+    family_medical_history = db.Column(db.Text, nullable=True)  # Family medical history
+    surgical_history = db.Column(db.Text, nullable=True)  # Surgical history
+    notes = db.Column(db.Text, nullable=True)  # Additional notes
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     records = db.relationship('HealthRecord', backref='family_member', lazy='dynamic')
+
+    def get_complete_medical_context(self):
+        """Get complete medical context for AI chat"""
+        context = f"--- Medical Profile for {self.first_name} {self.last_name} ---\n"
+        
+        # Basic Demographics
+        if self.date_of_birth:
+            from datetime import datetime
+            today = datetime.today()
+            age = today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+            context += f"Age: {age} years old\n"
+        
+        if self.relationship:
+            context += f"Relationship: {self.relationship}\n"
+        
+        if self.gender:
+            context += f"Gender: {self.gender}\n"
+        
+        if self.blood_type:
+            context += f"Blood Type: {self.blood_type}\n"
+        
+        if self.height:
+            context += f"Height: {self.height} cm\n"
+        
+        if self.weight:
+            context += f"Weight: {self.weight} kg\n"
+        
+        # Medical Conditions
+        if self.chronic_conditions:
+            context += f"\nChronic Conditions:\n{self.chronic_conditions}\n"
+        
+        if self.allergies:
+            context += f"\nAllergies:\n{self.allergies}\n"
+        
+        # Medications
+        if self.current_medications:
+            context += f"\nCurrent Medications:\n{self.current_medications}\n"
+        
+        # Medical History
+        if self.family_medical_history:
+            context += f"\nFamily Medical History:\n{self.family_medical_history}\n"
+        
+        if self.surgical_history:
+            context += f"\nSurgical History:\n{self.surgical_history}\n"
+        
+        # Additional Notes
+        if self.notes:
+            context += f"\nAdditional Notes:\n{self.notes}\n"
+        
+        # Add health records
+        records = self.records.order_by(HealthRecord.date.desc()).all()
+        if records:
+            context += f"\n--- Health Records ({len(records)} total) ---\n"
+            for idx, record in enumerate(records[:10]):  # Limit to 10 most recent
+                context += f"\n{idx+1}. {record.title}\n"
+                context += f"   Type: {record.record_type.replace('_', ' ').title()}\n"
+                context += f"   Date: {record.date.strftime('%Y-%m-%d')}\n"
+                if record.description:
+                    context += f"   Details: {record.description[:200]}{'...' if len(record.description) > 200 else ''}\n"
+        
+        return context
 
     def __repr__(self):
         return f'<FamilyMember {self.first_name} {self.last_name}>'

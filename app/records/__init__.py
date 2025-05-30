@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, TextAreaField, SelectField, DateField, SubmitField
+from wtforms import StringField, TextAreaField, SelectField, DateField, SubmitField, FloatField
 from wtforms.validators import DataRequired, Length, Optional
 import os
 from datetime import datetime
@@ -35,6 +35,35 @@ class FamilyMemberForm(FlaskForm):
     last_name = StringField('Last Name', validators=[DataRequired()])
     date_of_birth = DateField('Date of Birth', format='%Y-%m-%d', validators=[Optional()])
     relationship = StringField('Relationship', validators=[Optional()])
+    
+    # Basic Information
+    gender = StringField('Gender', validators=[Optional()])
+    blood_type = StringField('Blood Type', validators=[Optional()])
+    height = FloatField('Height (cm)', validators=[Optional()])
+    weight = FloatField('Weight (kg)', validators=[Optional()])
+    
+    # Medical History Section
+    family_medical_history = TextAreaField('Family Medical History', 
+                                         description='Provide family medical history including genetic conditions, hereditary diseases, etc.',
+                                         validators=[Optional()])
+    surgical_history = TextAreaField('Surgical History',
+                                   description='List any past surgeries and dates',
+                                   validators=[Optional()])
+    current_medications = TextAreaField('Current Medications',
+                                      description='List all current medications with dosages and frequencies',
+                                      validators=[Optional()])
+    allergies = TextAreaField('Known Allergies',
+                            description='List any known allergies (medications, foods, environmental)',
+                            validators=[Optional()])
+    chronic_conditions = TextAreaField('Chronic Conditions',
+                                     description='List any ongoing medical conditions',
+                                     validators=[Optional()])
+    
+    # Additional Notes
+    notes = TextAreaField('Additional Notes',
+                         description='Any other relevant medical information',
+                         validators=[Optional()])
+    
     submit = SubmitField('Save Family Member')
 
 # Helper functions
@@ -328,7 +357,7 @@ def list_family():
 @records_bp.route('/family/add', methods=['GET', 'POST'])
 @login_required
 def add_family_member():
-    """Add a new family member"""
+    """Add a new family member with complete medical history"""
     form = FamilyMemberForm()
 
     if form.validate_on_submit():
@@ -336,7 +365,17 @@ def add_family_member():
             first_name=form.first_name.data,
             last_name=form.last_name.data,
             date_of_birth=form.date_of_birth.data,
-            relationship=form.relationship.data
+            relationship=form.relationship.data,
+            gender=form.gender.data,
+            blood_type=form.blood_type.data,
+            height=form.height.data,
+            weight=form.weight.data,
+            family_medical_history=form.family_medical_history.data,
+            surgical_history=form.surgical_history.data,
+            current_medications=form.current_medications.data,
+            allergies=form.allergies.data,
+            chronic_conditions=form.chronic_conditions.data,
+            notes=form.notes.data
         )
 
         # Add to current user's family members
@@ -344,9 +383,174 @@ def add_family_member():
         db.session.add(family_member)
         db.session.commit()
 
-        flash('Family member added successfully!', 'success')
+        # Create initial medical history records if provided
+        records_to_create = []
+        
+        if form.family_medical_history.data:
+            records_to_create.append(HealthRecord(
+                title="Family Medical History",
+                record_type="note",
+                description=form.family_medical_history.data,
+                date=datetime.utcnow(),
+                family_member_id=family_member.id
+            ))
+        
+        if form.surgical_history.data:
+            records_to_create.append(HealthRecord(
+                title="Surgical History",
+                record_type="note",
+                description=form.surgical_history.data,
+                date=datetime.utcnow(),
+                family_member_id=family_member.id
+            ))
+        
+        if form.current_medications.data:
+            records_to_create.append(HealthRecord(
+                title="Current Medications",
+                record_type="prescription",
+                description=form.current_medications.data,
+                date=datetime.utcnow(),
+                family_member_id=family_member.id
+            ))
+        
+        if form.allergies.data:
+            records_to_create.append(HealthRecord(
+                title="Known Allergies",
+                record_type="note",
+                description=form.allergies.data,
+                date=datetime.utcnow(),
+                family_member_id=family_member.id
+            ))
+        
+        if form.chronic_conditions.data:
+            records_to_create.append(HealthRecord(
+                title="Chronic Conditions",
+                record_type="note",
+                description=form.chronic_conditions.data,
+                date=datetime.utcnow(),
+                family_member_id=family_member.id
+            ))
+        
+        # Add all records at once
+        for record in records_to_create:
+            db.session.add(record)
+        
+        db.session.commit()
+
+        flash(f'Family member {family_member.first_name} {family_member.last_name} added successfully with complete medical history!', 'success')
         return redirect(url_for('records.list_family'))
 
     return render_template('records/family_form.html',
                           title='Add Family Member',
                           form=form)
+
+@records_bp.route('/family/<int:family_member_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_family_member(family_member_id):
+    """Edit an existing family member"""
+    family_member = FamilyMember.query.get_or_404(family_member_id)
+    
+    # Check if the family member belongs to the current user
+    if family_member not in current_user.family_members:
+        flash('You do not have permission to edit this family member', 'danger')
+        return redirect(url_for('records.list_family'))
+    
+    form = FamilyMemberForm()
+
+    if form.validate_on_submit():
+        # Update family member information
+        family_member.first_name = form.first_name.data
+        family_member.last_name = form.last_name.data
+        family_member.date_of_birth = form.date_of_birth.data
+        family_member.relationship = form.relationship.data
+        family_member.gender = form.gender.data
+        family_member.blood_type = form.blood_type.data
+        family_member.height = form.height.data
+        family_member.weight = form.weight.data
+        family_member.family_medical_history = form.family_medical_history.data
+        family_member.surgical_history = form.surgical_history.data
+        family_member.current_medications = form.current_medications.data
+        family_member.allergies = form.allergies.data
+        family_member.chronic_conditions = form.chronic_conditions.data
+        family_member.notes = form.notes.data
+        
+        db.session.commit()
+
+        flash(f'Family member {family_member.first_name} {family_member.last_name} updated successfully!', 'success')
+        return redirect(url_for('records.list_family'))
+
+    elif request.method == 'GET':
+        # Populate form with existing family member data
+        form.first_name.data = family_member.first_name
+        form.last_name.data = family_member.last_name
+        form.date_of_birth.data = family_member.date_of_birth
+        form.relationship.data = family_member.relationship
+        form.gender.data = family_member.gender
+        form.blood_type.data = family_member.blood_type
+        form.height.data = family_member.height
+        form.weight.data = family_member.weight
+        form.family_medical_history.data = family_member.family_medical_history
+        form.surgical_history.data = family_member.surgical_history
+        form.current_medications.data = family_member.current_medications
+        form.allergies.data = family_member.allergies
+        form.chronic_conditions.data = family_member.chronic_conditions
+        form.notes.data = family_member.notes
+
+    return render_template('records/family_form.html',
+                          title=f'Edit {family_member.first_name} {family_member.last_name}',
+                          form=form,
+                          family_member=family_member)
+
+@records_bp.route('/family/<int:family_member_id>/delete', methods=['POST'])
+@login_required
+def delete_family_member(family_member_id):
+    """Delete a family member and all associated records"""
+    family_member = FamilyMember.query.get_or_404(family_member_id)
+    
+    # Check if the family member belongs to the current user
+    if family_member not in current_user.family_members:
+        flash('You do not have permission to delete this family member', 'danger')
+        return redirect(url_for('records.list_family'))
+    
+    # Get family member name for flash message
+    member_name = f"{family_member.first_name} {family_member.last_name}"
+    
+    # Get associated health records to delete documents
+    associated_records = HealthRecord.query.filter_by(family_member_id=family_member.id).all()
+    
+    # Delete files associated with health records
+    for record in associated_records:
+        documents = Document.query.filter_by(health_record_id=record.id).all()
+        for doc in documents:
+            try:
+                os.remove(doc.file_path)
+            except (FileNotFoundError, PermissionError) as e:
+                current_app.logger.error(f"Error deleting file {doc.file_path}: {e}")
+    
+    # Delete family member (cascade will delete associated records and documents)
+    db.session.delete(family_member)
+    db.session.commit()
+
+    flash(f'Family member {member_name} and all associated records have been deleted successfully', 'success')
+    return redirect(url_for('records.list_family'))
+
+@records_bp.route('/family/<int:family_member_id>')
+@login_required
+def view_family_member(family_member_id):
+    """View a specific family member's details"""
+    family_member = FamilyMember.query.get_or_404(family_member_id)
+    
+    # Check if the family member belongs to the current user
+    if family_member not in current_user.family_members:
+        flash('You do not have permission to view this family member', 'danger')
+        return redirect(url_for('records.list_family'))
+    
+    # Get recent health records for this family member
+    recent_records = HealthRecord.query.filter_by(family_member_id=family_member.id)\
+                                      .order_by(HealthRecord.date.desc())\
+                                      .limit(10).all()
+    
+    return render_template('records/family_profile.html',
+                          title=f'{family_member.first_name} {family_member.last_name}',
+                          family_member=family_member,
+                          recent_records=recent_records)

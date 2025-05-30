@@ -20,6 +20,7 @@
                         <th>Relationship</th>
                         <th>Date of Birth</th>
                         <th>Records</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,6 +30,26 @@
                         <td>{{ member.relationship or '-' }}</td>
                         <td>{{ member.date_of_birth|format_date if member.date_of_birth else '-' }}</td>
                         <td>{{ member.records.count() }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('records.view_family_member', family_member_id=member.id) }}" 
+                                   class="btn btn-outline-secondary" title="View Profile">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('records.edit_family_member', family_member_id=member.id) }}" 
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('records.list_records', family_member=member.id) }}" 
+                                   class="btn btn-outline-info" title="View Records">
+                                    <i class="fas fa-file-medical"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal{{ member.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -41,4 +62,41 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Delete Confirmation Modals -->
+{% for member in family_members %}
+<div class="modal fade" id="deleteModal{{ member.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ member.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="deleteModalLabel{{ member.id }}">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Delete Family Member
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ member.first_name }} {{ member.last_name }}</strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning me-2"></i>
+                    <strong>Warning:</strong> This action will permanently delete:
+                    <ul class="mb-0 mt-2">
+                        <li>All medical information for this family member</li>
+                        <li>All {{ member.records.count() }} health record(s)</li>
+                        <li>All associated documents and files</li>
+                    </ul>
+                </div>
+                <p class="text-muted"><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('records.delete_family_member', family_member_id=member.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete Permanently
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
