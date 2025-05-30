@@ -13,31 +13,139 @@ document.addEventListener('DOMContentLoaded', function () {
         return new bootstrap.Popover(popoverTriggerEl)
     });
 
-    // File upload preview
+    // Enhanced file upload preview for multiple files
+    const documentsInput = document.getElementById('documents-input');
+    if (documentsInput) {
+        let selectedFiles = [];
+        
+        documentsInput.addEventListener('change', function (e) {
+            const files = Array.from(this.files);
+            selectedFiles = files;
+            updateFilePreview();
+        });
+        
+        function updateFilePreview() {
+            const previewContainer = document.getElementById('file-preview');
+            
+            if (selectedFiles && selectedFiles.length > 0) {
+                previewContainer.style.display = 'block';
+                previewContainer.innerHTML = '<div class="d-flex justify-content-between align-items-center mb-3"><h6 class="mb-0">Selected Files (' + selectedFiles.length + '):</h6><button type="button" class="btn btn-sm btn-outline-danger" id="clear-all-files"><i class="fas fa-trash"></i> Clear All</button></div><div class="row" id="file-list"></div>';
+                
+                const fileList = document.getElementById('file-list');
+                
+                selectedFiles.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'col-md-4 mb-3';
+                    fileItem.dataset.fileIndex = index;
+                    
+                    const fileCard = document.createElement('div');
+                    fileCard.className = 'card position-relative';
+                    
+                    let previewContent = '';
+                    
+                    // Show preview for image files
+                    if (file.type.match('image.*')) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            const img = fileCard.querySelector('.file-preview-img');
+                            if (img) {
+                                img.src = e.target.result;
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                        previewContent = '<img class="file-preview-img card-img-top" style="height: 120px; object-fit: cover;" alt="Preview">';
+                    } else if (file.type === 'application/pdf') {
+                        previewContent = '<div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 120px;"><i class="fas fa-file-pdf fa-3x text-danger"></i></div>';
+                    } else {
+                        previewContent = '<div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 120px;"><i class="fas fa-file fa-3x text-secondary"></i></div>';
+                    }
+                    
+                    fileCard.innerHTML = `
+                        ${previewContent}
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-file-btn" data-file-index="${index}" style="z-index: 5;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="card-body p-2">
+                            <p class="card-text small text-truncate" title="${file.name}">${file.name}</p>
+                            <small class="text-muted">${formatFileSize(file.size)}</small>
+                        </div>
+                    `;
+                    
+                    fileItem.appendChild(fileCard);
+                    fileList.appendChild(fileItem);
+                });
+                
+                // Add event listeners for remove buttons
+                document.querySelectorAll('.remove-file-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const fileIndex = parseInt(this.dataset.fileIndex);
+                        removeFile(fileIndex);
+                    });
+                });
+                
+                // Add event listener for clear all button
+                document.getElementById('clear-all-files').addEventListener('click', function() {
+                    selectedFiles = [];
+                    updateFileInput();
+                    updateFilePreview();
+                });
+                
+            } else {
+                previewContainer.style.display = 'none';
+                previewContainer.innerHTML = '';
+            }
+        }
+        
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileInput();
+            updateFilePreview();
+        }
+        
+        function updateFileInput() {
+            // Create new FileList from selectedFiles
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => dt.items.add(file));
+            documentsInput.files = dt.files;
+        }
+    }
+
+    // File upload preview (legacy support for other file inputs)
     const fileInputs = document.querySelectorAll('.file-upload');
     fileInputs.forEach(input => {
-        input.addEventListener('change', function (e) {
-            const fileLabel = this.nextElementSibling;
-            if (this.files && this.files.length > 0) {
-                const fileNames = Array.from(this.files).map(file => file.name).join(', ');
-                fileLabel.textContent = fileNames;
+        if (input.id !== 'documents-input') { // Skip if it's the enhanced input
+            input.addEventListener('change', function (e) {
+                const fileLabel = this.nextElementSibling;
+                if (this.files && this.files.length > 0) {
+                    const fileNames = Array.from(this.files).map(file => file.name).join(', ');
+                    fileLabel.textContent = fileNames;
 
-                // Show preview for image files
-                if (this.files[0].type.match('image.*')) {
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        const previewContainer = document.querySelector('.file-preview');
-                        if (previewContainer) {
-                            previewContainer.innerHTML = `<img src="${e.target.result}" class="img-fluid img-thumbnail mb-3" alt="Preview">`;
+                    // Show preview for image files
+                    if (this.files[0].type.match('image.*')) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            const previewContainer = document.querySelector('.file-preview');
+                            if (previewContainer) {
+                                previewContainer.innerHTML = `<img src="${e.target.result}" class="img-fluid img-thumbnail mb-3" alt="Preview">`;
+                            }
                         }
+                        reader.readAsDataURL(this.files[0]);
                     }
-                    reader.readAsDataURL(this.files[0]);
+                } else {
+                    fileLabel.textContent = 'Choose file...';
                 }
-            } else {
-                fileLabel.textContent = 'Choose file...';
-            }
-        });
+            });
+        }
     });
+
+    // Helper function to format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
     // Health Record filtering
     const filterButtons = document.querySelectorAll('.filter-btn');
@@ -564,4 +672,139 @@ document.addEventListener('DOMContentLoaded', function () {
         // Initialize the welcome message
         updateWelcomeMessage();
     }
+
+    // Enhanced drag and drop file upload
+    const fileDropAreas = document.querySelectorAll('#documents-input');
+    fileDropAreas.forEach(fileInput => {
+        const parentDiv = fileInput.closest('.mb-3');
+        
+        if (parentDiv) {
+            // Add drag and drop styling
+            parentDiv.style.position = 'relative';
+            
+            // Create drop overlay
+            const dropOverlay = document.createElement('div');
+            dropOverlay.className = 'file-drop-overlay';
+            dropOverlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(66, 135, 245, 0.1);
+                border: 2px dashed #4287f5;
+                border-radius: 0.375rem;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                color: #4287f5;
+                z-index: 10;
+            `;
+            dropOverlay.innerHTML = '<i class="fas fa-cloud-upload-alt fa-2x mb-2"></i><br>Drop files here';
+            dropOverlay.style.flexDirection = 'column';
+            parentDiv.appendChild(dropOverlay);
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                parentDiv.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // Highlight drop area when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                parentDiv.addEventListener(eventName, () => {
+                    dropOverlay.style.display = 'flex';
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                parentDiv.addEventListener(eventName, () => {
+                    dropOverlay.style.display = 'none';
+                }, false);
+            });
+
+            // Handle dropped files
+            parentDiv.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                // Create a new FileList-like object and assign to input
+                fileInput.files = files;
+                
+                // Trigger change event to update preview
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }, false);
+        }
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // File validation function
+    function validateFiles(files) {
+        const maxFileSize = 16 * 1024 * 1024; // 16MB
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        const errors = [];
+        
+        Array.from(files).forEach((file, index) => {
+            // Check file size
+            if (file.size > maxFileSize) {
+                errors.push(`File "${file.name}" exceeds the 16MB size limit.`);
+            }
+            
+            // Check file type
+            if (!allowedTypes.includes(file.type)) {
+                errors.push(`File "${file.name}" is not an allowed file type. Please upload JPG, PNG, or PDF files only.`);
+            }
+        });
+        
+        if (errors.length > 0) {
+            alert('File validation errors:\n\n' + errors.join('\n'));
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Upload progress indicator
+    function showUploadProgress() {
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'upload-progress';
+        progressContainer.className = 'alert alert-info mt-3';
+        progressContainer.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                <span>Uploading files, please wait...</span>
+            </div>
+        `;
+        
+        const submitButton = document.querySelector('form[enctype="multipart/form-data"] button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...';
+            submitButton.parentNode.insertBefore(progressContainer, submitButton);
+        }
+    }
+
+    // Enhanced form submission handling
+    const recordForms = document.querySelectorAll('form[enctype="multipart/form-data"]');
+    recordForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const fileInput = this.querySelector('#documents-input');
+            if (fileInput && fileInput.files.length > 0) {
+                if (!validateFiles(fileInput.files)) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Show progress indicator for multiple files
+                if (fileInput.files.length > 1) {
+                    showUploadProgress();
+                }
+            }
+        });
+    });
 });

@@ -175,6 +175,7 @@ class Document(db.Model):
     file_size = db.Column(db.Integer, nullable=False)  # Size in bytes
     health_record_id = db.Column(db.Integer, db.ForeignKey('health_records.id'), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    extracted_text = db.Column(db.Text, nullable=True)  # Store OCR extracted text for PDFs
     vectorized = db.Column(db.Boolean, default=False)  # Flag to track if document is vectorized for RAG
 
     def __repr__(self):

@@ -27,7 +27,8 @@ class RecordForm(FlaskForm):
     family_member = SelectField('Family Member', coerce=int, validators=[Optional()])
     documents = FileField('Upload Documents', validators=[Optional(),
                                                          FileAllowed(['jpg', 'jpeg', 'png', 'pdf'],
-                                                                    'Only images and PDFs are allowed')])
+                                                                    'Only images and PDFs are allowed')],
+                         render_kw={'multiple': True})
     submit = SubmitField('Save Record')
 
 class FamilyMemberForm(FlaskForm):
@@ -86,11 +87,30 @@ def save_document(file, record_id):
         file_type = 'jpeg'
     file_size = os.path.getsize(file_path)
 
+    # Initialize extracted text
+    extracted_text = None
+    
+    # For PDF files, automatically extract text using OCR
+    if file_type == 'pdf':
+        try:
+            from ..ai import extract_text_from_pdf
+            current_app.logger.info(f"Extracting text from uploaded PDF: {filename}")
+            extracted_text = extract_text_from_pdf(file_path)
+            if extracted_text and extracted_text.strip():
+                current_app.logger.info(f"Successfully extracted {len(extracted_text)} characters from {filename}")
+            else:
+                current_app.logger.warning(f"No text extracted from PDF {filename}")
+                extracted_text = None
+        except Exception as e:
+            current_app.logger.error(f"Error extracting text from PDF {filename}: {e}")
+            extracted_text = None
+
     return {
         'filename': filename,
         'file_path': file_path,
         'file_type': file_type,
-        'file_size': file_size
+        'file_size': file_size,
+        'extracted_text': extracted_text
     }
 
 # Routes
@@ -127,6 +147,7 @@ def list_records():
     page = request.args.get('page', 1, type=int)
     record_type = request.args.get('type', None)
     family_member_id = request.args.get('family_member', None, type=int)
+    search_name = request.args.get('name', None)
 
     # Base query
     query = HealthRecord.query
@@ -135,17 +156,33 @@ def list_records():
     if record_type:
         query = query.filter_by(record_type=record_type)
 
+    # Filter by name (title) if specified
+    if search_name:
+        query = query.filter(HealthRecord.title.ilike(f'%{search_name}%'))
+
     # Filter by owner (user or specified family member)
-    if family_member_id:
-        # Check if the family member belongs to the current user
-        if FamilyMember.query.get(family_member_id) in current_user.family_members:
-            query = query.filter_by(family_member_id=family_member_id)
+    if family_member_id is not None:
+        if family_member_id == 0:
+            # Show only user's own records
+            query = query.filter_by(user_id=current_user.id)
         else:
-            flash('You do not have access to this family member', 'danger')
-            return redirect(url_for('records.list_records'))
+            # Check if the family member belongs to the current user
+            family_member = FamilyMember.query.get(family_member_id)
+            if family_member and family_member in current_user.family_members:
+                query = query.filter_by(family_member_id=family_member_id)
+            else:
+                flash('You do not have access to this family member', 'danger')
+                return redirect(url_for('records.list_records'))
     else:
-        # Show user's own records
-        query = query.filter_by(user_id=current_user.id)
+        # Show user's own records and family member records
+        family_member_ids = [fm.id for fm in current_user.family_members]
+        if family_member_ids:
+            query = query.filter(
+                (HealthRecord.user_id == current_user.id) |
+                (HealthRecord.family_member_id.in_(family_member_ids))
+            )
+        else:
+            query = query.filter_by(user_id=current_user.id)
 
     # Order by date, newest first
     records = query.order_by(HealthRecord.date.desc()).paginate(page=page, per_page=10)
@@ -154,7 +191,8 @@ def list_records():
                           title='Health Records',
                           records=records,
                           record_type=record_type,
-                          family_member_id=family_member_id)
+                          family_member_id=family_member_id,
+                          search_name=search_name)
 
 @records_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -191,20 +229,24 @@ def create_record():
         db.session.add(record)
         db.session.commit()
 
-        # Handle document upload if provided
+        # Handle multiple document uploads if provided
         if form.documents.data:
-            file = form.documents.data
-            file_info = save_document(file, record.id)
+            files = request.files.getlist('documents')
+            for file in files:
+                if file and file.filename:  # Check if file is not empty
+                    file_info = save_document(file, record.id)
 
-            # Create document record
-            document = Document(
-                filename=file_info['filename'],
-                file_path=file_info['file_path'],
-                file_type=file_info['file_type'],
-                file_size=file_info['file_size'],
-                health_record_id=record.id
-            )
-            db.session.add(document)
+                    # Create document record
+                    document = Document(
+                        filename=file_info['filename'],
+                        file_path=file_info['file_path'],
+                        file_type=file_info['file_type'],
+                        file_size=file_info['file_size'],
+                        extracted_text=file_info['extracted_text'],
+                        health_record_id=record.id
+                    )
+                    db.session.add(document)
+            
             db.session.commit()
 
         flash('Health record created successfully!', 'success')
@@ -276,20 +318,23 @@ def edit_record(record_id):
                 flash('Invalid family member selection', 'danger')
                 return redirect(url_for('records.edit_record', record_id=record.id))
 
-        # Handle document upload if provided
+        # Handle multiple document uploads if provided
         if form.documents.data:
-            file = form.documents.data
-            file_info = save_document(file, record.id)
+            files = request.files.getlist('documents')
+            for file in files:
+                if file and file.filename:  # Check if file is not empty
+                    file_info = save_document(file, record.id)
 
-            # Create document record
-            document = Document(
-                filename=file_info['filename'],
-                file_path=file_info['file_path'],
-                file_type=file_info['file_type'],
-                file_size=file_info['file_size'],
-                health_record_id=record.id
-            )
-            db.session.add(document)
+                    # Create document record
+                    document = Document(
+                        filename=file_info['filename'],
+                        file_path=file_info['file_path'],
+                        file_type=file_info['file_type'],
+                        file_size=file_info['file_size'],
+                        extracted_text=file_info['extracted_text'],
+                        health_record_id=record.id
+                    )
+                    db.session.add(document)
 
         db.session.commit()
         flash('Health record updated successfully!', 'success')
