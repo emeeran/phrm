@@ -148,7 +148,8 @@ main.container-fluid {
     padding-left: 2rem;
 }
 
-.timeline::before {
+/* Vertical line removed - no connecting line between timeline items */
+/* .timeline::before {
     content: '';
     position: absolute;
     left: 0.5rem;
@@ -156,7 +157,7 @@ main.container-fluid {
     bottom: 0;
     width: 2px;
     background-color: #dee2e6;
-}
+} */
 
 .timeline-item {
     position: relative;
@@ -356,7 +357,8 @@ main.container-fluid {
     margin: 0 auto;
 }
 
-.timeline::after {
+/* Vertical center line removed */
+/* .timeline::after {
     content: '';
     position: absolute;
     width: 2px;
@@ -365,7 +367,7 @@ main.container-fluid {
     bottom: 0;
     left: 50%;
     margin-left: -1px;
-}
+} */
 
 .timeline-container {
     padding: 10px 40px;
@@ -403,9 +405,10 @@ main.container-fluid {
 
 /* Responsive tweaks */
 @media (max-width: 768px) {
-    .timeline::after {
+    /* Vertical line positioning removed */
+    /* .timeline::after {
         left: 31px;
-    }
+    } */
 
     .timeline-container {
         width: 100%;
