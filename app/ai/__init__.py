@@ -5,12 +5,25 @@ import openai
 import json
 from ..models import db, HealthRecord, Document, AISummary, FamilyMember
 from ..utils.ai_helpers import extract_text_from_pdf, call_gemini_api, call_openai_api, get_gemini_api_key, initialize_gemini, get_openai_api_key
+from ..utils.security import (
+    log_security_event, detect_suspicious_patterns, 
+    sanitize_html
+)
+from ..utils.ai_security import (
+    AISecurityManager, ai_security_required, 
+    secure_ai_response_headers, validate_medical_context_access
+)
+from ..utils.ai_audit import ai_audit_required
+from ..utils.performance import monitor_performance
+from .. import limiter, cache
 from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import TextLoader, PyPDFLoader
 from langchain.chains import RetrievalQA
 from langchain.llms import OpenAI
+import re
+import time
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
@@ -290,137 +303,276 @@ def create_rag_for_documents(documents):
 # Routes
 @ai_bp.route('/summarize/<int:record_id>', methods=['GET', 'POST'])
 @login_required
+@limiter.limit("5 per minute")  # Rate limit AI summary generation
+@monitor_performance
+@ai_security_required('summarize')
+@ai_audit_required(operation_type='summarize', data_classification='PHI')
+@secure_ai_response_headers()
 def summarize_record(record_id):
     """Create an AI summary of a health record"""
-    record = HealthRecord.query.get_or_404(record_id)
+    try:
+        record = HealthRecord.query.get_or_404(record_id)
 
-    # Check if user has permission to view this record
-    if record.user_id == current_user.id:
-        # This is the user's own record
-        pass
-    elif record.family_member_id and record.family_member in current_user.family_members:
-        # This is a record for a family member of the user
-        pass
-    else:
-        flash('You do not have permission to view this record', 'danger')
+        # Check if user has permission to view this record
+        has_permission = False
+        if record.user_id == current_user.id:
+            # This is the user's own record
+            has_permission = True
+        elif record.family_member_id and record.family_member in current_user.family_members:
+            # This is a record for a family member of the user
+            has_permission = True
+        
+        if not has_permission:
+            log_security_event('unauthorized_ai_summary_attempt', {
+                'user_id': current_user.id,
+                'record_id': record_id,
+                'record_owner_id': record.user_id,
+                'record_family_member_id': record.family_member_id
+            })
+            flash('You do not have permission to view this record', 'danger')
+            return redirect(url_for('records.dashboard'))
+
+        # Check if a summary already exists
+        existing_summary = AISummary.query.filter_by(
+            health_record_id=record.id,
+            summary_type='standard'  # Default to standard summary type
+        ).first()
+
+        if request.method == 'POST':
+            try:
+                # Create a new summary or regenerate an existing one
+                summary_text = create_gpt_summary(record)
+
+                if not summary_text:
+                    log_security_event('ai_summary_generation_failed', {
+                        'user_id': current_user.id,
+                        'record_id': record_id
+                    })
+                    flash('Error generating summary. Please try again later.', 'danger')
+                    return redirect(url_for('records.view_record', record_id=record.id))
+
+                # Sanitize the generated summary
+                summary_text = sanitize_html(summary_text)
+
+                if existing_summary:
+                    # Update existing summary
+                    existing_summary.summary_text = summary_text
+                    db.session.commit()
+                else:
+                    # Create new summary
+                    summary = AISummary(
+                        health_record_id=record.id,
+                        summary_text=summary_text,
+                        summary_type='standard'
+                    )
+                    db.session.add(summary)
+                    db.session.commit()
+
+                # Log successful summary generation
+                log_security_event('ai_summary_generated', {
+                    'user_id': current_user.id,
+                    'record_id': record_id,
+                    'summary_length': len(summary_text)
+                })
+
+                flash('Summary generated successfully!', 'success')
+                return redirect(url_for('ai.view_summary', record_id=record.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"Error generating summary for record {record_id}: {e}")
+                flash('An error occurred while generating the summary. Please try again.', 'danger')
+
+        return render_template('ai/summarize.html',
+                              title='Summarize Record',
+                              record=record,
+                              existing_summary=existing_summary)
+                              
+    except Exception as e:
+        current_app.logger.error(f"Error in summarize_record: {e}")
+        flash('An error occurred while accessing the record', 'danger')
         return redirect(url_for('records.dashboard'))
-
-    # Check if a summary already exists
-    existing_summary = AISummary.query.filter_by(
-        health_record_id=record.id,
-        summary_type='standard'  # Default to standard summary type
-    ).first()
-
-    if request.method == 'POST':
-        # Create a new summary or regenerate an existing one
-        summary_text = create_gpt_summary(record)
-
-        if not summary_text:
-            flash('Error generating summary. Please try again later.', 'danger')
-            return redirect(url_for('records.view_record', record_id=record.id))
-
-        if existing_summary:
-            # Update existing summary
-            existing_summary.summary_text = summary_text
-            db.session.commit()
-        else:
-            # Create new summary
-            summary = AISummary(
-                health_record_id=record.id,
-                summary_text=summary_text,
-                summary_type='standard'
-            )
-            db.session.add(summary)
-            db.session.commit()
-
-        flash('Summary generated successfully!', 'success')
-        return redirect(url_for('ai.view_summary', record_id=record.id))
-
-    return render_template('ai/summarize.html',
-                          title='Summarize Record',
-                          record=record,
-                          existing_summary=existing_summary)
 
 @ai_bp.route('/summary/<int:record_id>')
 @login_required
+@monitor_performance
+@cache.cached(timeout=300)  # Cache summaries for 5 minutes
+@ai_security_required('view_summary')
+@ai_audit_required(operation_type='view_summary', data_classification='PHI')
+@secure_ai_response_headers()
 def view_summary(record_id):
     """View an AI-generated summary"""
-    record = HealthRecord.query.get_or_404(record_id)
+    try:
+        record = HealthRecord.query.get_or_404(record_id)
 
-    # Check if user has permission to view this record
-    if record.user_id == current_user.id:
-        # This is the user's own record
-        pass
-    elif record.family_member_id and record.family_member in current_user.family_members:
-        # This is a record for a family member of the user
-        pass
-    else:
-        flash('You do not have permission to view this record', 'danger')
+        # Check if user has permission to view this record
+        has_permission = False
+        if record.user_id == current_user.id:
+            # This is the user's own record
+            has_permission = True
+        elif record.family_member_id and record.family_member in current_user.family_members:
+            # This is a record for a family member of the user
+            has_permission = True
+        
+        if not has_permission:
+            log_security_event('unauthorized_ai_summary_view_attempt', {
+                'user_id': current_user.id,
+                'record_id': record_id,
+                'record_owner_id': record.user_id,
+                'record_family_member_id': record.family_member_id
+            })
+            flash('You do not have permission to view this record', 'danger')
+            return redirect(url_for('records.dashboard'))
+
+        summary = AISummary.query.filter_by(health_record_id=record.id).first()
+
+        if not summary:
+            flash('No summary available. Please generate one first.', 'info')
+            return redirect(url_for('ai.summarize_record', record_id=record.id))
+
+        # Log successful summary access
+        log_security_event('ai_summary_viewed', {
+            'user_id': current_user.id,
+            'record_id': record_id,
+            'summary_id': summary.id
+        })
+
+        return render_template('ai/view_summary.html',
+                              title='Summary',
+                              record=record,
+                              summary=summary)
+                              
+    except Exception as e:
+        current_app.logger.error(f"Error viewing summary for record {record_id}: {e}")
+        flash('An error occurred while loading the summary', 'danger')
         return redirect(url_for('records.dashboard'))
-
-    summary = AISummary.query.filter_by(health_record_id=record.id).first()
-
-    if not summary:
-        flash('No summary available. Please generate one first.', 'info')
-        return redirect(url_for('ai.summarize_record', record_id=record.id))
-
-    return render_template('ai/view_summary.html',
-                          title='Summary',
-                          record=record,
-                          summary=summary)
 
 @ai_bp.route('/chatbot')
 @login_required
+@limiter.limit("20 per minute")  # Rate limit chatbot interface access
+@monitor_performance
+@ai_security_required('chatbot')
+@ai_audit_required(operation_type='chatbot_access', data_classification='PHI')
 def chatbot():
     """Interactive health chatbot interface"""
-    # Get family members for the patient selector
-    family_members = current_user.family_members
-    return render_template('ai/chatbot.html', title='Health Assistant', family_members=family_members)
+    try:
+        # Get family members for the patient selector
+        family_members = current_user.family_members
+        
+        # Log chatbot access
+        log_security_event('chatbot_accessed', {
+            'user_id': current_user.id,
+            'family_members_count': len(family_members)
+        })
+        
+        return render_template('ai/chatbot.html', title='Health Assistant', family_members=family_members)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error accessing chatbot: {e}")
+        flash('An error occurred while loading the chatbot', 'danger')
+        return redirect(url_for('records.dashboard'))
 
 @ai_bp.route('/chat', methods=['POST'])
 @login_required
+@limiter.limit("15 per minute")  # Rate limit chat API calls
+@monitor_performance
+@ai_security_required('chat')
+@ai_audit_required(operation_type='chat', data_classification='PHI')
+@secure_ai_response_headers()
 def chat():
     """API endpoint for the chatbot"""
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    if not data or 'message' not in data:
-        return jsonify({'error': 'Invalid request'}), 400
+        if not data or 'message' not in data:
+            log_security_event('invalid_chat_request', {
+                'user_id': current_user.id,
+                'data_provided': bool(data),
+                'message_provided': bool(data and 'message' in data)
+            })
+            return jsonify({'error': 'Invalid request'}), 400
 
-    user_message = data['message']
-    mode = data.get('mode', 'public')  # 'private' or 'public' - default to public
-    patient = data.get('patient', 'self')  # 'self' or family member ID
+        user_message = data['message']
+        mode = data.get('mode', 'public')  # 'private' or 'public' - default to public
+        patient = data.get('patient', 'self')  # 'self' or family member ID
 
-    # Handle different modes and patient contexts
-    if mode == 'public':
-        # Public mode - no access to personal records
-        context = "You are operating in public mode with no access to personal medical records. Provide general health information only."
-        system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**PUBLIC MODE RESTRICTIONS**: You are currently in public mode and do not have access to any personal medical records. Provide only general health information and educational content. Do not reference any personal medical history or specific patient data."
-    else:
-        # Private mode - access to records based on patient selection
-        if patient == 'self':
-            # User's own records
-            user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
-            context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
-            context += f"They have {len(user_records)} personal health records.\n"
-            target_records = user_records
-            patient_name = "your"
+        # Input validation and sanitization
+        if not user_message or not isinstance(user_message, str):
+            log_security_event('invalid_chat_message', {
+                'user_id': current_user.id,
+                'message_type': type(user_message).__name__
+            })
+            return jsonify({'error': 'Message is required and must be text'}), 400
+        
+        # Check for suspicious patterns in user input
+        if detect_suspicious_patterns(user_message):
+            log_security_event('suspicious_chat_input', {
+                'user_id': current_user.id,
+                'message_length': len(user_message),
+                'mode': mode,
+                'patient': patient
+            })
+            return jsonify({'error': 'Invalid input detected'}), 400
+
+        # Sanitize user message
+        user_message = sanitize_html(user_message.strip())
+        
+        # Validate mode parameter
+        if mode not in ['public', 'private']:
+            log_security_event('invalid_chat_mode', {
+                'user_id': current_user.id,
+                'mode': mode
+            })
+            return jsonify({'error': 'Invalid mode'}), 400
+
+        # Log chat interaction
+        log_security_event('chat_message_sent', {
+            'user_id': current_user.id,
+            'mode': mode,
+            'patient': patient,
+            'message_length': len(user_message)
+        })
+
+        # Handle different modes and patient contexts
+        if mode == 'public':
+            # Public mode - no access to personal records
+            context = "You are operating in public mode with no access to personal medical records. Provide general health information only."
+            system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**PUBLIC MODE RESTRICTIONS**: You are currently in public mode and do not have access to any personal medical records. Provide only general health information and educational content. Do not reference any personal medical history or specific patient data."
         else:
-            # Family member's records
-            try:
-                family_member_id = int(patient)
-                family_member = FamilyMember.query.get(family_member_id)
-                
-                # Verify the family member belongs to the current user
-                if not family_member or family_member not in current_user.family_members:
-                    return jsonify({'error': 'Family member not found'}), 404
-                
-                # Use the enhanced medical context method
-                context = family_member.get_complete_medical_context()
-                family_records = family_member.records.all()
-                target_records = family_records
-                patient_name = f"{family_member.first_name}'s"
-            except (ValueError, TypeError):
-                return jsonify({'error': 'Invalid patient ID'}), 400
+            # Private mode - access to records based on patient selection
+            if patient == 'self':
+                # User's own records
+                user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
+                context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
+                context += f"They have {len(user_records)} personal health records.\n"
+                target_records = user_records
+                patient_name = "your"
+            else:
+                # Family member's records
+                try:
+                    family_member_id = int(patient)
+                    family_member = FamilyMember.query.get(family_member_id)
+                    
+                    # Verify the family member belongs to the current user
+                    if not family_member or family_member not in current_user.family_members:
+                        log_security_event('unauthorized_family_member_access', {
+                            'user_id': current_user.id,
+                            'attempted_family_member_id': family_member_id,
+                            'valid_family_member': bool(family_member)
+                        })
+                        return jsonify({'error': 'Family member not found'}), 404
+                    
+                    # Use the enhanced medical context method
+                    context = family_member.get_complete_medical_context()
+                    family_records = family_member.records.all()
+                    target_records = family_records
+                    patient_name = f"{family_member.first_name}'s"
+                except (ValueError, TypeError):
+                    log_security_event('invalid_patient_id', {
+                        'user_id': current_user.id,
+                        'patient_value': str(patient)
+                    })
+                    return jsonify({'error': 'Invalid patient ID'}), 400
 
         # Check if user is asking about specific record types
         record_type_keywords = {
@@ -496,128 +648,225 @@ def chat():
             family_member_name = family_member.first_name if 'family_member' in locals() else "the family member"
             system_message = MEDICA_AI_SYSTEM_MESSAGE + f"\n\n**PRIVATE MODE - FAMILY MEMBER RECORDS ACCESS**: You have full access to {family_member_name}'s complete medical history and health records. Use this information to provide personalized health insights about {family_member_name}, interpret their medical data, reference specific records with dates and details when relevant, and offer contextual health guidance for {family_member_name}'s care. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
 
-    # Combine context and user message
-    prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
+        # Combine context and user message
+        prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
-    # Log prompt and system message lengths for debugging
-    current_app.logger.info(f"System message length: {len(system_message)} characters")
-    current_app.logger.info(f"Context length: {len(context)} characters") 
-    current_app.logger.info(f"Full prompt length: {len(prompt)} characters")
+        # Log prompt and system message lengths for debugging
+        current_app.logger.info(f"System message length: {len(system_message)} characters")
+        current_app.logger.info(f"Context length: {len(context)} characters") 
+        current_app.logger.info(f"Full prompt length: {len(prompt)} characters")
 
-    # Use higher token limits for private mode due to comprehensive system message and medical context
-    max_tokens = 8000 if mode == 'private' else 4000
-    temperature = 0.5
+        # Use higher token limits for private mode due to comprehensive system message and medical context
+        max_tokens = 8000 if mode == 'private' else 4000
+        temperature = 0.5
 
-    # First try using Gemini API
-    current_app.logger.info(f"Attempting to generate chat response using Gemini API (mode: {mode}, max_tokens: {max_tokens})")
-    assistant_message = call_gemini_api(system_message, prompt, temperature=temperature, max_tokens=max_tokens)
+        # First try using Gemini API
+        current_app.logger.info(f"Attempting to generate chat response using Gemini API (mode: {mode}, max_tokens: {max_tokens})")
+        assistant_message = call_gemini_api(system_message, prompt, temperature=temperature, max_tokens=max_tokens)
 
-    # If Gemini API fails and fallback is enabled, try OpenAI
-    if assistant_message is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Gemini API failed for chat, falling back to OpenAI")
-        try:
-            api_key = get_openai_api_key()
-            if not api_key:
-                return jsonify({'error': 'API key not configured'}), 500
+        # If Gemini API fails and fallback is enabled, try OpenAI
+        if assistant_message is None and USE_OPENAI_FALLBACK:
+            current_app.logger.warning(f"Gemini API failed for chat, falling back to OpenAI")
+            try:
+                api_key = get_openai_api_key()
+                if not api_key:
+                    return jsonify({'error': 'API key not configured'}), 500
 
-            openai.api_key = api_key
-            # Use higher token limits for private mode
-            openai_max_tokens = 4000 if mode == 'private' else 2000
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=temperature,
-                max_tokens=openai_max_tokens
-            )
-            assistant_message = response.choices[0].message.content.strip()
-        except Exception as e:
-            current_app.logger.error(f"Error in chatbot fallback: {e}")
-            return jsonify({'error': 'An error occurred processing your request'}), 500
+                openai.api_key = api_key
+                # Use higher token limits for private mode
+                openai_max_tokens = 4000 if mode == 'private' else 2000
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=openai_max_tokens
+                )
+                assistant_message = response.choices[0].message.content.strip()
+            except Exception as e:
+                current_app.logger.error(f"Error in chatbot fallback: {e}")
+                return jsonify({'error': 'An error occurred processing your request'}), 500
 
-    if not assistant_message:
-        return jsonify({'error': 'Failed to generate response'}), 500
+        if not assistant_message:
+            log_security_event('chat_response_generation_failed', {
+                'user_id': current_user.id,
+                'mode': mode,
+                'patient': patient
+            })
+            return jsonify({'error': 'Failed to generate response'}), 500
 
-    # Return only the AI response without the standard message
-    return jsonify({
-        'response': assistant_message
-    })
+        # Sanitize the AI response
+        assistant_message = sanitize_html(assistant_message)
+
+        # Log successful chat response
+        log_security_event('chat_response_generated', {
+            'user_id': current_user.id,
+            'mode': mode,
+            'patient': patient,
+            'response_length': len(assistant_message)
+        })
+
+        # Return only the AI response without the standard message
+        return jsonify({
+            'response': assistant_message
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in chat endpoint: {e}")
+        log_security_event('chat_error', {
+            'user_id': current_user.id,
+            'error': str(e)
+        })
+        return jsonify({'error': 'An error occurred processing your request'}), 500
 
 @ai_bp.route('/symptom-checker')
 @login_required
+@limiter.limit("20 per minute")  # Rate limit symptom checker access
+@monitor_performance
+@ai_security_required('symptom_checker')
+@ai_audit_required(operation_type='symptom_checker_access', data_classification='PHI')
 def symptom_checker():
     """Symptom checker interface"""
-    return render_template('ai/symptom_checker.html', title='Symptom Checker')
+    try:
+        # Log symptom checker access
+        log_security_event('symptom_checker_accessed', {
+            'user_id': current_user.id
+        })
+        
+        return render_template('ai/symptom_checker.html', title='Symptom Checker')
+        
+    except Exception as e:
+        current_app.logger.error(f"Error accessing symptom checker: {e}")
+        flash('An error occurred while loading the symptom checker', 'danger')
+        return redirect(url_for('records.dashboard'))
 
 @ai_bp.route('/check-symptoms', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")  # Rate limit symptom checking API calls
+@monitor_performance
+@ai_security_required('check_symptoms')
+@ai_audit_required(operation_type='symptom_analysis', data_classification='PHI')
+@secure_ai_response_headers()
 def check_symptoms():
     """API endpoint for symptom checking"""
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    if not data or 'symptoms' not in data:
-        return jsonify({'error': 'Invalid request'}), 400
+        if not data or 'symptoms' not in data:
+            log_security_event('invalid_symptom_check_request', {
+                'user_id': current_user.id,
+                'data_provided': bool(data),
+                'symptoms_provided': bool(data and 'symptoms' in data)
+            })
+            return jsonify({'error': 'Invalid request'}), 400
 
-    symptoms = data['symptoms']
+        symptoms = data['symptoms']
 
-    # Get user records for context
-    user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
+        # Input validation and sanitization
+        if not symptoms or not isinstance(symptoms, str):
+            log_security_event('invalid_symptoms_input', {
+                'user_id': current_user.id,
+                'symptoms_type': type(symptoms).__name__
+            })
+            return jsonify({'error': 'Symptoms description is required and must be text'}), 400
+        
+        # Check for suspicious patterns in user input
+        if detect_suspicious_patterns(symptoms):
+            log_security_event('suspicious_symptoms_input', {
+                'user_id': current_user.id,
+                'symptoms_length': len(symptoms)
+            })
+            return jsonify({'error': 'Invalid input detected'}), 400
 
-    # Create context from records
-    context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
+        # Sanitize symptoms input
+        symptoms = sanitize_html(symptoms.strip())
+        
+        # Log symptom check request
+        log_security_event('symptom_check_requested', {
+            'user_id': current_user.id,
+            'symptoms_length': len(symptoms)
+        })
 
-    # Add age information if available
-    if current_user.date_of_birth:
-        from datetime import datetime
-        today = datetime.today()
-        age = today.year - current_user.date_of_birth.year - ((today.month, today.day) < (current_user.date_of_birth.month, current_user.date_of_birth.day))
-        context += f"The user is {age} years old.\n"
+        # Get user records for context
+        user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
 
-    # Add past health records
-    if user_records:
-        context += "Here are some relevant past health records:\n"
-        for record in user_records:
-            if record.record_type in ['complaint', 'doctor_visit', 'lab_report']:
-                context += f"- {record.record_type.capitalize()}: {record.title} ({record.date.strftime('%Y-%m-%d')})\n"
+        # Create context from records
+        context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
 
-    # System message for symptom checker - Updated to use comprehensive Medica AI system message
-    system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**SYMPTOM ANALYSIS MODE**: You are operating in symptom analysis mode. Analyze the provided symptoms using your comprehensive medical knowledge, consider differential diagnoses, assess urgency levels, and provide evidence-based guidance. Include clear red flags for emergency situations, suggested timeframes for seeking care, and actionable next steps. Always emphasize when professional medical evaluation is needed."
+        # Add age information if available
+        if current_user.date_of_birth:
+            from datetime import datetime
+            today = datetime.today()
+            age = today.year - current_user.date_of_birth.year - ((today.month, today.day) < (current_user.date_of_birth.month, current_user.date_of_birth.day))
+            context += f"The user is {age} years old.\n"
 
-    # User prompt
-    prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
+        # Add past health records
+        if user_records:
+            context += "Here are some relevant past health records:\n"
+            for record in user_records:
+                if record.record_type in ['complaint', 'doctor_visit', 'lab_report']:
+                    context += f"- {record.record_type.capitalize()}: {record.title} ({record.date.strftime('%Y-%m-%d')})\n"
 
-    # First try using Gemini API
-    current_app.logger.info(f"Attempting to analyze symptoms using Gemini API")
-    assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
+        # System message for symptom checker - Updated to use comprehensive Medica AI system message
+        system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**SYMPTOM ANALYSIS MODE**: You are operating in symptom analysis mode. Analyze the provided symptoms using your comprehensive medical knowledge, consider differential diagnoses, assess urgency levels, and provide evidence-based guidance. Include clear red flags for emergency situations, suggested timeframes for seeking care, and actionable next steps. Always emphasize when professional medical evaluation is needed."
 
-    # If Gemini API fails and fallback is enabled, try OpenAI
-    if assistant_message is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Gemini API failed for symptom checking, falling back to OpenAI")
-        try:
-            api_key = get_openai_api_key()
-            if not api_key:
-                return jsonify({'error': 'API key not configured'}), 500
+        # User prompt
+        prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
-            openai.api_key = api_key
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.5
-            )
-            assistant_message = response.choices[0].message.content.strip()
-        except Exception as e:
-            current_app.logger.error(f"Error in symptom checker fallback: {e}")
-            return jsonify({'error': 'An error occurred processing your request'}), 500
+        # First try using Gemini API
+        current_app.logger.info(f"Attempting to analyze symptoms using Gemini API")
+        assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
 
-    if not assistant_message:
-        return jsonify({'error': 'Failed to analyze symptoms'}), 500
+        # If Gemini API fails and fallback is enabled, try OpenAI
+        if assistant_message is None and USE_OPENAI_FALLBACK:
+            current_app.logger.warning(f"Gemini API failed for symptom checking, falling back to OpenAI")
+            try:
+                api_key = get_openai_api_key()
+                if not api_key:
+                    return jsonify({'error': 'API key not configured'}), 500
 
-    # Return only the AI response without the standard message
-    return jsonify({
-        'analysis': assistant_message
-    })
+                openai.api_key = api_key
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.5
+                )
+                assistant_message = response.choices[0].message.content.strip()
+            except Exception as e:
+                current_app.logger.error(f"Error in symptom checker fallback: {e}")
+                return jsonify({'error': 'An error occurred processing your request'}), 500
+
+        if not assistant_message:
+            log_security_event('symptom_analysis_failed', {
+                'user_id': current_user.id,
+                'symptoms_length': len(symptoms)
+            })
+            return jsonify({'error': 'Failed to analyze symptoms'}), 500
+
+        # Sanitize the AI response
+        assistant_message = sanitize_html(assistant_message)
+
+        # Log successful symptom analysis
+        log_security_event('symptom_analysis_completed', {
+            'user_id': current_user.id,
+            'symptoms_length': len(symptoms),
+            'analysis_length': len(assistant_message)
+        })
+
+        # Return only the AI response without the standard message
+        return jsonify({
+            'analysis': assistant_message
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in symptom checker: {e}")
+        log_security_event('symptom_check_error', {
+            'user_id': current_user.id,
+            'error': str(e)
+        })
+        return jsonify({'error': 'An error occurred processing your request'}), 500
