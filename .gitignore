@@ -6,6 +6,7 @@ docs/
 .pytest_cache/
 uploads/
 *.log
+2del/
 
 
 # Python

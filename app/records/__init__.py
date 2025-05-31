@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, send_from_directory, abort
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 from werkzeug.utils import secure_filename
 from ..models import db, HealthRecord, Document, FamilyMember
+import mimetypes
 
 records_bp = Blueprint('records', __name__, url_prefix='/records')
 
@@ -616,3 +617,63 @@ def view_family_member(family_member_id):
                           title=f'{family_member.first_name} {family_member.last_name}',
                           family_member=family_member,
                           recent_records=recent_records)
+
+# Additional imports for file serving
+@records_bp.route('/uploads/<int:record_id>/<filename>')
+@login_required
+def serve_upload(record_id, filename):
+    """Securely serve uploaded files"""
+    # Get the record to check permissions
+    record = HealthRecord.query.get_or_404(record_id)
+    
+    # Check if user has permission to view this record
+    has_permission = False
+    if record.user_id == current_user.id:
+        # This is the user's own record
+        has_permission = True
+    elif record.family_member_id and record.family_member in current_user.family_members:
+        # This is a record for a family member of the user
+        has_permission = True
+    
+    if not has_permission:
+        abort(404)  # Return 404 instead of 403 to avoid information disclosure
+    
+    # Verify that the requested file belongs to this record
+    document = Document.query.filter_by(
+        health_record_id=record_id,
+        file_path=os.path.join(current_app.config['UPLOAD_FOLDER'], str(record_id), filename)
+    ).first()
+    
+    if not document:
+        abort(404)
+    
+    # Check if file exists on disk
+    file_directory = os.path.join(current_app.config['UPLOAD_FOLDER'], str(record_id))
+    file_path = os.path.join(file_directory, filename)
+    
+    if not os.path.exists(file_path):
+        current_app.logger.error(f"File not found on disk: {file_path}")
+        abort(404)
+    
+    # Set appropriate MIME type
+    mimetype = mimetypes.guess_type(filename)[0]
+    if not mimetype:
+        if filename.lower().endswith('.pdf'):
+            mimetype = 'application/pdf'
+        elif filename.lower().endswith(('.jpg', '.jpeg')):
+            mimetype = 'image/jpeg'
+        elif filename.lower().endswith('.png'):
+            mimetype = 'image/png'
+        else:
+            mimetype = 'application/octet-stream'
+    
+    try:
+        return send_from_directory(
+            directory=file_directory,
+            path=filename,
+            mimetype=mimetype,
+            as_attachment=False  # Display inline for images and PDFs
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error serving file {file_path}: {e}")
+        abort(404)
