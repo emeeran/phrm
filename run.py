@@ -69,15 +69,6 @@ if __name__ == "__main__":
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to run the application on')
     args = parser.parse_args()
     
-    app.run(host=args.host, port=args.port, debug=True)
-@app.template_filter('format_date')
-def format_date_filter(date):
-    """Format a date object to a readable string"""
-    if date:
-        return date.strftime('%B %d, %Y')
-    return ''
-
-if __name__ == '__main__':
     # Create the upload directory if it doesn't exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -88,5 +79,4 @@ if __name__ == '__main__':
             print("Database tables created.")
 
     # Run the application
-    port = int(os.environ.get('FLASK_RUN_PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host=args.host, port=args.port, debug=True)

@@ -72,10 +72,29 @@ def create_app(config_name=None):
             }
             return icons.get(record_type, 'fa-file-medical')
 
+        def calculate_age(birth_date):
+            """Calculate age in years from a birth date"""
+            if birth_date is None:
+                return None
+            
+            today = datetime.now().date()
+            # Convert birth_date to date if it's a datetime object
+            if hasattr(birth_date, 'date'):
+                birth_date = birth_date.date()
+            
+            # Calculate age
+            age = today.year - birth_date.year
+            # Adjust if birthday hasn't occurred this year
+            if today < birth_date.replace(year=today.year):
+                age -= 1
+            
+            return age
+
         return {
             'now': datetime.now(),
             'get_record_badge_class': get_record_badge_class,
-            'get_record_icon': get_record_icon
+            'get_record_icon': get_record_icon,
+            'calculate_age': calculate_age
         }
 
     # Register custom Jinja2 filters
