@@ -13,12 +13,12 @@
         </div>
         <form class="row g-3 mb-3" method="get">
             <div class="col-md-3">
-                <label for="name" class="form-label">Search by Name</label>
-                <input type="text" name="name" id="name" class="form-control" placeholder="Search record title..."
+                <label for="name" class="form-label">Search</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Search records..."
                     value="{{ search_name or '' }}">
             </div>
             <div class="col-md-2">
-                <label for="type" class="form-label">Record Type</label>
+                <label for="type" class="form-label">Type</label>
                 <select name="type" id="type" class="form-select">
                     <option value="">All Types</option>
                     <option value="complaint" {% if record_type=='complaint' %}selected{% endif %}>Complaint/Symptom
@@ -63,9 +63,9 @@
             <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>Type</th>
-                        <th>Title</th>
                         <th>Date</th>
+                        <th>Chief Complaint / Summary</th>
+                        <th>Doctor</th>
                         <th>Owner</th>
                         <th></th>
                     </tr>
@@ -73,16 +73,22 @@
                 <tbody>
                     {% for record in records.items %}
                     <tr>
+                        <td>{{ record.date|format_date if record.date else 'No date' }}</td>
                         <td>
-                            <span class="badge {{ get_record_badge_class(record.record_type) }}">
-                                <i class="fas {{ get_record_icon(record.record_type) }} me-1"></i>
-                                {{ record.record_type|replace('_', ' ')|title }}
-                            </span>
+                            <a href="{{ url_for('records.view_record', record_id=record.id) }}">
+                                {% if record.chief_complaint %}
+                                    {{ record.chief_complaint[:50] }}{% if record.chief_complaint|length > 50 %}...{% endif %}
+                                {% elif record.title %}
+                                    {{ record.title }}
+                                {% else %}
+                                    Medical Record
+                                {% endif %}
+                            </a>
+                            {% if record.diagnosis %}
+                            <br><small class="text-muted">{{ record.diagnosis[:40] }}{% if record.diagnosis|length > 40 %}...{% endif %}</small>
+                            {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('records.view_record', record_id=record.id) }}">{{ record.title }}</a>
-                        </td>
-                        <td>{{ record.date|format_date }}</td>
+                        <td>{{ record.doctor or '-' }}</td>
                         <td>
                             {% if record.user_id %}Myself{% elif record.family_member %}{{
                             record.family_member.first_name }}{% endif %}

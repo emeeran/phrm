@@ -284,12 +284,41 @@ def create_gpt_summary(record, summary_type='standard'):
         A string containing the document explanation or None if there was an error
     """
     # Build the context from record data
-    prompt = f"You are analyzing a health record with the following information:\n\n"
-    prompt += f"Record Type: {record.record_type}\n"
-    prompt += f"Title: {record.title}\n"
-    prompt += f"Date: {record.date.strftime('%Y-%m-%d')}\n"
-    if record.description:
-        prompt += f"Description: {record.description}\n"
+    prompt = f"You are analyzing a medical health record with the following information:\n\n"
+    
+    # Use new standardized medical record fields
+    if record.date:
+        prompt += f"Date: {record.date.strftime('%Y-%m-%d')}\n"
+    
+    if record.chief_complaint:
+        prompt += f"Chief Complaint: {record.chief_complaint}\n"
+    
+    if record.doctor:
+        prompt += f"Doctor: {record.doctor}\n"
+    
+    if record.investigations:
+        prompt += f"Investigations: {record.investigations}\n"
+    
+    if record.diagnosis:
+        prompt += f"Diagnosis: {record.diagnosis}\n"
+    
+    if record.prescription:
+        prompt += f"Prescription: {record.prescription}\n"
+    
+    if record.notes:
+        prompt += f"Notes: {record.notes}\n"
+    
+    if record.review_followup:
+        prompt += f"Review/Follow up: {record.review_followup}\n"
+    
+    # Fallback to legacy fields for backward compatibility
+    if not any([record.chief_complaint, record.doctor, record.diagnosis]):
+        if record.record_type:
+            prompt += f"Record Type: {record.record_type}\n"
+        if record.title:
+            prompt += f"Title: {record.title}\n"
+        if record.description:
+            prompt += f"Description: {record.description}\n"
 
     # Add document contents if available
     documents = record.documents.all()

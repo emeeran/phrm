@@ -14,18 +14,44 @@
                     <div class="col-md-12">
                         <h5 class="mb-3">Record Details</h5>
                         <table class="table table-bordered mb-4">
+                            {% if record.date %}
                             <tr>
-                                <th style="width: 150px;">Record Type</th>
-                                <td>{{ record.record_type | capitalize }}</td>
+                                <th style="width: 150px;">Date</th>
+                                <td>{{ record.date.strftime('%B %d, %Y') }}</td>
                             </tr>
+                            {% endif %}
+                            {% if record.chief_complaint %}
+                            <tr>
+                                <th>Chief Complaint</th>
+                                <td>{{ record.chief_complaint }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if record.doctor %}
+                            <tr>
+                                <th>Doctor</th>
+                                <td>{{ record.doctor }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if record.diagnosis %}
+                            <tr>
+                                <th>Diagnosis</th>
+                                <td>{{ record.diagnosis|nl2br|safe }}</td>
+                            </tr>
+                            {% endif %}
+                            
+                            <!-- Legacy field support for backward compatibility -->
+                            {% if record.title and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                             <tr>
                                 <th>Title</th>
                                 <td>{{ record.title }}</td>
                             </tr>
+                            {% endif %}
+                            {% if record.record_type and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                             <tr>
-                                <th>Date</th>
-                                <td>{{ record.date.strftime('%B %d, %Y') }}</td>
+                                <th>Record Type</th>
+                                <td>{{ record.record_type | capitalize }}</td>
                             </tr>
+                            {% endif %}
                         </table>
 
                         <div class="card mb-4">

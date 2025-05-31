@@ -149,12 +149,25 @@ class HealthRecord(db.Model):
     __tablename__ = 'health_records'
 
     id = db.Column(db.Integer, primary_key=True)
-    record_type = db.Column(db.String(50), nullable=False)  # complaint, doctor_visit, investigation, prescription, lab_report, note
-    title = db.Column(db.String(200), nullable=False)
+    # Legacy fields (maintained for backward compatibility)
+    record_type = db.Column(db.String(50), nullable=True)  # complaint, doctor_visit, investigation, prescription, lab_report, note
+    title = db.Column(db.String(200), nullable=True)
     description = db.Column(db.Text, nullable=True)
+    
+    # Core fields
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     family_member_id = db.Column(db.Integer, db.ForeignKey('family_members.id'), nullable=True)
+    
+    # New standardized medical record fields
+    chief_complaint = db.Column(db.Text, nullable=True)
+    doctor = db.Column(db.String(200), nullable=True)
+    investigations = db.Column(db.Text, nullable=True)
+    diagnosis = db.Column(db.Text, nullable=True)
+    prescription = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    review_followup = db.Column(db.Text, nullable=True)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -162,7 +175,13 @@ class HealthRecord(db.Model):
     documents = db.relationship('Document', backref='health_record', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f'<HealthRecord {self.title}>'
+        # Generate title from available fields for display
+        display_title = self.title
+        if not display_title and self.chief_complaint:
+            display_title = self.chief_complaint[:50] + "..." if len(self.chief_complaint) > 50 else self.chief_complaint
+        if not display_title:
+            display_title = f"Health Record {self.id}"
+        return f'<HealthRecord {display_title}>'
 
 class Document(db.Model):
     """Model for uploaded documents"""

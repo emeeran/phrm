@@ -14,20 +14,25 @@ records_bp = Blueprint('records', __name__, url_prefix='/records')
 
 # Forms
 class RecordForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(max=200)])
-    record_type = SelectField('Record Type', validators=[DataRequired()],
-                             choices=[('complaint', 'Complaint/Symptom'),
-                                     ('doctor_visit', 'Doctor Visit'),
-                                     ('investigation', 'Investigation'),
-                                     ('prescription', 'Prescription'),
-                                     ('lab_report', 'Lab Report'),
-                                     ('note', 'Doctor\'s Note')])
-    description = TextAreaField('Description', validators=[Optional(), Length(max=5000)])
-    date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
     family_member = SelectField('Family Member', coerce=int, validators=[Optional()])
-    documents = FileField('Upload Documents', validators=[Optional(),
-                                                         FileAllowed(['jpg', 'jpeg', 'png', 'pdf'],
-                                                                    'Only images and PDFs are allowed')],
+    date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
+    chief_complaint = TextAreaField('Chief Complaint', validators=[Optional(), Length(max=2000)], 
+                                   render_kw={'rows': 3, 'placeholder': 'Describe the main reason for this visit or health concern'})
+    doctor = StringField('Doctor', validators=[Optional(), Length(max=200)], 
+                        render_kw={'placeholder': 'Doctor\'s name or clinic/hospital'})
+    investigations = TextAreaField('Investigations', validators=[Optional(), Length(max=3000)], 
+                                  render_kw={'rows': 4, 'placeholder': 'Tests ordered, procedures performed, imaging studies, etc.'})
+    diagnosis = TextAreaField('Diagnosis', validators=[Optional(), Length(max=2000)], 
+                             render_kw={'rows': 3, 'placeholder': 'Medical diagnosis or clinical impression'})
+    prescription = TextAreaField('Prescription', validators=[Optional(), Length(max=3000)], 
+                                render_kw={'rows': 4, 'placeholder': 'Medications prescribed with dosage and instructions'})
+    notes = TextAreaField('Notes', validators=[Optional(), Length(max=5000)], 
+                         render_kw={'rows': 4, 'placeholder': 'Additional notes, observations, or instructions'})
+    review_followup = TextAreaField('Review / Follow up', validators=[Optional(), Length(max=1000)], 
+                                   render_kw={'rows': 2, 'placeholder': 'Next appointment date, follow-up instructions, monitoring requirements'})
+    documents = FileField('Uploads', validators=[Optional(),
+                                                FileAllowed(['jpg', 'jpeg', 'png', 'pdf'],
+                                                           'Only images and PDFs are allowed')],
                          render_kw={'multiple': True})
     submit = SubmitField('Save Record')
 
@@ -207,10 +212,14 @@ def create_record():
     if form.validate_on_submit():
         # Create new health record
         record = HealthRecord(
-            title=form.title.data,
-            record_type=form.record_type.data,
-            description=form.description.data,
-            date=form.date.data
+            date=form.date.data,
+            chief_complaint=form.chief_complaint.data,
+            doctor=form.doctor.data,
+            investigations=form.investigations.data,
+            diagnosis=form.diagnosis.data,
+            prescription=form.prescription.data,
+            notes=form.notes.data,
+            review_followup=form.review_followup.data
         )
 
         # Assign to user or family member
@@ -298,10 +307,14 @@ def edit_record(record_id):
 
     if form.validate_on_submit():
         # Update record fields
-        record.title = form.title.data
-        record.record_type = form.record_type.data
-        record.description = form.description.data
         record.date = form.date.data
+        record.chief_complaint = form.chief_complaint.data
+        record.doctor = form.doctor.data
+        record.investigations = form.investigations.data
+        record.diagnosis = form.diagnosis.data
+        record.prescription = form.prescription.data
+        record.notes = form.notes.data
+        record.review_followup = form.review_followup.data
         record.updated_at = datetime.utcnow()
 
         # Update user or family member assignment
@@ -342,10 +355,14 @@ def edit_record(record_id):
 
     elif request.method == 'GET':
         # Populate form with existing record data
-        form.title.data = record.title
-        form.record_type.data = record.record_type
-        form.description.data = record.description
         form.date.data = record.date
+        form.chief_complaint.data = record.chief_complaint
+        form.doctor.data = record.doctor
+        form.investigations.data = record.investigations
+        form.diagnosis.data = record.diagnosis
+        form.prescription.data = record.prescription
+        form.notes.data = record.notes
+        form.review_followup.data = record.review_followup
 
         # Set appropriate family member
         if record.user_id:

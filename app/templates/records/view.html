@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ record.title }}{% endblock %}
+{% block title %}Medical Record - {{ record.date|format_date if record.date else 'View Record' }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow mb-4">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h4 class="mb-0"><i class="fas {{ get_record_icon(record.record_type) }} me-2"></i>{{ record.title }}
+                <h4 class="mb-0"><i class="fas fa-file-medical me-2"></i>Medical Record
+                {% if record.date %} - {{ record.date|format_date }}{% endif %}
                 </h4>
                 <div>
                     <a href="{{ url_for('records.edit_record', record_id=record.id) }}"
@@ -21,22 +22,64 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-4">Type</dt>
-                    <dd class="col-sm-8">
-                        <span class="badge {{ get_record_badge_class(record.record_type) }}">
-                            <i class="fas {{ get_record_icon(record.record_type) }} me-1"></i>
-                            {{ record.record_type|replace('_', ' ')|title }}
-                        </span>
-                    </dd>
+                    {% if record.family_member %}
+                    <dt class="col-sm-4">Family Member</dt>
+                    <dd class="col-sm-8">{{ record.family_member.first_name }} {{ record.family_member.last_name }}</dd>
+                    {% else %}
+                    <dt class="col-sm-4">Patient</dt>
+                    <dd class="col-sm-8">Myself</dd>
+                    {% endif %}
+                    
+                    {% if record.date %}
                     <dt class="col-sm-4">Date</dt>
                     <dd class="col-sm-8">{{ record.date|format_date }}</dd>
-                    <dt class="col-sm-4">Owner</dt>
-                    <dd class="col-sm-8">
-                        {% if record.user_id %}Myself{% elif record.family_member %}{{ record.family_member.first_name
-                        }}{% endif %}
-                    </dd>
+                    {% endif %}
+                    
+                    {% if record.chief_complaint %}
+                    <dt class="col-sm-4">Chief Complaint</dt>
+                    <dd class="col-sm-8">{{ record.chief_complaint }}</dd>
+                    {% endif %}
+                    
+                    {% if record.doctor %}
+                    <dt class="col-sm-4">Doctor</dt>
+                    <dd class="col-sm-8">{{ record.doctor }}</dd>
+                    {% endif %}
+                    
+                    {% if record.investigations %}
+                    <dt class="col-sm-4">Investigations</dt>
+                    <dd class="col-sm-8">{{ record.investigations|nl2br|safe }}</dd>
+                    {% endif %}
+                    
+                    {% if record.diagnosis %}
+                    <dt class="col-sm-4">Diagnosis</dt>
+                    <dd class="col-sm-8">{{ record.diagnosis|nl2br|safe }}</dd>
+                    {% endif %}
+                    
+                    {% if record.prescription %}
+                    <dt class="col-sm-4">Prescription</dt>
+                    <dd class="col-sm-8">{{ record.prescription|nl2br|safe }}</dd>
+                    {% endif %}
+                    
+                    {% if record.notes %}
+                    <dt class="col-sm-4">Notes</dt>
+                    <dd class="col-sm-8">{{ record.notes|nl2br|safe }}</dd>
+                    {% endif %}
+                    
+                    {% if record.review_followup %}
+                    <dt class="col-sm-4">Review/Follow up</dt>
+                    <dd class="col-sm-8">{{ record.review_followup|nl2br|safe }}</dd>
+                    {% endif %}
+                    
+                    <!-- Legacy field support for backward compatibility -->
+                    {% if record.title and not (record.chief_complaint or record.doctor or record.diagnosis) %}
+                    <dt class="col-sm-4">Title</dt>
+                    <dd class="col-sm-8">{{ record.title }}</dd>
+                    {% endif %}
+                    
+                    {% if record.description and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                     <dt class="col-sm-4">Description</dt>
-                    <dd class="col-sm-8">{{ record.description or 'No description provided.' }}</dd>
+                    <dd class="col-sm-8">{{ record.description|nl2br|safe }}</dd>
+                    {% endif %}
                 </dl>
                 {% if record.documents.count() > 0 %}
                 <hr>

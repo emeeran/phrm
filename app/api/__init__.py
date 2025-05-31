@@ -214,7 +214,7 @@ def get_summary(api_user, record_id):
 
     return jsonify({
         'record_id': record.id,
-        'record_title': record.title,
+        'record_title': record.chief_complaint or record.title or 'Medical Record',
         'summary_id': summary.id,
         'summary_type': summary.summary_type,
         'summary_text': summary.summary_text,
