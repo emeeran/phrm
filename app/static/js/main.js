@@ -635,6 +635,20 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Initialize the correct state on page load
+        const initialMode = modeSelector.value;
+        const isPrivate = initialMode === 'private';
+        
+        if (isPrivate) {
+            patientSelectorContainer.classList.remove('hidden');
+        } else {
+            patientSelectorContainer.classList.add('hidden');
+            // Reset to self when in public mode
+            if (patientSelector) {
+                patientSelector.value = 'self';
+            }
+        }
+
         // Function to update welcome message based on current selections
         function updateWelcomeMessage() {
             const welcomeMessage = document.querySelector('.welcome-message');

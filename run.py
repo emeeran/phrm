@@ -34,7 +34,7 @@ def make_shell_context():
 def check_gemini_configuration():
     """Check if Gemini API is properly configured"""
     gemini_api_key = app.config.get('GEMINI_API_KEY')
-    gemini_model = app.config.get('GEMINI_MODEL', 'gemini-1.5-pro')
+    gemini_model = app.config.get('GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20')
     
     if not gemini_api_key:
         print("⚠️ Gemini API key is not configured")

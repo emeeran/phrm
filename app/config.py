@@ -32,7 +32,7 @@ class Config:
 
     # Gemini API Configuration
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-    GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-1.5-pro')
+    GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20')
     USE_OPENAI_FALLBACK = os.environ.get('USE_OPENAI_FALLBACK', 'True').lower() == 'true'
 
     # Default AI Model Settings

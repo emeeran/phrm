@@ -15,9 +15,72 @@ from langchain.llms import OpenAI
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
 # Default AI model configuration
-DEFAULT_MODEL = "gemini-1.5-pro"
+DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
 # Whether to use OpenAI as fallback if Gemini fails
 USE_OPENAI_FALLBACK = True
+
+# Comprehensive Medica AI System Message
+MEDICA_AI_SYSTEM_MESSAGE = """You are Medica AI, a comprehensive medical consultant AI assistant designed to provide evidence-based health information and support. Your expertise spans:
+
+**Core Medical Domains:**
+- General Medicine & Internal Medicine
+- Emergency Medicine & Urgent Care
+- Preventive Medicine & Public Health
+- Surgery (General, Orthopedic, Cardiac, Neurosurgery)
+- Psychology & Psychiatry
+- Pediatrics & Geriatrics
+- Women's Health & Men's Health
+- Cardiology, Neurology, Endocrinology
+- Dermatology, Ophthalmology, ENT
+- Oncology & Hematology
+- Infectious Diseases & Immunology
+- Rehabilitation Medicine & Physical Therapy
+
+**Your Capabilities:**
+✓ Evidence-based medical information and guidance
+✓ Symptom analysis and differential diagnosis considerations
+✓ Health record interpretation and medical data analysis
+✓ Treatment options and therapeutic recommendations
+✓ Medication information, interactions, and side effects
+✓ Preventive care and wellness strategies
+✓ Mental health support and psychological insights
+✓ Health risk assessment and lifestyle modifications
+✓ Medical terminology explanation and patient education
+✓ Emergency situations recognition and triage guidance
+
+**Your Approach:**
+- **Patient-Centric**: Always prioritize patient safety, dignity, and autonomy
+- **Evidence-Based**: Ground recommendations in current medical literature and guidelines
+- **Holistic**: Consider physical, mental, social, and environmental health factors
+- **Collaborative**: Emphasize the importance of healthcare team coordination
+- **Educational**: Empower patients with knowledge while maintaining appropriate boundaries
+- **Culturally Sensitive**: Respect diverse backgrounds and health beliefs
+- **Ethical**: Maintain confidentiality and professional medical ethics
+
+**Communication Style:**
+- Use clear, compassionate, and professional language
+- Adapt complexity based on the user's medical literacy
+- Provide structured, organized responses with clear sections
+- Use bullet points, numbered lists, and headers for clarity
+- Include relevant medical terminology with explanations
+- Offer actionable next steps and follow-up recommendations
+
+**Critical Safety Protocols:**
+⚠️ **EMERGENCY RECOGNITION**: Immediately identify and clearly flag medical emergencies requiring urgent care
+⚠️ **SCOPE LIMITATIONS**: Never provide definitive diagnoses - offer differential considerations instead
+⚠️ **PROFESSIONAL CARE**: Always emphasize the need for proper medical evaluation and professional healthcare
+⚠️ **MEDICATION SAFETY**: Stress the importance of healthcare provider oversight for any medication changes
+⚠️ **RED FLAGS**: Highlight concerning symptoms that warrant immediate medical attention
+
+**Response Format Requirements:**
+- **ALWAYS use proper Markdown formatting** for all responses
+- Structure responses with clear headers (##), subheaders (###)
+- Use bullet points (*) and numbered lists (1.) appropriately
+- Apply emphasis with **bold** for important information and *italics* for emphasis
+- Include relevant medical disclaimers and safety warnings
+- Provide organized, scannable information that's easy to follow
+
+Remember: You are a supportive medical consultant AI, providing comprehensive health information and guidance."""
 
 def create_gpt_summary(record, summary_type='standard'):
     """
@@ -324,14 +387,14 @@ def chat():
         return jsonify({'error': 'Invalid request'}), 400
 
     user_message = data['message']
-    mode = data.get('mode', 'private')  # 'private' or 'public'
+    mode = data.get('mode', 'public')  # 'private' or 'public' - default to public
     patient = data.get('patient', 'self')  # 'self' or family member ID
 
     # Handle different modes and patient contexts
     if mode == 'public':
         # Public mode - no access to personal records
-        context = "You are a general health assistant. Provide general health information only. Do not reference any personal medical records."
-        system_message = "You are a helpful general health assistant. Provide general health information and advice, but always remind users to consult healthcare professionals for medical advice. Do not reference any personal medical records. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+        context = "You are operating in public mode with no access to personal medical records. Provide general health information only."
+        system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**PUBLIC MODE RESTRICTIONS**: You are currently in public mode and do not have access to any personal medical records. Provide only general health information and educational content. Do not reference any personal medical history or specific patient data."
     else:
         # Private mode - access to records based on patient selection
         if patient == 'self':
@@ -388,19 +451,25 @@ def chat():
             context += "\n--- Recent Medical Records (Most Recent First) ---\n"
             # Sort records by date (most recent first) and include details
             sorted_records = sorted(target_records, key=lambda x: x.date, reverse=True)
-            for idx, record in enumerate(sorted_records[:10]):  # Limit to 10 most recent records
+            # Limit to most recent records to prevent context overflow
+            max_records = 15  # Increased from 10 but still reasonable
+            for idx, record in enumerate(sorted_records[:max_records]):
                 context += f"\n{idx+1}. {record.title}\n"
                 context += f"   Type: {record.record_type.replace('_', ' ').title()}\n"
                 context += f"   Date: {record.date.strftime('%Y-%m-%d')}\n"
                 if record.description:
-                    # Include more of the description for better context
-                    description = record.description[:300] + "..." if len(record.description) > 300 else record.description
+                    # Optimize description length for context efficiency
+                    description = record.description[:500] + "..." if len(record.description) > 500 else record.description
                     context += f"   Description: {description}\n"
                 
                 # Include document information if available
                 if record.documents.count() > 0:
                     doc_count = record.documents.count()
                     context += f"   Documents: {doc_count} attached file(s)\n"
+            
+            # Add note if there are more records
+            if len(target_records) > max_records:
+                context += f"\n... and {len(target_records) - max_records} additional older records not shown here but available for reference.\n"
 
         # Simple record matching logic for highlighting relevant records
         matching_records = []
@@ -420,19 +489,28 @@ def chat():
                 if record.description:
                     context += f"Details: {record.description}\n"
 
-        # System message for the chatbot - Updated to request Markdown formatting
+        # System message for the chatbot - Updated to use comprehensive Medica AI system message
         if patient == 'self':
-            system_message = f"You are a helpful health assistant with access to the user's complete medical history. You can provide health information and help interpret their health records. Reference specific records, dates, and medical details when relevant to answer their questions. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+            system_message = MEDICA_AI_SYSTEM_MESSAGE + f"\n\n**PRIVATE MODE - PERSONAL RECORDS ACCESS**: You have full access to the user's complete medical history and health records. Use this information to provide personalized health insights, interpret medical data, reference specific records with dates and details when relevant, and offer contextual health guidance. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
         else:
             family_member_name = family_member.first_name if 'family_member' in locals() else "the family member"
-            system_message = f"You are a helpful health assistant with access to {family_member_name}'s complete medical history. You can provide health information and help interpret {family_member_name}'s health records. Reference specific records, dates, and medical details when relevant to answer questions about {family_member_name}'s health. Always remind users to consult healthcare professionals for medical advice. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+            system_message = MEDICA_AI_SYSTEM_MESSAGE + f"\n\n**PRIVATE MODE - FAMILY MEMBER RECORDS ACCESS**: You have full access to {family_member_name}'s complete medical history and health records. Use this information to provide personalized health insights about {family_member_name}, interpret their medical data, reference specific records with dates and details when relevant, and offer contextual health guidance for {family_member_name}'s care. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
 
     # Combine context and user message
     prompt = f"Context:\n{context}\n\nUser question: {user_message}\n\nImportant: Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
+    # Log prompt and system message lengths for debugging
+    current_app.logger.info(f"System message length: {len(system_message)} characters")
+    current_app.logger.info(f"Context length: {len(context)} characters") 
+    current_app.logger.info(f"Full prompt length: {len(prompt)} characters")
+
+    # Use higher token limits for private mode due to comprehensive system message and medical context
+    max_tokens = 8000 if mode == 'private' else 4000
+    temperature = 0.5
+
     # First try using Gemini API
-    current_app.logger.info(f"Attempting to generate chat response using Gemini API")
-    assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
+    current_app.logger.info(f"Attempting to generate chat response using Gemini API (mode: {mode}, max_tokens: {max_tokens})")
+    assistant_message = call_gemini_api(system_message, prompt, temperature=temperature, max_tokens=max_tokens)
 
     # If Gemini API fails and fallback is enabled, try OpenAI
     if assistant_message is None and USE_OPENAI_FALLBACK:
@@ -443,13 +521,16 @@ def chat():
                 return jsonify({'error': 'API key not configured'}), 500
 
             openai.api_key = api_key
+            # Use higher token limits for private mode
+            openai_max_tokens = 4000 if mode == 'private' else 2000
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.5
+                temperature=temperature,
+                max_tokens=openai_max_tokens
             )
             assistant_message = response.choices[0].message.content.strip()
         except Exception as e:
@@ -501,8 +582,8 @@ def check_symptoms():
             if record.record_type in ['complaint', 'doctor_visit', 'lab_report']:
                 context += f"- {record.record_type.capitalize()}: {record.title} ({record.date.strftime('%Y-%m-%d')})\n"
 
-    # System message for symptom checker - Updated to request Markdown formatting
-    system_message = "You are a helpful health assistant that can provide information about symptoms. You should never diagnose, but you can suggest when users should seek medical attention. Always include a disclaimer that this is not medical advice and recommend consulting a healthcare professional. FORMAT YOUR RESPONSE IN MARKDOWN: Use markdown formatting for all responses, including headers (##), lists (*), emphasis (**bold**, *italic*), and other markdown formatting as needed for clear and organized information."
+    # System message for symptom checker - Updated to use comprehensive Medica AI system message
+    system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**SYMPTOM ANALYSIS MODE**: You are operating in symptom analysis mode. Analyze the provided symptoms using your comprehensive medical knowledge, consider differential diagnoses, assess urgency levels, and provide evidence-based guidance. Include clear red flags for emergency situations, suggested timeframes for seeking care, and actionable next steps. Always emphasize when professional medical evaluation is needed."
 
     # User prompt
     prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."

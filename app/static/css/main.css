@@ -94,12 +94,17 @@ main.container-fluid {
 }
 
 #patient-selector-container {
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, max-width 0.3s ease;
+    max-width: 200px;
+    overflow: hidden;
 }
 
 #patient-selector-container.hidden {
     opacity: 0;
     visibility: hidden;
+    max-width: 0;
+    margin: 0;
+    padding: 0;
 }
 
 /* Health Record Type Badges */
