@@ -3,7 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, DateField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, DateField, SelectField, TextAreaField
 from wtforms.validators import DataRequired, EqualTo, ValidationError, Length, Email
 from datetime import datetime
 from ..models import db, User
@@ -77,6 +77,42 @@ class ProfileForm(FlaskForm):
             user = User.query.filter_by(username=username.data).first()
             if user is not None:
                 raise ValidationError('Please use a different username.')
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=8)])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
+    submit = SubmitField('Change Password')
+
+    def validate_current_password(self, current_password):
+        if not current_user.check_password(current_password.data):
+            raise ValidationError('Current password is incorrect.')
+
+class NotificationPreferencesForm(FlaskForm):
+    email_notifications = BooleanField('Email Notifications', default=True)
+    record_reminders = BooleanField('Health Record Reminders', default=True)
+    security_alerts = BooleanField('Security Alerts', default=True)
+    ai_insights = BooleanField('AI Health Insights', default=True)
+    frequency = SelectField('Notification Frequency', 
+                          choices=[('immediate', 'Immediate'), 
+                                  ('daily', 'Daily Summary'), 
+                                  ('weekly', 'Weekly Summary')],
+                          default='daily')
+    submit = SubmitField('Save Preferences')
+
+class DeleteAccountForm(FlaskForm):
+    password = PasswordField('Confirm Password', validators=[DataRequired()])
+    confirmation = StringField('Type "DELETE" to confirm', validators=[DataRequired()])
+    reason = TextAreaField('Reason for deletion (optional)')
+    submit = SubmitField('Delete Account')
+
+    def validate_password(self, password):
+        if not current_user.check_password(password.data):
+            raise ValidationError('Password is incorrect.')
+    
+    def validate_confirmation(self, confirmation):
+        if confirmation.data != 'DELETE':
+            raise ValidationError('You must type "DELETE" to confirm account deletion.')
 
 # Routes
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -168,3 +204,98 @@ def profile():
         form.date_of_birth.data = current_user.date_of_birth
 
     return render_template('auth/profile.html', title='Profile', form=form)
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+@limiter.limit("5 per hour")
+def change_password():
+    form = ChangePasswordForm()
+    
+    if form.validate_on_submit():
+        # Update password
+        current_user.set_password(form.new_password.data)
+        current_user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Log security event
+        log_security_event('password_changed', {
+            'user_id': current_user.id,
+            'email': current_user.email
+        })
+        
+        flash('Your password has been changed successfully!', 'success')
+        return redirect(url_for('auth.profile'))
+    
+    return render_template('auth/change_password.html', title='Change Password', form=form)
+
+@auth_bp.route('/notification-preferences', methods=['GET', 'POST'])
+@login_required
+def notification_preferences():
+    form = NotificationPreferencesForm()
+    
+    # Load current preferences from the database
+    if request.method == 'GET':
+        form.email_notifications.data = current_user.email_notifications
+        form.record_reminders.data = current_user.record_reminders
+        form.security_alerts.data = current_user.security_alerts
+        form.ai_insights.data = current_user.ai_insights
+        form.frequency.data = current_user.notification_frequency
+    
+    if form.validate_on_submit():
+        # Save preferences to the database
+        current_user.email_notifications = form.email_notifications.data
+        current_user.record_reminders = form.record_reminders.data
+        current_user.security_alerts = form.security_alerts.data
+        current_user.ai_insights = form.ai_insights.data
+        current_user.notification_frequency = form.frequency.data
+        current_user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        flash('Your notification preferences have been updated!', 'success')
+        return redirect(url_for('auth.profile'))
+    
+    return render_template('auth/notification_preferences.html', title='Notification Preferences', form=form)
+
+@auth_bp.route('/two-factor-setup')
+@login_required
+def two_factor_setup():
+    # Placeholder for 2FA setup
+    flash('Two-Factor Authentication setup is coming soon!', 'info')
+    return redirect(url_for('auth.profile'))
+
+@auth_bp.route('/delete-account', methods=['GET', 'POST'])
+@login_required
+@limiter.limit("3 per hour")
+def delete_account():
+    form = DeleteAccountForm()
+    
+    if form.validate_on_submit():
+        # Log account deletion
+        log_security_event('account_deleted', {
+            'user_id': current_user.id,
+            'email': current_user.email,
+            'reason': form.reason.data or 'No reason provided'
+        })
+        
+        # Delete user account and all related data
+        user_id = current_user.id
+        user_email = current_user.email
+        
+        # Delete related records first (cascade should handle this, but being explicit)
+        from ..models import HealthRecord, FamilyMember
+        HealthRecord.query.filter_by(user_id=user_id).delete()
+        
+        # Remove user from family relationships
+        current_user.family_members.clear()
+        
+        # Delete the user
+        db.session.delete(current_user)
+        db.session.commit()
+        
+        # Log out the user
+        logout_user()
+        
+        flash(f'Account {user_email} has been permanently deleted.', 'info')
+        return redirect(url_for('main.index'))
+    
+    return render_template('auth/delete_account.html', title='Delete Account', form=form)

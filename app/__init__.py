@@ -12,6 +12,7 @@ from .utils.config_manager import config_manager
 from .utils.ai_config_integration import initialize_ai_configuration
 import os
 import time
+import click
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -122,6 +123,10 @@ def create_app(config_name=None):
     from .api import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
     
+    # Register operations dashboard blueprint
+    from .ops import ops_bp
+    app.register_blueprint(ops_bp)
+    
     # Register health check blueprint
     from .health import health_bp
     app.register_blueprint(health_bp)
@@ -221,5 +226,125 @@ def create_app(config_name=None):
             DatabaseOptimizer.create_indexes(db)
             # Analyze database for optimization
             DatabaseOptimizer.analyze_database(db)
+
+    # Register CLI commands for admin management
+    @app.cli.command()
+    @click.option('--email', prompt=True, help='Admin user email address')
+    @click.option('--username', prompt=True, help='Admin username')
+    @click.option('--first-name', prompt=True, help='Admin first name')
+    @click.option('--last-name', prompt=True, help='Admin last name')
+    def create_admin(email, username, first_name, last_name):
+        """Create a new admin user"""
+        import getpass
+        from .utils.security import log_security_event
+        
+        try:
+            # Check if user already exists
+            existing_user = User.query.filter((User.email == email) | (User.username == username)).first()
+            if existing_user:
+                click.echo(f"❌ User with email '{email}' or username '{username}' already exists!")
+                return
+            
+            # Get password securely
+            password = getpass.getpass("Enter password for admin user: ")
+            password_confirm = getpass.getpass("Confirm password: ")
+            
+            if password != password_confirm:
+                click.echo("❌ Passwords do not match!")
+                return
+            
+            if len(password) < 8:
+                click.echo("❌ Password must be at least 8 characters long!")
+                return
+            
+            # Create admin user
+            admin_user = User(
+                email=email.lower().strip(),
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                is_admin=True  # Set admin flag
+            )
+            admin_user.set_password(password)
+            
+            db.session.add(admin_user)
+            db.session.commit()
+            
+            # Log admin creation
+            log_security_event('admin_user_created', {
+                'admin_user_id': admin_user.id,
+                'admin_email': admin_user.email,
+                'admin_username': admin_user.username
+            })
+            
+            click.echo(f"✅ Admin user '{username}' created successfully!")
+            click.echo(f"📧 Email: {email}")
+            click.echo(f"👤 Name: {first_name} {last_name}")
+            click.echo(f"🔑 Admin privileges: Enabled")
+            
+        except Exception as e:
+            db.session.rollback()
+            click.echo(f"❌ Error creating admin user: {e}")
+
+    @app.cli.command()
+    @click.option('--email', prompt=True, help='User email address to promote to admin')
+    def promote_to_admin(email):
+        """Promote an existing user to admin"""
+        from .utils.security import log_security_event
+        
+        try:
+            user = User.query.filter_by(email=email.lower().strip()).first()
+            if not user:
+                click.echo(f"❌ User with email '{email}' not found!")
+                return
+            
+            if user.is_admin:
+                click.echo(f"ℹ️  User '{user.username}' is already an admin!")
+                return
+            
+            # Confirm promotion
+            click.echo(f"👤 Found user: {user.first_name} {user.last_name} ({user.username})")
+            if not click.confirm("Are you sure you want to promote this user to admin?"):
+                click.echo("Operation cancelled.")
+                return
+            
+            user.is_admin = True
+            db.session.commit()
+            
+            # Log admin promotion
+            log_security_event('user_promoted_to_admin', {
+                'promoted_user_id': user.id,
+                'promoted_email': user.email,
+                'promoted_username': user.username
+            })
+            
+            click.echo(f"✅ User '{user.username}' has been promoted to admin!")
+            
+        except Exception as e:
+            db.session.rollback()
+            click.echo(f"❌ Error promoting user to admin: {e}")
+
+    @app.cli.command()
+    def list_admins():
+        """List all admin users"""
+        try:
+            admin_users = User.query.filter_by(is_admin=True).all()
+            
+            if not admin_users:
+                click.echo("ℹ️  No admin users found.")
+                return
+            
+            click.echo(f"👥 Found {len(admin_users)} admin user(s):")
+            click.echo("-" * 80)
+            
+            for admin in admin_users:
+                click.echo(f"📧 {admin.email}")
+                click.echo(f"👤 {admin.first_name} {admin.last_name} ({admin.username})")
+                click.echo(f"📅 Created: {admin.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                click.echo(f"🔐 Active: {'Yes' if admin.is_active else 'No'}")
+                click.echo("-" * 80)
+            
+        except Exception as e:
+            click.echo(f"❌ Error listing admin users: {e}")
 
     return app

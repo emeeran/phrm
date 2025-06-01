@@ -9,6 +9,10 @@ uploads/
 2del/
 .env.development
 .env.production
+*.db
+temp/
+scripts/
+tests/
 
 # Python
 __pycache__/

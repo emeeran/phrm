@@ -26,6 +26,14 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Notification preferences
+    email_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    record_reminders = db.Column(db.Boolean, default=True, nullable=False)
+    security_alerts = db.Column(db.Boolean, default=True, nullable=False)
+    ai_insights = db.Column(db.Boolean, default=True, nullable=False)
+    notification_frequency = db.Column(db.String(20), default='daily', nullable=False)
 
     # Relationships
     family_members = db.relationship('FamilyMember', secondary=user_family, backref='caregivers')
