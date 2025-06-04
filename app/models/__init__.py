@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,6 +27,10 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
+    # Password reset fields
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     family_members = db.relationship('FamilyMember', secondary=user_family, backref='caregivers')
     records = db.relationship('HealthRecord', backref='user', lazy='dynamic')
@@ -37,6 +42,28 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check password against hash"""
         return check_password_hash(self.password_hash, password)
+
+    def generate_reset_token(self):
+        """Generate a secure reset token"""
+        self.reset_token = secrets.token_urlsafe(32)
+        self.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        return self.reset_token
+
+    def verify_reset_token(self, token):
+        """Verify if the reset token is valid and not expired"""
+        if not self.reset_token or not self.reset_token_expiry:
+            return False
+        if self.reset_token != token:
+            return False
+        if datetime.utcnow() > self.reset_token_expiry:
+            return False
+        return True
+
+    def reset_password(self, new_password):
+        """Reset the password and clear the reset token"""
+        self.set_password(new_password)
+        self.reset_token = None
+        self.reset_token_expiry = None
 
     def __repr__(self):
         return f'<User {self.username}>'

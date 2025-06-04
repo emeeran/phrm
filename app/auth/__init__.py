@@ -127,3 +127,45 @@ def profile():
         form.date_of_birth.data = current_user.date_of_birth
 
     return render_template('auth/profile.html', title='Profile', form=form)
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Handle forgot password requests"""
+    if current_user.is_authenticated:
+        return redirect(url_for('records.dashboard'))
+    
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            if send_password_reset_email(user):
+                flash('Check your email for instructions to reset your password.', 'info')
+            else:
+                flash('Failed to send reset email. Please try again later.', 'error')
+        else:
+            # Don't reveal whether the email exists or not for security
+            flash('Check your email for instructions to reset your password.', 'info')
+        
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/forgot_password.html', title='Forgot Password', form=form)
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Handle password reset with token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('records.dashboard'))
+    
+    # Find user by token
+    user = User.query.filter_by(reset_token=token).first()
+    if not user or not user.verify_reset_token(token):
+        flash('Invalid or expired password reset link.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.reset_password(form.password.data)
+        db.session.commit()
+        flash('Your password has been reset successfully! Please log in.', 'success')
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/reset_password.html', title='Reset Password', form=form)
