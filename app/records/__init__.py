@@ -10,6 +10,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from ..models import db, HealthRecord, Document, FamilyMember
 import mimetypes
+from ..utils.ai_helpers import extract_text_from_pdf
 
 records_bp = Blueprint('records', __name__, url_prefix='/records')
 
@@ -98,8 +99,8 @@ def save_document(file, record_id):
     
     # For PDF files, automatically extract text using OCR
     if file_type == 'pdf':
-        try:
-            from ..ai import extract_text_from_pdf
+        try:        
+            from ..utils.ai_helpers import extract_text_from_pdf
             current_app.logger.info(f"Extracting text from uploaded PDF: {filename}")
             extracted_text = extract_text_from_pdf(file_path)
             if extracted_text and extracted_text.strip():
