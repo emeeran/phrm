@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h1>{{ record.title }}</h1>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h5>Record Details</h5>
+                <p class="text-muted">{{ record.created_at.strftime('%Y-%m-%d') }}</p>
+                <p>{{ record.content }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if analysis %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5>Symptom Analysis Results</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h6>Possible Diagnoses:</h6>
+                <div class="pl-3">{{ analysis.possible_diagnoses|nl2br }}</div>
+            </div>
+            
+            <div class="mb-3">
+                <h6>Recommended Actions:</h6>
+                <div class="pl-3">{{ analysis.recommended_actions|nl2br }}</div>
+            </div>
+            
+            <div class="mb-3">
+                <h6>Urgency Level:</h6>
+                <div class="pl-3">
+                    <span class="badge 
+                        {% if analysis.urgency_level|lower == 'emergency' %}bg-danger
+                        {% elif analysis.urgency_level|lower == 'urgent' %}bg-warning text-dark
+                        {% else %}bg-info{% endif %}">
+                        {{ analysis.urgency_level }}
+                    </span>
+                </div>
+            </div>
+            
+            {% if analysis.related_conditions %}
+            <div class="mb-3">
+                <h6>Related Conditions:</h6>
+                <div class="pl-3">{{ analysis.related_conditions|nl2br }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('records.analyze_symptoms') }}" class="mb-4">
+        <input type="hidden" name="record_id" value="{{ record.id }}">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5>Symptom Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="symptoms_text">Enter symptoms for AI analysis:</label>
+                    <textarea class="form-control" id="symptoms_text" name="symptoms_text" rows="3" 
+                        placeholder="Describe your symptoms in detail...">{% if record.chief_complaint %}{{ record.chief_complaint }}{% endif %}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary mt-2">
+                    <i class="fas fa-stethoscope"></i> Analyze Symptoms
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
