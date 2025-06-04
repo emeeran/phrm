@@ -82,29 +82,28 @@
                         {{ form.submit(class="btn btn-primary") }}
                     </div>
                 </form>
-            </div>
-            <div class="card-footer">
+            </div>                <div class="card-footer">
                 <div class="row">
                     <div class="col-md-6">
                         <h5><i class="fas fa-shield-alt me-2"></i>Security Options</h5>
                         <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" disabled>
+                            <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-key me-2"></i>Change Password
-                            </button>
-                            <button class="btn btn-outline-primary btn-sm" disabled>
+                            </a>
+                            <a href="{{ url_for('auth.two_factor_setup') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-lock me-2"></i>Two-Factor Authentication
-                            </button>
+                            </a>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <h5><i class="fas fa-cog me-2"></i>Account Settings</h5>
                         <div class="d-grid gap-2">
-                            <button class="btn btn-outline-primary btn-sm" disabled>
+                            <a href="{{ url_for('auth.notification_preferences') }}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-bell me-2"></i>Notification Preferences
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm" disabled>
+                            </a>
+                            <a href="{{ url_for('auth.delete_account') }}" class="btn btn-outline-danger btn-sm">
                                 <i class="fas fa-trash-alt me-2"></i>Delete Account
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
