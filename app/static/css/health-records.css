@@ -1,0 +1,31 @@
+/* Health Record Specific Styles */
+
+/* Health Record Type Badges */
+.badge-complaint { background-color: var(--danger-color); }
+.badge-doctor_visit { background-color: var(--primary-color); }
+.badge-investigation { background-color: #6f42c1; }
+.badge-prescription { background-color: var(--success-color); }
+.badge-lab_report { background-color: var(--warning-color); }
+.badge-note { background-color: var(--secondary-color); }
+
+/* Health Record Timeline */
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+}

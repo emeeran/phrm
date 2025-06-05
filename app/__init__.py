@@ -6,10 +6,10 @@ from flask_caching import Cache
 from flask_talisman import Talisman
 from .config import get_config
 from .models import db, User
-from .utils.database_optimization import DatabaseOptimizer, QueryOptimizer
-from .utils.redis_config import RedisConfig, get_user_id
-from .utils.config_manager import config_manager
-from .utils.ai_config_integration import initialize_ai_configuration
+# from .utils.database_optimizer import DatabaseOptimizer, QueryOptimizer
+# from .utils.redis_config import RedisConfig, get_user_id
+# from .utils.config_manager import config_manager
+# from .utils.ai_config_integration import initialize_ai_configuration
 import os
 import time
 import click
@@ -21,16 +21,20 @@ login_manager.login_message_category = 'info'
 
 migrate = Migrate()
 # Configure limiter with Redis storage if available
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-try:
-    # Test Redis connection
-    import redis
-    r = redis.from_url(redis_url, decode_responses=True)
-    r.ping()
-    limiter = Limiter(key_func=get_user_id, storage_uri=redis_url)
-except:
-    # Fallback to in-memory storage
-    limiter = Limiter(key_func=get_user_id)
+# redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+# try:
+#     # Test Redis connection
+#     import redis
+#     r = redis.from_url(redis_url, decode_responses=True)
+#     r.ping()
+#     limiter = Limiter(key_func=get_user_id, storage_uri=redis_url)
+# except:
+#     # Fallback to in-memory storage
+#     limiter = Limiter(key_func=get_user_id)
+
+# Simple in-memory limiter without Redis dependency
+from flask_limiter.util import get_remote_address
+limiter = Limiter(key_func=get_remote_address)
 
 cache = Cache()
 talisman = Talisman()
@@ -44,30 +48,30 @@ def create_app(config_name=None):
     app = Flask(__name__)
 
     # Initialize AI configuration integration
-    initialize_ai_configuration()
+    # initialize_ai_configuration()
 
     # Validate configuration using the configuration manager
-    validation_result = config_manager.validate_configuration()
-    if not validation_result['valid']:
-        # Log configuration issues
-        print("⚠️ Configuration validation issues detected:")
-        for error in validation_result.get('missing_required', []):
-            print(f"  Missing required: {error['key']} - {error['description']}")
-        for error in validation_result.get('invalid_values', []):
-            print(f"  Invalid value: {error['key']} - {error.get('reason', 'Invalid format')}")
-        for issue in validation_result.get('security_issues', []):
-            print(f"  Security issue: {issue['key']} - {issue['issue']}")
-        
-        # Only fail fast in production for critical issues
-        if config_manager.environment.value == 'production' and validation_result.get('missing_required'):
-            raise ValueError("Critical configuration missing in production environment")
+    # validation_result = config_manager.validate_configuration()
+    # if not validation_result['valid']:
+    #     # Log configuration issues
+    #     print("⚠️ Configuration validation issues detected:")
+    #     for error in validation_result.get('missing_required', []):
+    #         print(f"  Missing required: {error['key']} - {error['description']}")
+    #     for error in validation_result.get('invalid_values', []):
+    #         print(f"  Invalid value: {error['key']} - {error.get('reason', 'Invalid format')}")
+    #     for issue in validation_result.get('security_issues', []):
+    #         print(f"  Security issue: {issue['key']} - {issue['issue']}")
+    #     
+    #     # Only fail fast in production for critical issues
+    #     if config_manager.environment.value == 'production' and validation_result.get('missing_required'):
+    #         raise ValueError("Critical configuration missing in production environment")
 
     # Load configuration
     app.config.from_object(get_config())
     
     # Configure Redis-based caching
-    cache_config = RedisConfig.get_cache_config()
-    app.config.update(cache_config)
+    # cache_config = RedisConfig.get_cache_config()
+    # app.config.update(cache_config)
     
     # Store application start time for metrics
     app.start_time = time.time()
@@ -97,15 +101,15 @@ def create_app(config_name=None):
         )
 
     # Set up logging and monitoring
-    from .utils.logging_config import setup_logging
-    from .utils.performance import setup_performance_monitoring
-    from .utils.security import rate_limit_exceeded_handler
+    # from .utils.logging_config import setup_logging
+    # from .utils.performance import setup_performance_monitoring
+    # from .utils.security import rate_limit_exceeded_handler
     
-    setup_logging(app)
-    setup_performance_monitoring(app, db)
+    # setup_logging(app)
+    # setup_performance_monitoring(app, db)
     
     # Register rate limit error handler
-    app.register_error_handler(429, rate_limit_exceeded_handler)
+    # app.register_error_handler(429, rate_limit_exceeded_handler)
 
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -128,8 +132,8 @@ def create_app(config_name=None):
     app.register_blueprint(ops_bp)
     
     # Register health check blueprint
-    from .health import health_bp
-    app.register_blueprint(health_bp)
+    # from .health import health_bp
+    # app.register_blueprint(health_bp)
 
     # Inject utility functions into all templates
     from datetime import datetime
@@ -218,14 +222,15 @@ def create_app(config_name=None):
 
     # Apply database optimizations
     if app.config.get('ENABLE_DATABASE_OPTIMIZATION', False):
-        DatabaseOptimizer.optimize_sqlite(db.engine)
+        # DatabaseOptimizer.optimize_sqlite(db.engine)
         
         @app.before_first_request
         def initialize_database():
             # Create optimized indexes
-            DatabaseOptimizer.create_indexes(db)
+            # DatabaseOptimizer.create_indexes(db)
             # Analyze database for optimization
-            DatabaseOptimizer.analyze_database(db)
+            # DatabaseOptimizer.analyze_database(db)
+            pass
 
     # Register CLI commands for admin management
     @app.cli.command()
