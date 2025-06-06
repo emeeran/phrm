@@ -776,9 +776,10 @@ def chat():
             'response_length': len(assistant_message)
         })
 
-        # Return only the AI response without the standard message
+        # Return AI response with model information
         return jsonify({
-            'response': assistant_message
+            'response': assistant_message,
+            'model': 'MedGemma'  # Hardcoded for now since we only use MedGemma
         })
         
     except Exception as e:

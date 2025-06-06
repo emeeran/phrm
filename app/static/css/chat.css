@@ -55,10 +55,22 @@
 }
 
 .message-sender {
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--secondary-color);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--dark-color);
     margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.message-sender .model-name {
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--secondary-color);
+    background-color: rgba(108, 117, 125, 0.1);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.75rem;
 }
 
 .message-time {

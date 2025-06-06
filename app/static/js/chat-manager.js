@@ -210,7 +210,7 @@ export class ChatManager {
             this.chatMessages.removeChild(typingIndicator);
             
             const responseTimestamp = new Date().toISOString();
-            this.appendMessage('assistant', response.response, responseTimestamp);
+            this.appendMessage('assistant', response.response, responseTimestamp, response.model);
             
             this.conversationHistory.push({
                 role: 'assistant',
@@ -261,13 +261,13 @@ export class ChatManager {
         return indicator;
     }
 
-    appendMessage(sender, text, timestamp) {
+    appendMessage(sender, text, timestamp, model = 'MedGemma') {
         const messageEl = document.createElement('div');
         messageEl.className = `chat-message ${sender}-message`;
 
         const time = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const avatarIcon = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
-        const senderName = sender === 'user' ? 'You' : 'Health Assistant';
+        const senderName = sender === 'user' ? 'You' : `Health Assistant [${model}]`;
 
         let messageContent;
         if (sender === 'user') {
