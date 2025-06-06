@@ -279,3 +279,98 @@ def call_openai_api(system_message, prompt, temperature=0.5, max_tokens=4000, mo
     except Exception as e:
         logger.error(f"OpenAI API call failed: {e}")
         return None
+
+def get_medgemma_api_key():
+    """
+    Retrieve the MedGemma API key from configuration.
+    
+    Returns:
+        str: API key or None if not configured
+    """
+    api_key = None
+    
+    # Try to get from Flask config first
+    try:
+        api_key = current_app.config.get('MEDGEMMA_API_KEY')
+    except RuntimeError:
+        # No application context, try environment variable
+        api_key = os.getenv('MEDGEMMA_API_KEY')
+    
+    return api_key
+
+def initialize_medgemma():
+    """
+    Initialize the MedGemma model and tokenizer.
+    
+    Returns:
+        tuple: (model, tokenizer) or None if initialization fails
+    """
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        import torch
+        
+        model_name = os.getenv('MEDGEMMA_MODEL', 'google/medgemma-2b')
+        device = os.getenv('MEDGEMMA_DEVICE', 'cuda' if torch.cuda.is_available() else 'cpu')
+        
+        logger.info(f"Loading MedGemma model: {model_name} on {device}")
+        
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
+        model.to(device)
+        
+        logger.info("MedGemma initialized successfully")
+        return model, tokenizer
+        
+    except ImportError:
+        logger.error("transformers or torch not installed")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to initialize MedGemma: {e}")
+        return None
+
+def call_medgemma_api(system_message, prompt, temperature=0.3, max_tokens=2000):
+    """
+    Make a call to the MedGemma model.
+    
+    Args:
+        system_message (str): System message/instructions for the AI
+        prompt (str): User prompt/question
+        temperature (float): Creativity level (0.0 to 1.0)
+        max_tokens (int): Maximum tokens in response
+        
+    Returns:
+        str: AI response or None if call fails
+    """
+    try:
+        model, tokenizer = initialize_medgemma()
+        if not model or not tokenizer:
+            return None
+            
+        device = next(model.parameters()).device
+        
+        # Combine system message and prompt with medical-specific formatting
+        full_prompt = f"### System Message:\n{system_message}\n\n### User Prompt:\n{prompt}\n\n### Medical Response:"
+        
+        inputs = tokenizer(full_prompt, return_tensors="pt").to(device)
+        
+        # Generate response with medical-specific parameters
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+            do_sample=True,
+            top_p=0.9,
+            pad_token_id=tokenizer.eos_token_id
+        )
+        
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        # Remove the input prompt from response
+        response = response[len(full_prompt):].strip()
+        
+        logger.info(f"MedGemma generated {len(response)} characters")
+        return response
+        
+    except Exception as e:
+        logger.error(f"MedGemma API call failed: {e}")
+        return None

@@ -94,7 +94,7 @@ DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
 # Whether to use OpenAI as fallback if Gemini fails
 USE_OPENAI_FALLBACK = True
 
-# Comprehensive Medica AI System Message
+# Comprehensive Medical AI System Message (Enhanced for MedGemma)
 MEDICA_AI_SYSTEM_MESSAGE = """You are Medical AI, a comprehensive medical consultant AI assistant designed to provide evidence-based health information and support. Your expertise spans:
 
 **Core Medical Domains:**
@@ -275,13 +275,18 @@ def create_gpt_summary(record, summary_type='standard'):
     else:
         system_message = "You are a medical assistant helping patients understand their health records. This record does not have attached documents, so provide a summary based on the available metadata. Format your response with appropriate HTML paragraph tags."
 
-    # First try using Gemini API
-    current_app.logger.info(f"Attempting to generate summary for record {record.id} using Gemini API")
-    explanation = call_gemini_api(system_message, prompt)
+    # First try using MedGemma for medical content
+    current_app.logger.info(f"Attempting to generate medical summary for record {record.id} using MedGemma")
+    explanation = call_medgemma_api(system_message, prompt)
+
+    # If MedGemma fails, try Gemini API
+    if explanation is None:
+        current_app.logger.info(f"Falling back to Gemini API for record {record.id}")
+        explanation = call_gemini_api(system_message, prompt)
 
     # If Gemini API fails and fallback is enabled, try OpenAI
     if explanation is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Gemini API failed, falling back to OpenAI for record {record.id}")
+        current_app.logger.warning(f"Both MedGemma and Gemini failed, falling back to OpenAI for record {record.id}")
         api_key = get_openai_api_key()
 
         if api_key:
