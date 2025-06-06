@@ -95,7 +95,7 @@ DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
 USE_OPENAI_FALLBACK = True
 
 # Comprehensive Medica AI System Message
-MEDICA_AI_SYSTEM_MESSAGE = """You are Medica AI, a comprehensive medical consultant AI assistant designed to provide evidence-based health information and support. Your expertise spans:
+MEDICA_AI_SYSTEM_MESSAGE = """You are Medical AI, a comprehensive medical consultant AI assistant designed to provide evidence-based health information and support. Your expertise spans:
 
 **Core Medical Domains:**
 - General Medicine & Internal Medicine
