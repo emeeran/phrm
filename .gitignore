@@ -7,7 +7,10 @@ docs/
 uploads/
 *.log
 2del/
-<<<<<<< HEAD
+debbuild/
+
+
+ 
 backups/
 build/
 data/
@@ -21,14 +24,6 @@ tests/
 uploads/
 
 
-=======
-.env.development
-.env.production
-*.db
-temp/
-scripts/
-tests/
->>>>>>> develop
 
 # Python
 __pycache__/

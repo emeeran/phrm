@@ -3,3 +3,11 @@ requests
 python-dotenv
 PyMuPDF==1.23.26
 transformers
+flask-login
+flask-migrate
+flask-limiter
+flask-caching
+flask-talisman
+flask-wtf
+openai
+langchain_community
