@@ -4,7 +4,8 @@ import os
 import openai
 import json
 from ..models import db, HealthRecord, Document, AISummary, FamilyMember
-from ..utils.ai_helpers import extract_text_from_pdf, call_gemini_api, call_openai_api, get_gemini_api_key, initialize_gemini, get_openai_api_key
+from ..utils.ai_helpers import extract_text_from_pdf, call_groq_api, get_groq_api_key, call_deepseek_api, get_deepseek_api_key, call_huggingface_api, get_huggingface_api_key
+from ..config import Config
 # from ..utils.security import (
 #     log_security_event, detect_suspicious_patterns, 
 #     sanitize_html
@@ -73,26 +74,24 @@ class AISecurityManager:
         return True
 
 try:
-    from langchain.vectorstores import Chroma
-    from langchain.embeddings import OpenAIEmbeddings
+    from langchain_community.vectorstores import Chroma
+    from langchain_community.embeddings import OpenAIEmbeddings
     from langchain.text_splitter import RecursiveCharacterTextSplitter
 except ImportError:
     # Handle missing langchain dependencies gracefully
     Chroma = None
     OpenAIEmbeddings = None
     RecursiveCharacterTextSplitter = None
-from langchain.document_loaders import TextLoader, PyPDFLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.chains import RetrievalQA
-from langchain.llms import OpenAI
+from langchain_community.llms import OpenAI
 import re
 import time
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
 # Default AI model configuration
-DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20"
-# Whether to use OpenAI as fallback if Gemini fails
-USE_OPENAI_FALLBACK = True
+DEFAULT_MODEL = "google/gemma-3n-E4B-it-litert-preview"
 
 # Comprehensive Medical AI System Message (Enhanced for MedGemma)
 MEDICA_AI_SYSTEM_MESSAGE = """You are Medical AI, a comprehensive medical consultant AI assistant designed to provide evidence-based health information and support. Your expertise spans:
@@ -275,36 +274,37 @@ def create_gpt_summary(record, summary_type='standard'):
     else:
         system_message = "You are a medical assistant helping patients understand their health records. This record does not have attached documents, so provide a summary based on the available metadata. Format your response with appropriate HTML paragraph tags."
 
-    # First try using MedGemma for medical content
-    current_app.logger.info(f"Attempting to generate medical summary for record {record.id} using MedGemma")
-    explanation = call_medgemma_api(system_message, prompt)
+    # Try AI providers in order: HuggingFace (MedGemma) -> GROQ -> DEEPSEEK
+    current_app.logger.info(f"Attempting to generate medical summary for record {record.id}")
+    explanation = None
 
-    # If MedGemma fails, try Gemini API
+    # First try HuggingFace API with MedGemma
+    try:
+        explanation = call_huggingface_api(system_message, prompt, temperature=0.3, max_tokens=1500)
+        if explanation:
+            current_app.logger.info(f"HuggingFace/MedGemma API successful for record {record.id}")
+    except Exception as e:
+        current_app.logger.warning(f"HuggingFace/MedGemma API failed for record {record.id}: {e}")
+
+    # If HuggingFace fails, try GROQ API
     if explanation is None:
-        current_app.logger.info(f"Falling back to Gemini API for record {record.id}")
-        explanation = call_gemini_api(system_message, prompt)
+        current_app.logger.info(f"Falling back to GROQ API for record {record.id}")
+        try:
+            explanation = call_groq_api(system_message, prompt, temperature=0.3, max_tokens=1500)
+            if explanation:
+                current_app.logger.info(f"GROQ API successful for record {record.id}")
+        except Exception as e:
+            current_app.logger.warning(f"GROQ API failed for record {record.id}: {e}")
 
-    # If Gemini API fails and fallback is enabled, try OpenAI
-    if explanation is None and USE_OPENAI_FALLBACK:
-        current_app.logger.warning(f"Both MedGemma and Gemini failed, falling back to OpenAI for record {record.id}")
-        api_key = get_openai_api_key()
-
-        if api_key:
-            try:
-                openai.api_key = api_key
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=1500,
-                    temperature=0.3
-                )
-                explanation = response.choices[0].message.content.strip()
-            except Exception as e:
-                current_app.logger.error(f"Error creating OpenAI fallback explanation: {e}")
-                return None
+    # If GROQ fails, try DEEPSEEK API
+    if explanation is None:
+        current_app.logger.info(f"Falling back to DEEPSEEK API for record {record.id}")
+        try:
+            explanation = call_deepseek_api(system_message, prompt, temperature=0.3, max_tokens=1500)
+            if explanation:
+                current_app.logger.info(f"DEEPSEEK API successful for record {record.id}")
+        except Exception as e:
+            current_app.logger.warning(f"DEEPSEEK API failed for record {record.id}: {e}")
 
     return explanation
 
@@ -727,35 +727,53 @@ def chat():
         # Use higher token limits for private mode due to comprehensive system message and medical context
         max_tokens = 8000 if mode == 'private' else 4000
         temperature = 0.5
+        assistant_message = None
+        used_model = None
 
-        # First try using Gemini API
-        current_app.logger.info(f"Attempting to generate chat response using Gemini API (mode: {mode}, max_tokens: {max_tokens})")
-        assistant_message = call_gemini_api(system_message, prompt, temperature=temperature, max_tokens=max_tokens)
+        # Try AI providers in order: HuggingFace (MedGemma) -> GROQ -> DEEPSEEK
+        current_app.logger.info(f"Attempting to generate chat response (mode: {mode}, max_tokens: {max_tokens})")
 
-        # If Gemini API fails and fallback is enabled, try OpenAI
-        if assistant_message is None and USE_OPENAI_FALLBACK:
-            current_app.logger.warning(f"Gemini API failed for chat, falling back to OpenAI")
+        # First try HuggingFace API with MedGemma
+        current_app.logger.info("Attempting HuggingFace API with MedGemma")
+        try:
+            assistant_message = call_huggingface_api(
+                system_message, 
+                prompt, 
+                temperature=temperature, 
+                max_tokens=max_tokens
+            )
+            if assistant_message:
+                used_model = current_app.config.get('HUGGINGFACE_MODEL', 'google/medgemma-4b-it')
+                current_app.logger.info("HuggingFace/MedGemma API successful")
+        except Exception as e:
+            current_app.logger.warning(f"HuggingFace/MedGemma API failed: {e}")
+
+        # If HuggingFace fails, try GROQ API
+        if assistant_message is None:
+            current_app.logger.info("Falling back to GROQ API")
             try:
-                api_key = get_openai_api_key()
-                if not api_key:
-                    return jsonify({'error': 'API key not configured'}), 500
-
-                openai.api_key = api_key
-                # Use higher token limits for private mode
-                openai_max_tokens = 4000 if mode == 'private' else 2000
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=temperature,
-                    max_tokens=openai_max_tokens
+                assistant_message = call_groq_api(
+                    system_message, 
+                    prompt, 
+                    temperature=temperature, 
+                    max_tokens=max_tokens
                 )
-                assistant_message = response.choices[0].message.content.strip()
+                if assistant_message:
+                    used_model = current_app.config.get('GROQ_MODEL', 'deepseek-r1-distill-llama-70b')
+                    current_app.logger.info("GROQ API successful")
             except Exception as e:
-                current_app.logger.error(f"Error in chatbot fallback: {e}")
-                return jsonify({'error': 'An error occurred processing your request'}), 500
+                current_app.logger.warning(f"GROQ API failed: {e}")
+
+        # If GROQ fails, try DEEPSEEK API
+        if assistant_message is None:
+            current_app.logger.info("Falling back to DEEPSEEK API")
+            try:
+                assistant_message = call_deepseek_api(system_message, prompt, temperature=temperature, max_tokens=max_tokens)
+                if assistant_message:
+                    used_model = current_app.config.get('DEEPSEEK_MODEL', 'deepseek-chat')
+                    current_app.logger.info("DEEPSEEK API successful")
+            except Exception as e:
+                current_app.logger.warning(f"DEEPSEEK API failed: {e}")
 
         if not assistant_message:
             log_security_event('chat_response_generation_failed', {
@@ -763,8 +781,6 @@ def chat():
                 'mode': mode,
                 'patient': patient
             })
-            return jsonify({'error': 'Failed to generate response'}), 500
-
         # Sanitize the AI response
         assistant_message = sanitize_html(assistant_message)
 
@@ -779,7 +795,7 @@ def chat():
         # Return AI response with model information
         return jsonify({
             'response': assistant_message,
-            'model': 'MedGemma'  # Hardcoded for now since we only use MedGemma
+            'model': used_model or 'Unknown'  # Use actual model name instead of hardcoded
         })
         
     except Exception as e:
@@ -884,31 +900,37 @@ def check_symptoms():
         # User prompt
         prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
-        # First try using Gemini API
-        current_app.logger.info(f"Attempting to analyze symptoms using Gemini API")
-        assistant_message = call_gemini_api(system_message, prompt, temperature=0.5)
+        # Try AI providers in order: HuggingFace (MedGemma) -> GROQ -> DEEPSEEK
+        current_app.logger.info(f"Attempting to analyze symptoms")
+        assistant_message = None
 
-        # If Gemini API fails and fallback is enabled, try OpenAI
-        if assistant_message is None and USE_OPENAI_FALLBACK:
-            current_app.logger.warning(f"Gemini API failed for symptom checking, falling back to OpenAI")
+        # First try HuggingFace API with MedGemma
+        try:
+            assistant_message = call_huggingface_api(system_message, prompt, temperature=0.5)
+            if assistant_message:
+                current_app.logger.info("HuggingFace/MedGemma API successful for symptom analysis")
+        except Exception as e:
+            current_app.logger.warning(f"HuggingFace/MedGemma API failed for symptom analysis: {e}")
+
+        # If HuggingFace fails, try GROQ API
+        if assistant_message is None:
+            current_app.logger.info("Falling back to GROQ API for symptom analysis")
             try:
-                api_key = get_openai_api_key()
-                if not api_key:
-                    return jsonify({'error': 'API key not configured'}), 500
-
-                openai.api_key = api_key
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.5
-                )
-                assistant_message = response.choices[0].message.content.strip()
+                assistant_message = call_groq_api(system_message, prompt, temperature=0.5)
+                if assistant_message:
+                    current_app.logger.info("GROQ API successful for symptom analysis")
             except Exception as e:
-                current_app.logger.error(f"Error in symptom checker fallback: {e}")
-                return jsonify({'error': 'An error occurred processing your request'}), 500
+                current_app.logger.warning(f"GROQ API failed for symptom analysis: {e}")
+
+        # If GROQ fails, try DEEPSEEK API
+        if assistant_message is None:
+            current_app.logger.info("Falling back to DEEPSEEK API for symptom analysis")
+            try:
+                assistant_message = call_deepseek_api(system_message, prompt, temperature=0.5)
+                if assistant_message:
+                    current_app.logger.info("DEEPSEEK API successful for symptom analysis")
+            except Exception as e:
+                current_app.logger.warning(f"DEEPSEEK API failed for symptom analysis: {e}")
 
         if not assistant_message:
             log_security_event('symptom_analysis_failed', {

@@ -33,16 +33,24 @@ class Config:
     CACHE_REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes
 
-    # OpenAI API Configuration
-    OPENAI_API_KEY = get_secret('OPENAI_API_KEY')
+    # Hugging Face API Configuration (Primary Provider for MedGemma)
+    HUGGINGFACE_ACCESS_TOKEN = os.environ.get('HUGGINGFACE_ACCESS_TOKEN')
+    HUGGINGFACE_MODEL = os.environ.get('HUGGINGFACE_MODEL', 'google/medgemma-4b-it')
+    HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/"
 
-    # Gemini API Configuration
-    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-    GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20')
-    USE_OPENAI_FALLBACK = os.environ.get('USE_OPENAI_FALLBACK', 'True').lower() == 'true'
+    # GROQ API Configuration (Secondary Provider)
+    GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+    GROQ_MODEL = os.environ.get('GROQ_MODEL', 'deepseek-r1-distill-llama-70b')
+    GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+    # DEEPSEEK API Configuration (Fallback Provider)
+    DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+    DEEPSEEK_MODEL = os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat')
+    DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
     # Default AI Model Settings
-    DEFAULT_AI_MODEL = "llama3"
+    DEFAULT_AI_MODEL = "google/medgemma-4b-it"
+    DEFAULT_AI_PROVIDER = "huggingface"
 
     # Pinecone Configuration for RAG
     PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')

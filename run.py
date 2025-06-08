@@ -14,6 +14,35 @@ from app.models import User, FamilyMember, HealthRecord, Document, AISummary
 # Load environment variables from .env file if present
 load_dotenv()
 
+# Check for Hugging Face API key (Primary for MedGemma)
+if not os.getenv('HUGGINGFACE_ACCESS_TOKEN'):
+    print("⚠️ Hugging Face Access Token is not configured.")
+    print("   MedGemma (primary AI) will not be available via Inference API.")
+    print("   The application will attempt to use local MedGemma or fallback to GROQ/DEEPSEEK.")
+else:
+    print("✅ Hugging Face Access Token configured.")
+
+# Check for GROQ API key (Secondary)
+if not os.getenv('GROQ_API_KEY'):
+    print("⚠️ GROQ API key is not configured.")
+    print("   GROQ (secondary AI) will not be available.")
+else:
+    print("✅ GROQ API key configured.")
+
+# Check for DEEPSEEK API key (Fallback)
+if not os.getenv('DEEPSEEK_API_KEY'):
+    print("⚠️ DEEPSEEK API key is not configured.")
+    print("   DEEPSEEK (fallback AI) will not be available.")
+else:
+    print("✅ DEEPSEEK API key configured.")
+
+# Ensure at least one fallback is configured if Hugging Face is not
+if not os.getenv('HUGGINGFACE_ACCESS_TOKEN') and not os.getenv('GROQ_API_KEY') and not os.getenv('DEEPSEEK_API_KEY'):
+    print("❌ CRITICAL: No AI providers are configured. AI features will not work.")
+elif not os.getenv('HUGGINGFACE_ACCESS_TOKEN') and (not os.getenv('GROQ_API_KEY') or not os.getenv('DEEPSEEK_API_KEY')):
+    print("⚠️ WARNING: Primary AI (MedGemma via Hugging Face) is not configured, and one or more fallback AIs are also not configured.")
+    print("   AI functionality might be limited or unavailable.")
+
 # Create Flask application instance
 app = create_app()
 
@@ -29,35 +58,6 @@ def make_shell_context():
         'Document': Document,
         'AISummary': AISummary
     }
-
-# Check if Gemini API is configured
-def check_gemini_configuration():
-    """Check if Gemini API is properly configured"""
-    gemini_api_key = app.config.get('GEMINI_API_KEY')
-    gemini_model = app.config.get('GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20')
-    
-    if not gemini_api_key:
-        print("⚠️ Gemini API key is not configured")
-        print("   AI features will fall back to OpenAI if configured.")
-        return False
-    
-    try:
-        # Import here to avoid circular imports
-        import google.generativeai as genai
-        genai.configure(api_key=gemini_api_key)
-        print(f"✅ Gemini API configured successfully")
-        print(f"   Using model: {gemini_model}")
-        return True
-    except ImportError:
-        print("⚠️ Google Generative AI package not installed")
-        print("   Run: pip install google-generativeai")
-        return False
-    except Exception as e:
-        print(f"⚠️ Error configuring Gemini API: {e}")
-        return False
-
-# Try to check Gemini configuration on startup
-check_gemini_configuration()
 
 # Custom Jinja2 filter to format dates and other template helpers
 
