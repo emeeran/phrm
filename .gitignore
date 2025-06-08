@@ -90,3 +90,14 @@ logs/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Test scripts
+test_*.py
+debug_*.py
+generate_*.py
+enhanced_integration_report.py
+test_medgemma_transformers.py
+test_enhanced_medgemma.py
+test_medgemma.py
+test_phrm_application.py
+test_ai_providers.py
