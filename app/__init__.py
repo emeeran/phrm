@@ -222,15 +222,13 @@ def create_app(config_name=None):
 
     # Apply database optimizations
     if app.config.get('ENABLE_DATABASE_OPTIMIZATION', False):
-        # DatabaseOptimizer.optimize_sqlite(db.engine)
-        
-        @app.before_first_request
         def initialize_database():
             # Create optimized indexes
             # DatabaseOptimizer.create_indexes(db)
             # Analyze database for optimization
             # DatabaseOptimizer.analyze_database(db)
             pass
+        app.before_request(initialize_database)
 
     # Register CLI commands for admin management
     @app.cli.command()

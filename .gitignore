@@ -1,92 +1,54 @@
-# Custom
+# Production .gitignore for PHRM
+
+# Python/venv
 .venv/
 venv/
-docs/
-.env/
-.pytest_cache/
-uploads/
-*.log
-2del/
-debbuild/
-
-
- 
-backups/
-build/
-data/
-deployment/
-dist/
-instance/
-logs/
-temp/
-temp_build/
-tests/
-uploads/
-
-
-
-# Python
+ENV/
+env/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.env.production
+.env.Production
 
-# Flask
+# Flask/instance/data
 instance/
 phrm.db
 *.db
 .env
 .flaskenv
+uploads/
+logs/
+*.log
 
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv/
+# Build/deployment
+build/
+dist/
+debbuild/
+temp/
+temp_build/
+backups/
+data/
+deployment/
 
-# IDE files
+# IDE/editor
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Application specific
-uploads/*
-!uploads/.gitkeep
-logs/
-*.log
-
-# Test coverage
-.coverage
-htmlcov/
+# Docs/tests
+.docs/
+docs/
+tests/
 .pytest_cache/
+htmlcov/
+.coverage
 
-# Test scripts
+# Test/debug scripts
+2del/
 test_*.py
 debug_*.py
 generate_*.py
@@ -96,3 +58,12 @@ test_enhanced_medgemma.py
 test_medgemma.py
 test_phrm_application.py
 test_ai_providers.py
+
+# Application specific
+uploads/*
+!uploads/.gitkeep
+logs/
+*.log
+
+# Desktop shortcut (if not needed in repo)
+usr/share/applications/phrm.desktop

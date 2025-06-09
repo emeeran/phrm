@@ -8,7 +8,8 @@ def get_secret(key, default=None):
 class Config:
     """Base configuration class"""
     SECRET_KEY = get_secret('SECRET_KEY', 'dev-key-for-development-only')
-    SQLALCHEMY_DATABASE_URI = get_secret('DATABASE_URL', 'sqlite:///phrm.db')
+    # Use SQLALCHEMY_DATABASE_URI if set, else fallback to DATABASE_URL, else default
+    SQLALCHEMY_DATABASE_URI = get_secret('SQLALCHEMY_DATABASE_URI', get_secret('DATABASE_URL', 'sqlite:///phrm.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
@@ -80,8 +81,8 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True  # Force HTTPS cookies
     WTF_CSRF_ENABLED = True
     
-    # Database - Use PostgreSQL in production with optimization
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    # Database - Use SQLALCHEMY_DATABASE_URI if set, else fallback to DATABASE_URL
+    SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 20,
         'max_overflow': 30,
@@ -91,11 +92,11 @@ class ProductionConfig(Config):
         'echo': False,
         'connect_args': {
             'options': '-c timezone=utc'  # Set timezone for PostgreSQL
-        } if os.environ.get('DATABASE_URL', '').startswith('postgresql') else {}
+        } if (os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL') or '').startswith('postgresql') else {}
     }
     
     # SQLite optimizations for development/testing
-    if not os.environ.get('DATABASE_URL') or 'sqlite' in os.environ.get('DATABASE_URL', ''):
+    if not (os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')) or 'sqlite' in (os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL') or ''):
         SQLALCHEMY_ENGINE_OPTIONS = {
             'pool_size': 5,
             'max_overflow': 10,
@@ -104,6 +105,9 @@ class ProductionConfig(Config):
             'pool_timeout': 20,
             'echo': False
         }
+    
+    # Use Redis for rate limiting in production
+    RATELIMIT_STORAGE_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     
     # Database optimization settings
     SQLALCHEMY_RECORD_QUERIES = True

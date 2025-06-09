@@ -49,3 +49,27 @@ DEEPSEEK_MODEL=deepseek-chat
 
 - Ensure your Hugging Face token has access to MedGemma models (gated repo).
 - Only production keys should be present in `.env`.
+
+## Production Deployment
+
+1. **Install dependencies and create a virtual environment:**
+   ```zsh
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   pip install gunicorn
+   ```
+2. **Copy and edit the production .env:**
+   ```zsh
+   cp .env.production.example .env
+   # Edit .env with your production secrets and keys
+   ```
+3. **Run with Gunicorn (recommended for production):**
+   ```zsh
+   ./run_gunicorn.sh
+   # App will be available at http://localhost:8000
+   ```
+
+- For systemd or advanced deployment, create a service file pointing to `run_gunicorn.sh`.
+- Use a real database (e.g., PostgreSQL) for production, not SQLite.
+- Set up HTTPS and a reverse proxy (e.g., Nginx) for secure public access.
