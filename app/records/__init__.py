@@ -1,47 +1,44 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, send_from_directory, abort
-from flask_login import login_required, current_user
-from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, TextAreaField, SelectField, DateField, SubmitField, FloatField
-from wtforms.validators import DataRequired, Length, Optional, ValidationError
 import os
-from datetime import datetime
 import uuid
-from werkzeug.utils import secure_filename
-from ..models import db, HealthRecord, Document, FamilyMember
-# from ..utils.security import (
-#     log_security_event, detect_suspicious_patterns, 
-#     sanitize_html, validate_file_type, secure_filename_enhanced
-# )
-# from ..utils.performance import monitor_performance
-from .. import limiter, cache
 import mimetypes
-from ..utils.ai_helpers import extract_text_from_pdf
+from datetime import datetime
 
-# Stub functions for missing security utilities
-def log_security_event(event_type, data):
-    """Stub function for security event logging"""
-    pass
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
+from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField, FileRequired
+from werkzeug.utils import secure_filename
+from wtforms import (
+    DateField,
+    FloatField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-def detect_suspicious_patterns(text):
-    """Stub function for suspicious pattern detection"""
-    return False
-
-def sanitize_html(text):
-    """Stub function for HTML sanitization"""
-    return text if text else ""
-
-def validate_file_type(file_path):
-    """Stub function for file type validation"""
-    return True
-
-def secure_filename_enhanced(filename):
-    """Stub function for enhanced secure filename"""
-    return secure_filename(filename)
-
-def monitor_performance(func):
-    """Stub decorator for performance monitoring"""
-    return func
+from .. import limiter
+from ..models import Document, FamilyMember, HealthRecord, db
+from ..utils.form_validators import SecurityValidationMixin, validate_file_upload
+from ..utils.shared import (
+    detect_suspicious_patterns,
+    log_security_event,
+    monitor_performance,
+    sanitize_html,
+    secure_filename_enhanced,
+    validate_file_type,
+)
 
 records_bp = Blueprint('records', __name__, url_prefix='/records')
 
@@ -49,38 +46,38 @@ records_bp = Blueprint('records', __name__, url_prefix='/records')
 class RecordForm(FlaskForm):
     family_member = SelectField('Family Member', coerce=int, validators=[Optional()])
     date = DateField('Date', format='%Y-%m-%d', validators=[DataRequired()])
-    chief_complaint = TextAreaField('Chief Complaint', validators=[Optional(), Length(max=2000)], 
+    chief_complaint = TextAreaField('Chief Complaint', validators=[Optional(), Length(max=2000)],
                                    render_kw={'rows': 3, 'placeholder': 'Describe the main reason for this visit or health concern'})
-    doctor = StringField('Doctor', validators=[Optional(), Length(max=200)], 
+    doctor = StringField('Doctor', validators=[Optional(), Length(max=200)],
                         render_kw={'placeholder': 'Doctor\'s name or clinic/hospital'})
-    investigations = TextAreaField('Investigations', validators=[Optional(), Length(max=3000)], 
+    investigations = TextAreaField('Investigations', validators=[Optional(), Length(max=3000)],
                                   render_kw={'rows': 4, 'placeholder': 'Tests ordered, procedures performed, imaging studies, etc.'})
-    diagnosis = TextAreaField('Diagnosis', validators=[Optional(), Length(max=2000)], 
+    diagnosis = TextAreaField('Diagnosis', validators=[Optional(), Length(max=2000)],
                              render_kw={'rows': 3, 'placeholder': 'Medical diagnosis or clinical impression'})
-    prescription = TextAreaField('Prescription', validators=[Optional(), Length(max=3000)], 
+    prescription = TextAreaField('Prescription', validators=[Optional(), Length(max=3000)],
                                 render_kw={'rows': 4, 'placeholder': 'Medications prescribed with dosage and instructions'})
-    notes = TextAreaField('Notes', validators=[Optional(), Length(max=5000)], 
+    notes = TextAreaField('Notes', validators=[Optional(), Length(max=5000)],
                          render_kw={'rows': 4, 'placeholder': 'Additional notes, observations, or instructions'})
-    review_followup = TextAreaField('Review / Follow up', validators=[Optional(), Length(max=1000)], 
+    review_followup = TextAreaField('Review / Follow up', validators=[Optional(), Length(max=1000)],
                                    render_kw={'rows': 2, 'placeholder': 'Next appointment date, follow-up instructions, monitoring requirements'})
     documents = FileField('Uploads', validators=[Optional(),
                                                 FileAllowed(['jpg', 'jpeg', 'png', 'pdf'],
                                                            'Only images and PDFs are allowed')],
                          render_kw={'multiple': True})
     submit = SubmitField('Save Record')
-    
+
     def validate_chief_complaint(self, chief_complaint):
         if chief_complaint.data and detect_suspicious_patterns(chief_complaint.data):
             raise ValidationError('Chief complaint contains invalid content.')
-    
+
     def validate_doctor(self, doctor):
         if doctor.data and detect_suspicious_patterns(doctor.data):
             raise ValidationError('Doctor field contains invalid content.')
-    
+
     def validate_diagnosis(self, diagnosis):
         if diagnosis.data and detect_suspicious_patterns(diagnosis.data):
             raise ValidationError('Diagnosis contains invalid content.')
-    
+
     def validate_notes(self, notes):
         if notes.data and detect_suspicious_patterns(notes.data):
             raise ValidationError('Notes contain invalid content.')
@@ -90,15 +87,15 @@ class FamilyMemberForm(FlaskForm):
     last_name = StringField('Last Name', validators=[DataRequired()])
     date_of_birth = DateField('Date of Birth', format='%Y-%m-%d', validators=[Optional()])
     relationship = StringField('Relationship', validators=[Optional()])
-    
+
     # Basic Information
     gender = StringField('Gender', validators=[Optional()])
     blood_type = StringField('Blood Type', validators=[Optional()])
     height = FloatField('Height (cm)', validators=[Optional()])
     weight = FloatField('Weight (kg)', validators=[Optional()])
-    
+
     # Medical History Section
-    family_medical_history = TextAreaField('Family Medical History', 
+    family_medical_history = TextAreaField('Family Medical History',
                                          description='Provide family medical history including genetic conditions, hereditary diseases, etc.',
                                          validators=[Optional()])
     surgical_history = TextAreaField('Surgical History',
@@ -113,12 +110,12 @@ class FamilyMemberForm(FlaskForm):
     chronic_conditions = TextAreaField('Chronic Conditions',
                                      description='List any ongoing medical conditions',
                                      validators=[Optional()])
-    
+
     # Additional Notes
     notes = TextAreaField('Additional Notes',
                          description='Any other relevant medical information',
                          validators=[Optional()])
-    
+
     submit = SubmitField('Save Family Member')
 
 # Helper functions
@@ -134,12 +131,12 @@ def save_document(file, record_id):
                 'reason': 'Invalid file type or malicious content'
             })
             raise ValueError("Invalid file type or potentially malicious file")
-        
+
         # Use enhanced secure filename function
         filename = secure_filename_enhanced(file.filename)
         if not filename:
             raise ValueError("Invalid filename")
-        
+
         # Create unique filename to avoid conflicts
         unique_filename = f"{uuid.uuid4().hex}_{filename}"
 
@@ -149,11 +146,11 @@ def save_document(file, record_id):
         os.chmod(upload_dir, 0o755)  # Secure permissions
 
         file_path = os.path.join(upload_dir, unique_filename)
-        
+
         # Save file with size limit check
         file.save(file_path)
         file_size = os.path.getsize(file_path)
-        
+
         # Enforce file size limits
         max_size = current_app.config.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024)  # 50MB default
         if file_size > max_size:
@@ -164,9 +161,9 @@ def save_document(file, record_id):
         file_type = os.path.splitext(filename)[1].lower().replace('.', '')
         if file_type == 'jpg':
             file_type = 'jpeg'
-        
+
         # Additional security check on saved file
-        if not validate_file_type(file_path, check_content=True):
+        if not validate_file_type(file_path):
             os.remove(file_path)
             log_security_event('file_upload_rejected', {
                 'user_id': current_user.id,
@@ -177,7 +174,7 @@ def save_document(file, record_id):
 
         # Initialize extracted text
         extracted_text = None
-        
+
         # For PDF files, automatically extract text using OCR
         if file_type == 'pdf':
             try:
@@ -210,7 +207,7 @@ def save_document(file, record_id):
             'file_size': file_size,
             'extracted_text': extracted_text
         }
-        
+
     except Exception as e:
         current_app.logger.error(f"Error saving document: {e}")
         # Clean up any partial file
@@ -222,7 +219,6 @@ def save_document(file, record_id):
 @records_bp.route('/dashboard')
 @login_required
 @monitor_performance
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def dashboard():
     """Main dashboard showing recent records and stats"""
     # Get latest records
@@ -257,7 +253,7 @@ def list_records():
         record_type = request.args.get('type', None)
         family_member_id = request.args.get('family_member', None, type=int)
         search_name = request.args.get('name', None)
-        
+
         # Validate and sanitize search input
         if search_name:
             search_name = sanitize_html(search_name.strip())
@@ -317,7 +313,7 @@ def list_records():
                               record_type=record_type,
                               family_member_id=family_member_id,
                               search_name=search_name)
-                              
+
     except Exception as e:
         current_app.logger.error(f"Error in list_records: {e}")
         flash('An error occurred while loading records', 'danger')
@@ -400,8 +396,8 @@ def create_record():
                             upload_count += 1
                         except Exception as e:
                             current_app.logger.error(f"Error uploading file {file.filename}: {e}")
-                            flash(f'Error uploading file {file.filename}: {str(e)}', 'warning')
-                
+                            flash(f'Error uploading file {file.filename}: {e!s}', 'warning')
+
                 if upload_count > 0:
                     db.session.commit()
                     current_app.logger.info(f"Successfully uploaded {upload_count} files for record {record.id}")
@@ -415,7 +411,7 @@ def create_record():
 
             flash('Health record created successfully!', 'success')
             return redirect(url_for('records.view_record', record_id=record.id))
-            
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error creating health record: {e}")
@@ -439,7 +435,7 @@ def view_record(record_id):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_record_access_attempt', {
                 'user_id': current_user.id,
@@ -457,7 +453,7 @@ def view_record(record_id):
         })
 
         return render_template('records/view.html', title=record.title, record=record)
-        
+
     except Exception as e:
         current_app.logger.error(f"Error viewing record {record_id}: {e}")
         flash('An error occurred while loading the record', 'danger')
@@ -480,7 +476,7 @@ def edit_record(record_id):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_record_edit_attempt', {
                 'user_id': current_user.id,
@@ -551,20 +547,20 @@ def edit_record(record_id):
                                 upload_count += 1
                             except Exception as e:
                                 current_app.logger.error(f"Error uploading file {file.filename}: {e}")
-                                flash(f'Error uploading file {file.filename}: {str(e)}', 'warning')
+                                flash(f'Error uploading file {file.filename}: {e!s}', 'warning')
 
                 db.session.commit()
-                
+
                 # Log successful record update
                 log_security_event('health_record_updated', {
                     'user_id': current_user.id,
                     'record_id': record_id,
                     'family_member_id': record.family_member_id
                 })
-                
+
                 flash('Health record updated successfully!', 'success')
                 return redirect(url_for('records.view_record', record_id=record.id))
-                
+
             except Exception as e:
                 db.session.rollback()
                 current_app.logger.error(f"Error updating health record {record_id}: {e}")
@@ -588,7 +584,7 @@ def edit_record(record_id):
                 form.family_member.data = record.family_member_id
 
         return render_template('records/edit.html', title='Edit Record', form=form, record=record)
-        
+
     except Exception as e:
         current_app.logger.error(f"Error in edit_record for record {record_id}: {e}")
         flash('An error occurred while loading the record for editing', 'danger')
@@ -611,7 +607,7 @@ def delete_record(record_id):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_record_delete_attempt', {
                 'user_id': current_user.id,
@@ -651,7 +647,7 @@ def delete_record(record_id):
 
         flash('Health record deleted successfully', 'success')
         return redirect(url_for('records.list_records'))
-        
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error deleting record {record_id}: {e}")
@@ -662,7 +658,6 @@ def delete_record(record_id):
 @records_bp.route('/family')
 @login_required
 @monitor_performance
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def list_family():
     """List all family members"""
     family_members = current_user.family_members
@@ -686,7 +681,7 @@ def add_family_member():
             relationship = sanitize_html(form.relationship.data.strip()) if form.relationship.data else None
             gender = sanitize_html(form.gender.data.strip()) if form.gender.data else None
             blood_type = sanitize_html(form.blood_type.data.strip()) if form.blood_type.data else None
-            
+
             # Sanitize medical history fields
             family_medical_history = sanitize_html(form.family_medical_history.data) if form.family_medical_history.data else None
             surgical_history = sanitize_html(form.surgical_history.data) if form.surgical_history.data else None
@@ -729,7 +724,7 @@ def add_family_member():
 
             # Create initial medical history records if provided
             records_to_create = []
-            
+
             if family_medical_history:
                 records_to_create.append(HealthRecord(
                     title="Family Medical History",
@@ -738,7 +733,7 @@ def add_family_member():
                     date=datetime.utcnow(),
                     family_member_id=family_member.id
                 ))
-            
+
             if surgical_history:
                 records_to_create.append(HealthRecord(
                     title="Surgical History",
@@ -747,7 +742,7 @@ def add_family_member():
                     date=datetime.utcnow(),
                     family_member_id=family_member.id
                 ))
-            
+
             if current_medications:
                 records_to_create.append(HealthRecord(
                     title="Current Medications",
@@ -756,7 +751,7 @@ def add_family_member():
                     date=datetime.utcnow(),
                     family_member_id=family_member.id
                 ))
-            
+
             if allergies:
                 records_to_create.append(HealthRecord(
                     title="Known Allergies",
@@ -765,7 +760,7 @@ def add_family_member():
                     date=datetime.utcnow(),
                     family_member_id=family_member.id
                 ))
-            
+
             if chronic_conditions:
                 records_to_create.append(HealthRecord(
                     title="Chronic Conditions",
@@ -774,11 +769,11 @@ def add_family_member():
                     date=datetime.utcnow(),
                     family_member_id=family_member.id
                 ))
-            
+
             # Add all records at once
             for record in records_to_create:
                 db.session.add(record)
-            
+
             db.session.commit()
 
             # Log successful family member creation
@@ -790,7 +785,7 @@ def add_family_member():
 
             flash(f'Family member {family_member.first_name} {family_member.last_name} added successfully with complete medical history!', 'success')
             return redirect(url_for('records.list_family'))
-            
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error adding family member: {e}")
@@ -805,12 +800,12 @@ def add_family_member():
 def edit_family_member(family_member_id):
     """Edit an existing family member"""
     family_member = FamilyMember.query.get_or_404(family_member_id)
-    
+
     # Check if the family member belongs to the current user
     if family_member not in current_user.family_members:
         flash('You do not have permission to edit this family member', 'danger')
         return redirect(url_for('records.list_family'))
-    
+
     form = FamilyMemberForm()
 
     if form.validate_on_submit():
@@ -829,7 +824,7 @@ def edit_family_member(family_member_id):
         family_member.allergies = form.allergies.data
         family_member.chronic_conditions = form.chronic_conditions.data
         family_member.notes = form.notes.data
-        
+
         db.session.commit()
 
         flash(f'Family member {family_member.first_name} {family_member.last_name} updated successfully!', 'success')
@@ -862,18 +857,18 @@ def edit_family_member(family_member_id):
 def delete_family_member(family_member_id):
     """Delete a family member and all associated records"""
     family_member = FamilyMember.query.get_or_404(family_member_id)
-    
+
     # Check if the family member belongs to the current user
     if family_member not in current_user.family_members:
         flash('You do not have permission to delete this family member', 'danger')
         return redirect(url_for('records.list_family'))
-    
+
     # Get family member name for flash message
     member_name = f"{family_member.first_name} {family_member.last_name}"
-    
+
     # Get associated health records to delete documents
     associated_records = HealthRecord.query.filter_by(family_member_id=family_member.id).all()
-    
+
     # Delete files associated with health records
     for record in associated_records:
         documents = Document.query.filter_by(health_record_id=record.id).all()
@@ -882,7 +877,7 @@ def delete_family_member(family_member_id):
                 os.remove(doc.file_path)
             except (FileNotFoundError, PermissionError) as e:
                 current_app.logger.error(f"Error deleting file {doc.file_path}: {e}")
-    
+
     # Delete family member (cascade will delete associated records and documents)
     db.session.delete(family_member)
     db.session.commit()
@@ -895,17 +890,17 @@ def delete_family_member(family_member_id):
 def view_family_member(family_member_id):
     """View a specific family member's details"""
     family_member = FamilyMember.query.get_or_404(family_member_id)
-    
+
     # Check if the family member belongs to the current user
     if family_member not in current_user.family_members:
         flash('You do not have permission to view this family member', 'danger')
         return redirect(url_for('records.list_family'))
-    
+
     # Get recent health records for this family member
     recent_records = HealthRecord.query.filter_by(family_member_id=family_member.id)\
                                       .order_by(HealthRecord.date.desc())\
                                       .limit(10).all()
-    
+
     return render_template('records/family_profile.html',
                           title=f'{family_member.first_name} {family_member.last_name}',
                           family_member=family_member,
@@ -927,10 +922,10 @@ def serve_upload(record_id, filename):
                 'record_id': record_id
             })
             abort(404)
-        
+
         # Get the record to check permissions
         record = HealthRecord.query.get_or_404(record_id)
-        
+
         # Check if user has permission to view this record
         has_permission = False
         if record.user_id == current_user.id:
@@ -939,7 +934,7 @@ def serve_upload(record_id, filename):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_file_access_attempt', {
                 'user_id': current_user.id,
@@ -949,12 +944,12 @@ def serve_upload(record_id, filename):
                 'record_family_member_id': record.family_member_id
             })
             abort(404)  # Return 404 instead of 403 to avoid information disclosure
-        
+
         # Verify that the requested file belongs to this record
         document = Document.query.filter_by(health_record_id=record_id).filter(
             Document.file_path.endswith(filename)
         ).first()
-        
+
         if not document:
             log_security_event('file_access_invalid_document', {
                 'user_id': current_user.id,
@@ -962,11 +957,11 @@ def serve_upload(record_id, filename):
                 'filename': filename
             })
             abort(404)
-        
+
         # Check if file exists on disk
         file_directory = os.path.join(current_app.config['UPLOAD_FOLDER'], str(record_id))
         file_path = os.path.join(file_directory, filename)
-        
+
         # Additional security check - ensure file path is within upload directory
         real_file_path = os.path.realpath(file_path)
         real_upload_dir = os.path.realpath(file_directory)
@@ -978,11 +973,11 @@ def serve_upload(record_id, filename):
                 'attempted_path': file_path
             })
             abort(404)
-        
+
         if not os.path.exists(file_path):
             current_app.logger.error(f"File not found on disk: {file_path}")
             abort(404)
-        
+
         # Set appropriate MIME type
         mimetype = mimetypes.guess_type(filename)[0]
         if not mimetype:
@@ -994,7 +989,7 @@ def serve_upload(record_id, filename):
                 mimetype = 'image/png'
             else:
                 mimetype = 'application/octet-stream'
-        
+
         # Log successful file access
         log_security_event('file_accessed', {
             'user_id': current_user.id,
@@ -1002,7 +997,7 @@ def serve_upload(record_id, filename):
             'filename': filename,
             'file_size': os.path.getsize(file_path)
         })
-        
+
         try:
             return send_from_directory(
                 directory=file_directory,
@@ -1013,7 +1008,7 @@ def serve_upload(record_id, filename):
         except Exception as e:
             current_app.logger.error(f"Error serving file {file_path}: {e}")
             abort(404)
-            
+
     except Exception as e:
         current_app.logger.error(f"Error in serve_upload: {e}")
         abort(404)

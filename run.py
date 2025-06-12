@@ -5,11 +5,11 @@ Main entry point for the application.
 """
 
 import os
-import sys
-import requests
+
 from dotenv import load_dotenv
+
 from app import create_app, db
-from app.models import User, FamilyMember, HealthRecord, Document, AISummary
+from app.models import AISummary, Document, FamilyMember, HealthRecord, User
 
 # Load environment variables from .env file if present
 load_dotenv()
@@ -63,12 +63,12 @@ def make_shell_context():
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='Run the Personal Health Record Manager')
     parser.add_argument('--port', type=int, default=5000, help='Port to run the application on')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to run the application on')
     args = parser.parse_args()
-    
+
     # Create the upload directory if it doesn't exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 

@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=PHRM
-Comment=Personal Health Record Manager
-Exec=/usr/local/phrm/run_phrm.sh
-Icon=utilities-terminal
-Terminal=true
-Type=Application
-Categories=Utility;

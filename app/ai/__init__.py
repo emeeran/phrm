@@ -1,92 +1,60 @@
-from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
-from flask_login import current_user, login_required
-import os
-import openai
 import json
-from ..models import db, HealthRecord, Document, AISummary, FamilyMember
-from ..utils.ai_helpers import extract_text_from_pdf, call_groq_api, get_groq_api_key, call_deepseek_api, get_deepseek_api_key, call_huggingface_api, get_huggingface_api_key
+import os
+from typing import Any, Callable, Dict, List, Optional
+
+import openai
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask_login import current_user, login_required
+
+from .. import limiter
 from ..config import Config
-# from ..utils.security import (
-#     log_security_event, detect_suspicious_patterns, 
-#     sanitize_html
-# )
-# from ..utils.ai_security import (
-#     AISecurityManager, ai_security_required, 
-#     secure_ai_response_headers, validate_medical_context_access
-# )
-# from ..utils.ai_audit import ai_audit_required
-# from ..utils.performance import monitor_performance
-from .. import limiter, cache
-
-# Stub functions for missing utilities
-def log_security_event(event_type, data):
-    """Stub function for security event logging"""
-    pass
-
-def detect_suspicious_patterns(text):
-    """Stub function for suspicious pattern detection"""
-    return False
-
-def sanitize_html(text):
-    """Stub function for HTML sanitization"""
-    return text if text else ""
-
-def ai_security_required(*args, **kwargs):
-    """Stub decorator for AI security"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def secure_ai_response_headers(*args, **kwargs):
-    """Stub decorator for secure AI response headers"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def validate_medical_context_access(*args, **kwargs):
-    """Stub decorator for medical context access validation"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def ai_audit_required(*args, **kwargs):
-    """Stub decorator for AI audit"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def monitor_performance(func):
-    """Stub decorator for performance monitoring"""
-    return func
-
-class AISecurityManager:
-    """Stub class for AI security management"""
-    @staticmethod
-    def validate_request(data):
-        return True
+from ..models import AISummary, Document, FamilyMember, HealthRecord, db
+from ..utils.ai_helpers import (
+    call_deepseek_api,
+    call_groq_api,
+    call_huggingface_api,
+    extract_text_from_pdf,
+    get_deepseek_api_key,
+    get_groq_api_key,
+    get_huggingface_api_key,
+    get_openai_api_key,
+)
+from ..utils.shared import (
+    AISecurityManager,
+    ai_audit_required,
+    ai_security_required,
+    detect_suspicious_patterns,
+    log_security_event,
+    monitor_performance,
+    sanitize_html,
+    secure_ai_response_headers,
+    validate_medical_context_access,
+)
 
 try:
-    from langchain_community.vectorstores import Chroma
-    from langchain_community.embeddings import OpenAIEmbeddings
     from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain_community.embeddings import OpenAIEmbeddings
+    from langchain_community.vectorstores import Chroma
 except ImportError:
     # Handle missing langchain dependencies gracefully
     Chroma = None
     OpenAIEmbeddings = None
     RecursiveCharacterTextSplitter = None
-from langchain_community.document_loaders import TextLoader, PyPDFLoader
-from langchain.chains import RetrievalQA
-from langchain_community.llms import OpenAI
 import re
 import time
+
+from langchain.chains import RetrievalQA
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.llms import OpenAI
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
@@ -156,7 +124,7 @@ MEDICA_AI_SYSTEM_MESSAGE = """You are Medical AI, a comprehensive medical consul
 
 Remember: You are a supportive medical consultant AI, providing comprehensive health information and guidance."""
 
-def create_gpt_summary(record, summary_type='standard'):
+def create_gpt_summary(record: Any, summary_type: str = 'standard') -> Optional[str]:
     """
     Create an explanation of a health record's documents using AI models
 
@@ -168,33 +136,33 @@ def create_gpt_summary(record, summary_type='standard'):
         A string containing the document explanation or None if there was an error
     """
     # Build the context from record data
-    prompt = f"You are analyzing a medical health record with the following information:\n\n"
-    
+    prompt = "You are analyzing a medical health record with the following information:\n\n"
+
     # Use new standardized medical record fields
     if record.date:
         prompt += f"Date: {record.date.strftime('%Y-%m-%d')}\n"
-    
+
     if record.chief_complaint:
         prompt += f"Chief Complaint: {record.chief_complaint}\n"
-    
+
     if record.doctor:
         prompt += f"Doctor: {record.doctor}\n"
-    
+
     if record.investigations:
         prompt += f"Investigations: {record.investigations}\n"
-    
+
     if record.diagnosis:
         prompt += f"Diagnosis: {record.diagnosis}\n"
-    
+
     if record.prescription:
         prompt += f"Prescription: {record.prescription}\n"
-    
+
     if record.notes:
         prompt += f"Notes: {record.notes}\n"
-    
+
     if record.review_followup:
         prompt += f"Review/Follow up: {record.review_followup}\n"
-    
+
     # Fallback to legacy fields for backward compatibility
     if not any([record.chief_complaint, record.doctor, record.diagnosis]):
         if record.record_type:
@@ -234,7 +202,7 @@ def create_gpt_summary(record, summary_type='standard'):
                 else:
                     # For non-PDF files, read as text if possible
                     try:
-                        with open(doc.file_path, 'r') as text_file:
+                        with open(doc.file_path) as text_file:
                             text = text_file.read()
                             if text.strip():
                                 document_content += f"\n--- Document: {doc.filename} ---\n"
@@ -308,7 +276,7 @@ def create_gpt_summary(record, summary_type='standard'):
 
     return explanation
 
-def create_rag_for_documents(documents):
+def create_rag_for_documents(documents: List[Any]) -> Optional[Any]:
     """
     Create a RAG system for a list of documents
 
@@ -375,7 +343,7 @@ def create_rag_for_documents(documents):
 @ai_security_required('summarize')
 @ai_audit_required(operation_type='summarize', data_classification='PHI')
 @secure_ai_response_headers()
-def summarize_record(record_id):
+def summarize_record(record_id: int) -> Any:
     """Create an AI summary of a health record"""
     try:
         record = HealthRecord.query.get_or_404(record_id)
@@ -388,7 +356,7 @@ def summarize_record(record_id):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_ai_summary_attempt', {
                 'user_id': current_user.id,
@@ -444,7 +412,7 @@ def summarize_record(record_id):
 
                 flash('Summary generated successfully!', 'success')
                 return redirect(url_for('ai.view_summary', record_id=record.id))
-                
+
             except Exception as e:
                 db.session.rollback()
                 current_app.logger.error(f"Error generating summary for record {record_id}: {e}")
@@ -454,7 +422,7 @@ def summarize_record(record_id):
                               title='Summarize Record',
                               record=record,
                               existing_summary=existing_summary)
-                              
+
     except Exception as e:
         current_app.logger.error(f"Error in summarize_record: {e}")
         flash('An error occurred while accessing the record', 'danger')
@@ -463,11 +431,10 @@ def summarize_record(record_id):
 @ai_bp.route('/summary/<int:record_id>')
 @login_required
 @monitor_performance
-@cache.cached(timeout=300)  # Cache summaries for 5 minutes
 @ai_security_required('view_summary')
 @ai_audit_required(operation_type='view_summary', data_classification='PHI')
 @secure_ai_response_headers()
-def view_summary(record_id):
+def view_summary(record_id: int) -> Any:
     """View an AI-generated summary"""
     try:
         record = HealthRecord.query.get_or_404(record_id)
@@ -480,7 +447,7 @@ def view_summary(record_id):
         elif record.family_member_id and record.family_member in current_user.family_members:
             # This is a record for a family member of the user
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('unauthorized_ai_summary_view_attempt', {
                 'user_id': current_user.id,
@@ -508,7 +475,7 @@ def view_summary(record_id):
                               title='Summary',
                               record=record,
                               summary=summary)
-                              
+
     except Exception as e:
         current_app.logger.error(f"Error viewing summary for record {record_id}: {e}")
         flash('An error occurred while loading the summary', 'danger')
@@ -520,20 +487,20 @@ def view_summary(record_id):
 @monitor_performance
 @ai_security_required('chatbot')
 @ai_audit_required(operation_type='chatbot_access', data_classification='PHI')
-def chatbot():
+def chatbot() -> Any:
     """Interactive health chatbot interface"""
     try:
         # Get family members for the patient selector
         family_members = current_user.family_members
-        
+
         # Log chatbot access
         log_security_event('chatbot_accessed', {
             'user_id': current_user.id,
             'family_members_count': len(family_members)
         })
-        
+
         return render_template('ai/chatbot.html', title='Health Assistant', family_members=family_members)
-        
+
     except Exception as e:
         current_app.logger.error(f"Error accessing chatbot: {e}")
         flash('An error occurred while loading the chatbot', 'danger')
@@ -546,7 +513,7 @@ def chatbot():
 @ai_security_required('chat')
 @ai_audit_required(operation_type='chat', data_classification='PHI')
 @secure_ai_response_headers()
-def chat():
+def chat() -> Any:
     """API endpoint for the chatbot"""
     try:
         data = request.get_json()
@@ -570,7 +537,7 @@ def chat():
                 'message_type': type(user_message).__name__
             })
             return jsonify({'error': 'Message is required and must be text'}), 400
-        
+
         # Check for suspicious patterns in user input
         if detect_suspicious_patterns(user_message):
             log_security_event('suspicious_chat_input', {
@@ -583,7 +550,7 @@ def chat():
 
         # Sanitize user message
         user_message = sanitize_html(user_message.strip())
-        
+
         # Validate mode parameter
         if mode not in ['public', 'private']:
             log_security_event('invalid_chat_mode', {
@@ -606,41 +573,40 @@ def chat():
             context = "You are operating in public mode with no access to personal medical records. Provide general health information only."
             system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**PUBLIC MODE RESTRICTIONS**: You are currently in public mode and do not have access to any personal medical records. Provide only general health information and educational content. Do not reference any personal medical history or specific patient data."
             target_records = []  # Initialize empty list for public mode
+        # Private mode - access to records based on patient selection
+        elif patient == 'self':
+            # User's own records
+            user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
+            context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
+            context += f"They have {len(user_records)} personal health records.\n"
+            target_records = user_records
+            patient_name = "your"
         else:
-            # Private mode - access to records based on patient selection
-            if patient == 'self':
-                # User's own records
-                user_records = HealthRecord.query.filter_by(user_id=current_user.id).all()
-                context = f"The user is {current_user.first_name} {current_user.last_name}.\n"
-                context += f"They have {len(user_records)} personal health records.\n"
-                target_records = user_records
-                patient_name = "your"
-            else:
-                # Family member's records
-                try:
-                    family_member_id = int(patient)
-                    family_member = FamilyMember.query.get(family_member_id)
-                    
-                    # Verify the family member belongs to the current user
-                    if not family_member or family_member not in current_user.family_members:
-                        log_security_event('unauthorized_family_member_access', {
-                            'user_id': current_user.id,
-                            'attempted_family_member_id': family_member_id,
-                            'valid_family_member': bool(family_member)
-                        })
-                        return jsonify({'error': 'Family member not found'}), 404
-                    
-                    # Use the enhanced medical context method
-                    context = family_member.get_complete_medical_context()
-                    family_records = family_member.records.all()
-                    target_records = family_records
-                    patient_name = f"{family_member.first_name}'s"
-                except (ValueError, TypeError):
-                    log_security_event('invalid_patient_id', {
+            # Family member's records
+            try:
+                family_member_id = int(patient)
+                family_member = FamilyMember.query.get(family_member_id)
+
+                # Verify the family member belongs to the current user
+                if not family_member or family_member not in current_user.family_members:
+                    log_security_event('unauthorized_family_member_access', {
                         'user_id': current_user.id,
-                        'patient_value': str(patient)
+                        'attempted_family_member_id': family_member_id,
+                        'valid_family_member': bool(family_member)
                     })
-                    return jsonify({'error': 'Invalid patient ID'}), 400
+                    return jsonify({'error': 'Family member not found'}), 404
+
+                # Use the enhanced medical context method
+                context = family_member.get_complete_medical_context()
+                family_records = family_member.records.all()
+                target_records = family_records
+                patient_name = f"{family_member.first_name}'s"
+            except (ValueError, TypeError):
+                log_security_event('invalid_patient_id', {
+                    'user_id': current_user.id,
+                    'patient_value': str(patient)
+                })
+                return jsonify({'error': 'Invalid patient ID'}), 400
 
         # Check if user is asking about specific record types
         record_type_keywords = {
@@ -654,20 +620,20 @@ def chat():
         if target_records:
             patient_display_name = patient_name.replace('your', 'the user').replace("'s", '')
             context += f"\n--- Complete Medical History for {patient_display_name} ---\n"
-            
+
             # Group records by type for better organization
-            records_by_type = {}
+            records_by_type: Dict[str, List[Any]] = {}
             for record in target_records:
                 record_type = record.record_type
                 if record_type not in records_by_type:
                     records_by_type[record_type] = []
                 records_by_type[record_type].append(record)
-            
+
             # Add summary of record types
             context += f"Total records: {len(target_records)}\n"
             for record_type, records in records_by_type.items():
                 context += f"- {record_type.replace('_', ' ').title()}: {len(records)} records\n"
-            
+
             context += "\n--- Recent Medical Records (Most Recent First) ---\n"
             # Sort records by date (most recent first) and include details
             sorted_records = sorted(target_records, key=lambda x: x.date, reverse=True)
@@ -681,12 +647,12 @@ def chat():
                     # Optimize description length for context efficiency
                     description = record.description[:500] + "..." if len(record.description) > 500 else record.description
                     context += f"   Description: {description}\n"
-                
+
                 # Include document information if available
                 if record.documents.count() > 0:
                     doc_count = record.documents.count()
                     context += f"   Documents: {doc_count} attached file(s)\n"
-            
+
             # Add note if there are more records
             if len(target_records) > max_records:
                 context += f"\n... and {len(target_records) - max_records} additional older records not shown here but available for reference.\n"
@@ -701,7 +667,7 @@ def chat():
                     matching_records.extend(matches)
 
         if matching_records:
-            context += f"\n--- Records Most Relevant to Your Question ---\n"
+            context += "\n--- Records Most Relevant to Your Question ---\n"
             for idx, record in enumerate(matching_records[:3]):  # Limit to 3 most relevant records
                 context += f"\nHighlighted Record {idx+1}: {record.title}\n"
                 context += f"Date: {record.date.strftime('%Y-%m-%d')}\n"
@@ -711,7 +677,7 @@ def chat():
 
         # System message for the chatbot - Updated to use comprehensive Medica AI system message
         if patient == 'self':
-            system_message = MEDICA_AI_SYSTEM_MESSAGE + f"\n\n**PRIVATE MODE - PERSONAL RECORDS ACCESS**: You have full access to the user's complete medical history and health records. Use this information to provide personalized health insights, interpret medical data, reference specific records with dates and details when relevant, and offer contextual health guidance. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
+            system_message = MEDICA_AI_SYSTEM_MESSAGE + "\n\n**PRIVATE MODE - PERSONAL RECORDS ACCESS**: You have full access to the user's complete medical history and health records. Use this information to provide personalized health insights, interpret medical data, reference specific records with dates and details when relevant, and offer contextual health guidance. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
         else:
             family_member_name = family_member.first_name if 'family_member' in locals() else "the family member"
             system_message = MEDICA_AI_SYSTEM_MESSAGE + f"\n\n**PRIVATE MODE - FAMILY MEMBER RECORDS ACCESS**: You have full access to {family_member_name}'s complete medical history and health records. Use this information to provide personalized health insights about {family_member_name}, interpret their medical data, reference specific records with dates and details when relevant, and offer contextual health guidance for {family_member_name}'s care. Always maintain patient confidentiality and provide evidence-based recommendations while emphasizing the importance of professional medical care."
@@ -721,7 +687,7 @@ def chat():
 
         # Log prompt and system message lengths for debugging
         current_app.logger.info(f"System message length: {len(system_message)} characters")
-        current_app.logger.info(f"Context length: {len(context)} characters") 
+        current_app.logger.info(f"Context length: {len(context)} characters")
         current_app.logger.info(f"Full prompt length: {len(prompt)} characters")
 
         # Use higher token limits for private mode due to comprehensive system message and medical context
@@ -737,9 +703,9 @@ def chat():
         current_app.logger.info("Attempting HuggingFace API with MedGemma")
         try:
             assistant_message = call_huggingface_api(
-                system_message, 
-                prompt, 
-                temperature=temperature, 
+                system_message,
+                prompt,
+                temperature=temperature,
                 max_tokens=max_tokens
             )
             if assistant_message:
@@ -753,9 +719,9 @@ def chat():
             current_app.logger.info("Falling back to GROQ API")
             try:
                 assistant_message = call_groq_api(
-                    system_message, 
-                    prompt, 
-                    temperature=temperature, 
+                    system_message,
+                    prompt,
+                    temperature=temperature,
                     max_tokens=max_tokens
                 )
                 if assistant_message:
@@ -797,7 +763,7 @@ def chat():
             'response': assistant_message,
             'model': used_model or 'Unknown'  # Use actual model name instead of hardcoded
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error in chat endpoint: {e}")
         log_security_event('chat_error', {
@@ -819,9 +785,9 @@ def symptom_checker():
         log_security_event('symptom_checker_accessed', {
             'user_id': current_user.id
         })
-        
+
         return render_template('ai/symptom_checker.html', title='Symptom Checker')
-        
+
     except Exception as e:
         current_app.logger.error(f"Error accessing symptom checker: {e}")
         flash('An error occurred while loading the symptom checker', 'danger')
@@ -856,7 +822,7 @@ def check_symptoms():
                 'symptoms_type': type(symptoms).__name__
             })
             return jsonify({'error': 'Symptoms description is required and must be text'}), 400
-        
+
         # Check for suspicious patterns in user input
         if detect_suspicious_patterns(symptoms):
             log_security_event('suspicious_symptoms_input', {
@@ -867,7 +833,7 @@ def check_symptoms():
 
         # Sanitize symptoms input
         symptoms = sanitize_html(symptoms.strip())
-        
+
         # Log symptom check request
         log_security_event('symptom_check_requested', {
             'user_id': current_user.id,
@@ -901,7 +867,7 @@ def check_symptoms():
         prompt = f"Context:\n{context}\n\nThe user has the following symptoms: {symptoms}\n\nProvide information about these symptoms, potential causes, and suggest whether the user should see a doctor. Include a clear disclaimer. Format your response using proper Markdown syntax for headings, lists, emphasis, etc. Do not use HTML tags."
 
         # Try AI providers in order: HuggingFace (MedGemma) -> GROQ -> DEEPSEEK
-        current_app.logger.info(f"Attempting to analyze symptoms")
+        current_app.logger.info("Attempting to analyze symptoms")
         assistant_message = None
 
         # First try HuggingFace API with MedGemma
@@ -953,7 +919,7 @@ def check_symptoms():
         return jsonify({
             'analysis': assistant_message
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error in symptom checker: {e}")
         log_security_event('symptom_check_error', {

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros.html' import render_field, render_button %}
 
 {% block title %}Login{% endblock %}
 
@@ -26,38 +27,19 @@
                     {{ form.hidden_tag() }}
 
                     <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""),
-                        placeholder="Enter your email") }}
-                        {% if form.email.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.email.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
+                        {{ render_field(form.email, placeholder="Enter your email") }}
                     </div>
 
                     <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""),
-                        placeholder="Enter your password") }}
-                        {% if form.password.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.password.errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
+                        {{ render_field(form.password, placeholder="Enter your password") }}
                     </div>
 
-                    <div class="mb-3 form-check">
-                        {{ form.remember_me(class="form-check-input") }}
-                        {{ form.remember_me.label(class="form-check-label") }}
+                    <div class="mb-3">
+                        {{ render_field(form.remember_me) }}
                     </div>
 
                     <div class="d-grid gap-2">
-                        {{ form.submit(class="btn btn-primary") }}
+                        {{ render_button("Login", type="submit", btn_class="btn-primary", icon="fas fa-sign-in-alt") }}
                     </div>
                 </form>
             </div>

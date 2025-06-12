@@ -11,41 +11,10 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-# from app.utils.performance_dashboard import monitor_performance
-# from app.utils.security import log_security_event, require_admin
+from app.utils.performance import PerformanceDashboard, monitor_performance
 
-# Stub functions for missing utilities
-def monitor_performance(func):
-    """Stub decorator for performance monitoring"""
-    return func
-
-def log_security_event(event_type, data):
-    """Stub function for security event logging"""
-    pass
-
-def require_admin(func):
-    """Stub decorator for admin requirement"""
-    return func
-
-class PerformanceDashboard:
-    """Stub class for performance dashboard"""
-    @staticmethod
-    def monitor_performance(*args, **kwargs):
-        """Stub decorator for performance monitoring"""
-        def decorator(func):
-            return func
-        if len(args) == 1 and callable(args[0]):
-            return args[0]
-        return decorator
-    
-    @staticmethod
-    def handle_errors(*args, **kwargs):
-        """Stub decorator for error handling"""
-        def decorator(func):
-            return func
-        if len(args) == 1 and callable(args[0]):
-            return args[0]
-        return decorator
+# Import shared utilities
+from app.utils.shared import log_security_event, require_admin
 
 # Import our production monitoring tools
 try:
@@ -64,8 +33,7 @@ ops_bp = Blueprint("ops", __name__, url_prefix="/ops")
 @ops_bp.route("/")
 @login_required
 @require_admin
-@PerformanceDashboard.monitor_performance()
-@PerformanceDashboard.handle_errors()
+@monitor_performance
 def dashboard():
     """Production operations dashboard"""
     return render_template("ops/dashboard.html", title="Operations Dashboard")
@@ -74,8 +42,7 @@ def dashboard():
 @ops_bp.route("/api/health")
 @login_required
 @require_admin
-@PerformanceDashboard.monitor_performance()
-@PerformanceDashboard.handle_errors()
+@monitor_performance
 def health_status():
     """Get current system health status"""
     if not HealthMonitor:
@@ -95,8 +62,7 @@ def health_status():
 @ops_bp.route("/api/metrics")
 @login_required
 @require_admin
-@PerformanceDashboard.monitor_performance()
-@PerformanceDashboard.handle_errors()
+@monitor_performance
 def system_metrics():
     """Get real-time system metrics"""
     if not HealthMonitor:
@@ -111,8 +77,7 @@ def system_metrics():
 @ops_bp.route("/api/logs/analyze")
 @login_required
 @require_admin
-@PerformanceDashboard.monitor_performance()
-@PerformanceDashboard.handle_errors()
+@monitor_performance
 def analyze_logs():
     """Analyze recent logs"""
     if not LogAnalyzer:
@@ -132,7 +97,7 @@ def analyze_logs():
             "total_alerts": results.get("metrics", {}).get("total_alerts", 0),
         },
     )
-    
+
     return jsonify(results)
 
 
@@ -394,6 +359,7 @@ def download_logs():
         import zipfile
 
         from flask import send_file
+        from pathlib import Path
 
         log_dir = Path("/home/em/code/wip/phrm/logs")
 

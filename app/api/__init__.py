@@ -1,182 +1,29 @@
-from flask import Blueprint, jsonify, request, current_app
-from flask_login import current_user, login_required
-from werkzeug.security import check_password_hash
 import functools
-from ..models import db, User, HealthRecord, FamilyMember, Document, AISummary
-# from ..utils.security import (
-#     log_security_event, detect_suspicious_patterns, 
-#     sanitize_html
-# )
-# from ..utils.ai_security import (
-#     AISecurityManager, ai_security_required, 
-#     secure_ai_response_headers
-# )
-# from ..utils.ai_audit import ai_audit_required
-# from ..utils.performance import monitor_performance
-from .. import limiter, cache
-
-# Stub functions for missing utilities
-def log_security_event(event_type, data):
-    """Stub function for security event logging"""
-    pass
-
-def detect_suspicious_patterns(text):
-    """Stub function for suspicious pattern detection"""
-    return False
-
-def sanitize_html(text):
-    """Stub function for HTML sanitization"""
-    return text if text else ""
-
-def ai_security_required(*args, **kwargs):
-    """Stub decorator for AI security"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def secure_ai_response_headers(*args, **kwargs):
-    """Stub decorator for secure AI response headers"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def ai_audit_required(*args, **kwargs):
-    """Stub decorator for AI audit"""
-    def decorator(func):
-        return func
-    if len(args) == 1 and callable(args[0]):
-        return args[0]
-    return decorator
-
-def monitor_performance(func):
-    """Stub decorator for performance monitoring"""
-    return func
-
-class AISecurityManager:
-    """Stub class for AI security management"""
-    @staticmethod
-    def validate_request(data):
-        return True
-from datetime import datetime
 import re
 import time
+from datetime import datetime
+
+from flask import Blueprint, current_app, jsonify, request
+from flask_login import current_user, login_required
+from werkzeug.security import check_password_hash
+
+from .. import limiter
+from ..models import AISummary, Document, FamilyMember, HealthRecord, User, db
+from ..utils.shared import (
+    AISecurityManager,
+    ai_audit_required,
+    ai_security_required,
+    api_login_required,
+    detect_suspicious_patterns,
+    log_security_event,
+    monitor_performance,
+    sanitize_html,
+    secure_ai_response_headers,
+)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
-# API authentication decorator
-def api_login_required(view_function):
-    @functools.wraps(view_function)
-    def decorated_function(*args, **kwargs):
-        start_time = time.time()
-        user_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-        
-        try:
-            # Check for Authorization header
-            auth_header = request.headers.get('Authorization')
-            if not auth_header:
-                log_security_event('api_unauthorized_access', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'user_agent': request.headers.get('User-Agent', ''),
-                    'reason': 'missing_authorization_header'
-                })
-                return jsonify({'error': 'Authorization header is required'}), 401
-
-            # Parse Authorization header
-            auth_parts = auth_header.split(' ', 1)
-            if len(auth_parts) != 2:
-                log_security_event('api_invalid_auth_format', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'auth_header': auth_header[:50] + '...' if len(auth_header) > 50 else auth_header
-                })
-                return jsonify({'error': 'Invalid authorization format'}), 401
-                
-            auth_type, credentials = auth_parts
-            if auth_type.lower() != 'basic':
-                log_security_event('api_unsupported_auth_type', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'auth_type': auth_type
-                })
-                return jsonify({'error': 'Basic authorization is required'}), 401
-
-            import base64
-            try:
-                decoded = base64.b64decode(credentials).decode('utf-8')
-            except Exception:
-                log_security_event('api_invalid_base64', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip
-                })
-                return jsonify({'error': 'Invalid base64 encoding'}), 401
-                
-            if ':' not in decoded:
-                log_security_event('api_invalid_credentials_format', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip
-                })
-                return jsonify({'error': 'Invalid credentials format'}), 401
-                
-            email, password = decoded.split(':', 1)
-            
-            # Validate email format
-            email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-            if not email_pattern.match(email):
-                log_security_event('api_invalid_email_format', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'email': email
-                })
-                return jsonify({'error': 'Invalid email format'}), 401
-
-            # Check for suspicious patterns in credentials
-            if detect_suspicious_patterns(email) or detect_suspicious_patterns(password):
-                log_security_event('api_suspicious_credentials', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'email': email
-                })
-                return jsonify({'error': 'Invalid credentials'}), 401
-
-            # Authenticate user
-            user = User.query.filter_by(email=email).first()
-            if not user or not user.check_password(password):
-                log_security_event('api_invalid_credentials', {
-                    'endpoint': request.endpoint,
-                    'ip_address': user_ip,
-                    'email': email,
-                    'user_exists': user is not None
-                })
-                return jsonify({'error': 'Invalid credentials'}), 401
-
-            # Log successful API authentication
-            log_security_event('api_authentication_success', {
-                'user_id': user.id,
-                'endpoint': request.endpoint,
-                'ip_address': user_ip,
-                'response_time': round((time.time() - start_time) * 1000, 2)
-            })
-
-            # Add user to kwargs
-            kwargs['api_user'] = user
-
-            return view_function(*args, **kwargs)
-
-        except Exception as e:
-            current_app.logger.error(f"API authentication error: {e}")
-            log_security_event('api_authentication_error', {
-                'endpoint': request.endpoint,
-                'ip_address': user_ip,
-                'error': str(e)
-            })
-            return jsonify({'error': 'Authentication failed'}), 401
-
-    return decorated_function
+# API authentication decorator is now imported from shared utilities
 
 # Helper functions
 def record_to_dict(record):
@@ -235,7 +82,6 @@ def health_check():
 @api_login_required
 @limiter.limit("20 per minute")
 @monitor_performance
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def get_user_profile(api_user):
     """Get the user's profile information"""
     try:
@@ -266,7 +112,7 @@ def get_records(api_user):
         per_page = min(max(1, request.args.get('per_page', 10, type=int)), 50)  # Cap at 50 records per page
         record_type = request.args.get('type')
         family_member_id = request.args.get('family_member_id', type=int)
-        
+
         # Validate and sanitize record_type
         if record_type:
             record_type = sanitize_html(record_type.strip())
@@ -314,7 +160,7 @@ def get_records(api_user):
             'has_next': records_page.has_next,
             'has_prev': records_page.has_prev
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting records for user {api_user.id}: {e}")
         return jsonify({'error': 'Failed to retrieve records'}), 500
@@ -336,7 +182,7 @@ def get_record(api_user, record_id):
         elif record.family_member_id and record.family_member in api_user.family_members:
             # Record for user's family member
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('api_unauthorized_record_access', {
                 'user_id': api_user.id,
@@ -353,7 +199,7 @@ def get_record(api_user, record_id):
         })
 
         return jsonify(record_to_dict(record))
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting record {record_id} for user {api_user.id}: {e}")
         return jsonify({'error': 'Failed to retrieve record'}), 500
@@ -362,7 +208,6 @@ def get_record(api_user, record_id):
 @api_login_required
 @limiter.limit("20 per minute")
 @monitor_performance
-@cache.cached(timeout=300)  # Cache for 5 minutes
 def get_family_members(api_user):
     """Get list of family members"""
     try:
@@ -391,7 +236,7 @@ def get_family_member(api_user, member_id):
             return jsonify({'error': 'Family member not found'}), 404
 
         return jsonify(family_member_to_dict(member))
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting family member {member_id} for user {api_user.id}: {e}")
         return jsonify({'error': 'Failed to retrieve family member'}), 500
@@ -416,7 +261,7 @@ def get_summary(api_user, record_id):
         elif record.family_member_id and record.family_member in api_user.family_members:
             # Record for user's family member
             has_permission = True
-        
+
         if not has_permission:
             log_security_event('api_unauthorized_summary_access', {
                 'user_id': api_user.id,
@@ -447,7 +292,7 @@ def get_summary(api_user, record_id):
             'summary_text': summary.summary_text,
             'created_at': summary.created_at.isoformat()
         })
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting summary for record {record_id}: {e}")
         return jsonify({'error': 'Failed to retrieve summary'}), 500

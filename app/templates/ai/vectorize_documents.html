@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}Document Vectorization - Personal Health Record Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-vector-square me-2"></i>Document Vectorization</h2>
+            <a href="{{ url_for('records.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+            </a>
+        </div>
+
+        {% if not vectorization_available %}
+        <div class="alert alert-warning">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Vectorization Not Available</h5>
+            <p>Document vectorization is not currently available. This feature requires additional dependencies to be installed.</p>
+            <p class="mb-0">Please contact your administrator for assistance.</p>
+        </div>
+        {% else %}
+
+        <!-- Vectorization Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary">{{ stats.total_documents }}</h3>
+                        <p class="card-text">Total Documents</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success">{{ stats.vectorized_documents }}</h3>
+                        <p class="card-text">Vectorized</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-warning">{{ stats.pending_vectorization }}</h3>
+                        <p class="card-text">Pending</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-info">{{ "%.1f"|format(stats.vectorization_percentage) }}%</h3>
+                        <p class="card-text">Complete</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        {% if stats.total_documents > 0 %}
+        <div class="mb-4">
+            <label class="form-label">Vectorization Progress</label>
+            <div class="progress" style="height: 20px;">
+                <div class="progress-bar bg-success" role="progressbar" 
+                     style="width: {{ stats.vectorization_percentage }}%"
+                     aria-valuenow="{{ stats.vectorization_percentage }}" 
+                     aria-valuemin="0" aria-valuemax="100">
+                    {{ "%.1f"|format(stats.vectorization_percentage) }}%
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Vectorization Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Vectorization Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.pending_vectorization > 0 or stats.vectorized_documents > 0 %}
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="action" value="vectorize_all">
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="force_refresh" id="force_refresh">
+                                <label class="form-check-label" for="force_refresh">
+                                    Force refresh (re-vectorize all documents, including already processed ones)
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                {% if stats.pending_vectorization > 0 %}
+                                This will vectorize {{ stats.pending_vectorization }} pending document(s).
+                                {% else %}
+                                All documents are already vectorized. Use force refresh to re-process them.
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100" 
+                                    {% if stats.total_documents == 0 %}disabled{% endif %}>
+                                <i class="fas fa-play me-1"></i>
+                                {% if stats.pending_vectorization > 0 %}
+                                Vectorize Documents
+                                {% else %}
+                                Re-vectorize All
+                                {% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-file-circle-plus fa-3x text-muted mb-3"></i>
+                    <h6>No Documents Found</h6>
+                    <p class="text-muted">Upload some documents to your health records to enable vectorization.</p>
+                    <a href="{{ url_for('records.create_record') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Create Health Record
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Document Search Test -->
+        {% if stats.vectorized_documents > 0 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-search me-2"></i>Document Search Test</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="search-query" 
+                                   placeholder="Search your documents..." maxlength="200">
+                            <button class="btn btn-outline-primary" type="button" id="search-btn">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        <small class="text-muted">Test the document search functionality by entering keywords or questions.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="search-results-count">
+                            <option value="3">3 results</option>
+                            <option value="5" selected>5 results</option>
+                            <option value="10">10 results</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Search Results -->
+                <div id="search-results" class="mt-3" style="display: none;">
+                    <div id="search-results-content"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Documents List -->
+        {% if documents %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-medical me-2"></i>Your Documents ({{ documents|length }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Document</th>
+                                <th>Record</th>
+                                <th>File Type</th>
+                                <th>Size</th>
+                                <th>Uploaded</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-file-{% if doc.file_type == 'pdf' %}pdf text-danger{% else %}alt text-secondary{% endif %} me-2"></i>
+                                    {{ doc.filename }}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('records.view_record', record_id=doc.health_record_id) }}" 
+                                       class="text-decoration-none">
+                                        {{ doc.health_record.title or doc.health_record.chief_complaint or 'Health Record' }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ doc.file_type.upper() }}</span>
+                                </td>
+                                <td>{{ "%.1f"|format(doc.file_size / 1024 / 1024) }} MB</td>
+                                <td>{{ doc.uploaded_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if doc.vectorized %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Vectorized
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock me-1"></i>Pending
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% endif %}
+    </div>
+</div>
+
+{% if vectorization_available and stats.vectorized_documents > 0 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchBtn = document.getElementById('search-btn');
+    const searchQuery = document.getElementById('search-query');
+    const searchResults = document.getElementById('search-results');
+    const searchResultsContent = document.getElementById('search-results-content');
+    const resultsCount = document.getElementById('search-results-count');
+
+    function performSearch() {
+        const query = searchQuery.value.trim();
+        if (!query) {
+            alert('Please enter a search query');
+            return;
+        }
+
+        const k = parseInt(resultsCount.value);
+        
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+        
+        fetch('/ai/documents/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query, k: k })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            displaySearchResults(data.results, data.query);
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            searchResultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Search failed: ${error.message}
+                </div>
+            `;
+            searchResults.style.display = 'block';
+        })
+        .finally(() => {
+            searchBtn.disabled = false;
+            searchBtn.innerHTML = '<i class="fas fa-search"></i> Search';
+        });
+    }
+
+    function displaySearchResults(results, query) {
+        if (results.length === 0) {
+            searchResultsContent.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No results found for "<strong>${query}</strong>"
+                </div>
+            `;
+        } else {
+            const resultsHtml = results.map((result, index) => {
+                const relevancePercent = Math.round((1 - result.score) * 100);
+                return `
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-0">
+                                <i class="fas fa-file-alt text-muted me-2"></i>
+                                ${result.filename}
+                            </h6>
+                            <span class="badge bg-primary">${relevancePercent}% match</span>
+                        </div>
+                        <p class="text-muted mb-0">${result.content}</p>
+                    </div>
+                `;
+            }).join('');
+
+            searchResultsContent.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Found ${results.length} result(s) for "<strong>${query}</strong>"
+                </div>
+                ${resultsHtml}
+            `;
+        }
+        
+        searchResults.style.display = 'block';
+    }
+
+    searchBtn.addEventListener('click', performSearch);
+    
+    searchQuery.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+});
+</script>
+{% endif %}
+
+{% endblock %}

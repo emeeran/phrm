@@ -1,13 +1,52 @@
-Flask
-requests
-python-dotenv
+# PHRM Production Requirements
+# Core Flask Framework
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.3
+Flask-WTF==1.1.1
+Flask-Migrate==2.7.0
+Flask-Mail==0.9.1
+Flask-Session==0.5.0
+
+# Security and Rate Limiting
+Flask-Limiter==3.5.0
+Flask-Talisman==1.1.0
+WTForms==3.0.1
+bcrypt==4.0.1
+cryptography==41.0.7
+
+# Database and Caching
+SQLAlchemy==2.0.21
+psycopg2-binary==2.9.7
+redis==5.0.1
+Flask-Caching==2.1.0
+
+# WSGI Server and Async Support
+gunicorn==21.2.0
+gevent==23.9.1
+
+# AI/ML Integration
+openai==0.28.1
 PyMuPDF==1.23.26
-transformers
-flask-login
-flask-migrate
-flask-limiter
-flask-caching
-flask-talisman
-flask-wtf
-openai
-langchain_community
+transformers==4.35.0
+langchain_community==0.0.5
+
+# Utilities and System Monitoring
+python-dotenv==1.0.0
+psutil==5.9.6
+requests==2.31.0
+Pillow==10.0.1
+
+# Core Dependencies
+Werkzeug==2.3.7
+click==8.1.7
+itsdangerous==2.1.3
+MarkupSafe==2.1.3
+Jinja2==3.1.2
+blinker==1.6.3
+
+# Development and Testing (optional)
+pytest==7.4.2
+pytest-flask==1.2.0
+coverage==7.3.2
+flake8==6.1.0

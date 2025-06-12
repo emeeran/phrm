@@ -1,0 +1,231 @@
+<!-- Template Macros for PHRM - Consolidated reusable template components -->
+
+{# Form field rendering macro with validation #}
+{% macro render_field(field, label_class="form-label", field_class="form-control", show_errors=true, placeholder="") %}
+    {% set field_id = field.id or field.name %}
+    {% set css_class = field_class + (" is-invalid" if field.errors and show_errors else "") %}
+    
+    {% if field.type == 'HiddenField' %}
+        {{ field() }}
+    {% elif field.type == 'BooleanField' %}
+        <div class="form-check">
+            {{ field(class="form-check-input" + (" is-invalid" if field.errors and show_errors else "")) }}
+            {{ field.label(class="form-check-label") }}
+            {% if field.errors and show_errors %}
+                <div class="invalid-feedback">
+                    {% for error in field.errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% elif field.type == 'SelectField' %}
+        {{ field.label(class=label_class) }}
+        {{ field(class=css_class) }}
+        {% if field.errors and show_errors %}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+            </div>
+        {% endif %}
+    {% elif field.type == 'FileField' %}
+        {{ field.label(class=label_class) }}
+        {{ field(class=css_class, placeholder=placeholder or field.description) }}
+        {% if field.description and not placeholder %}
+            <div class="form-text">{{ field.description }}</div>
+        {% endif %}
+        {% if field.errors and show_errors %}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+            </div>
+        {% endif %}
+    {% else %}
+        {{ field.label(class=label_class) }}
+        {% if field.type == 'TextAreaField' %}
+            {{ field(class=css_class, rows=field.render_kw.get('rows', 4), placeholder=placeholder or field.description) }}
+        {% else %}
+            {{ field(class=css_class, placeholder=placeholder or field.description) }}
+        {% endif %}
+        {% if field.errors and show_errors %}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{# Alert/Flash message rendering macro #}
+{% macro render_alert(message, category='info', dismissible=true, icon_map=none) %}
+    {% set icon_mapping = icon_map or {
+        'success': 'fas fa-check-circle',
+        'info': 'fas fa-info-circle', 
+        'warning': 'fas fa-exclamation-triangle',
+        'danger': 'fas fa-exclamation-circle',
+        'error': 'fas fa-exclamation-circle'
+    } %}
+    {% set alert_class = "alert alert-" + category %}
+    {% if dismissible %}{% set alert_class = alert_class + " alert-dismissible fade show" %}{% endif %}
+    
+    <div class="{{ alert_class }}" role="alert">
+        {% if icon_mapping.get(category) %}
+            <i class="{{ icon_mapping[category] }} me-2"></i>
+        {% endif %}
+        {{ message }}
+        {% if dismissible %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# Card component macro #}
+{% macro render_card(title=none, body_content="", footer_content=none, header_class="bg-primary text-white", card_class="shadow", body_class="", footer_class="bg-light") %}
+    <div class="card {{ card_class }}">
+        {% if title %}
+            <div class="card-header {{ header_class }}">
+                {% if title is string %}
+                    <h4 class="mb-0">{{ title }}</h4>
+                {% else %}
+                    {{ title }}
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if body_content %}
+            <div class="card-body {{ body_class }}">
+                {{ body_content }}
+            </div>
+        {% endif %}
+        {% if footer_content %}
+            <div class="card-footer {{ footer_class }}">
+                {{ footer_content }}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# Button macro with icon support #}
+{% macro render_button(text, url=none, onclick=none, btn_class="btn-primary", icon=none, size="", disabled=false, type="button") %}
+    {% set button_class = "btn " + btn_class %}
+    {% if size %}{% set button_class = button_class + " btn-" + size %}{% endif %}
+    {% if disabled %}{% set button_class = button_class + " disabled" %}{% endif %}
+    
+    {% if url %}
+        <a href="{{ url }}" class="{{ button_class }}"{% if disabled %} aria-disabled="true"{% endif %}>
+            {% if icon %}<i class="{{ icon }} me-1"></i>{% endif %}{{ text }}
+        </a>
+    {% else %}
+        <button type="{{ type }}" class="{{ button_class }}"{% if onclick %} onclick="{{ onclick }}"{% endif %}{% if disabled %} disabled{% endif %}>
+            {% if icon %}<i class="{{ icon }} me-1"></i>{% endif %}{{ text }}
+        </button>
+    {% endif %}
+{% endmacro %}
+
+{# Badge macro with theme support #}
+{% macro render_badge(text, variant="primary", pill=false) %}
+    {% set badge_class = "badge bg-" + variant %}
+    {% if pill %}{% set badge_class = badge_class + " rounded-pill" %}{% endif %}
+    <span class="{{ badge_class }}">{{ text }}</span>
+{% endmacro %}
+
+{# Date formatting macro #}
+{% macro format_date(date, format='%B %d, %Y') %}
+    {% if date %}{{ date.strftime(format) }}{% else %}N/A{% endif %}
+{% endmacro %}
+
+{# File size formatting macro #}
+{% macro format_file_size(size_bytes) %}
+    {% if size_bytes %}
+        {% if size_bytes < 1024 %}
+            {{ size_bytes }} B
+        {% elif size_bytes < 1024 * 1024 %}
+            {{ "%.1f"|format(size_bytes / 1024) }} KB
+        {% elif size_bytes < 1024 * 1024 * 1024 %}
+            {{ "%.1f"|format(size_bytes / (1024 * 1024)) }} MB
+        {% else %}
+            {{ "%.1f"|format(size_bytes / (1024 * 1024 * 1024)) }} GB
+        {% endif %}
+    {% else %}
+        Unknown
+    {% endif %}
+{% endmacro %}
+
+{# Loading spinner macro #}
+{% macro render_spinner(text="Loading...", size="sm", variant="primary") %}
+    <div class="text-center">
+        <div class="spinner-border spinner-border-{{ size }} text-{{ variant }}" role="status" aria-hidden="true"></div>
+        {% if text %}
+            <div class="mt-2">{{ text }}</div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# Pagination macro #}
+{% macro render_pagination(pagination, endpoint, extra_params={}) %}
+    {% if pagination.pages > 1 %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <!-- Previous page -->
+                <li class="page-item{% if not pagination.has_prev %} disabled{% endif %}">
+                    {% if pagination.has_prev %}
+                        <a class="page-link" href="{{ url_for(endpoint, page=pagination.prev_num, **extra_params) }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    {% else %}
+                        <span class="page-link" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </span>
+                    {% endif %}
+                </li>
+                
+                <!-- Page numbers -->
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for(endpoint, page=page_num, **extra_params) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next page -->
+                <li class="page-item{% if not pagination.has_next %} disabled{% endif %}">
+                    {% if pagination.has_next %}
+                        <a class="page-link" href="{{ url_for(endpoint, page=pagination.next_num, **extra_params) }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    {% else %}
+                        <span class="page-link" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </span>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
+    {% endif %}
+{% endmacro %}
+
+{# Breadcrumb macro #}
+{% macro render_breadcrumb(items) %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            {% for item in items %}
+                {% if loop.last %}
+                    <li class="breadcrumb-item active" aria-current="page">{{ item.text }}</li>
+                {% else %}
+                    <li class="breadcrumb-item">
+                        {% if item.url %}
+                            <a href="{{ item.url }}">{{ item.text }}</a>
+                        {% else %}
+                            {{ item.text }}
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+{% endmacro %}
