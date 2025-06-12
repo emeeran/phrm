@@ -5,38 +5,41 @@ Optimized settings for production environment with security, performance, and mo
 
 import os
 from datetime import timedelta
+from typing import ClassVar
 
 
 class ProductionConfig:
     """Production configuration with optimized settings."""
 
     # Basic Flask Configuration
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-super-secret-production-key-here'
+    SECRET_KEY = os.environ.get("SECRET_KEY") or "your-super-secret-production-key-here"
 
     # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///phrm_production.db'
+    SQLALCHEMY_DATABASE_URI = (
+        os.environ.get("DATABASE_URL") or "sqlite:///phrm_production.db"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 20,
-        'pool_timeout': 20,
-        'pool_recycle': -1,
-        'max_overflow': 0,
-        'pool_pre_ping': True
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, int | bool]] = {
+        "pool_size": 20,
+        "pool_timeout": 20,
+        "pool_recycle": -1,
+        "max_overflow": 0,
+        "pool_pre_ping": True,
     }
 
     # Redis Cache Configuration
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
-    CACHE_TYPE = 'redis'
+    REDIS_URL = os.environ.get("REDIS_URL") or "redis://localhost:6379/0"
+    CACHE_TYPE = "redis"
     CACHE_REDIS_URL = REDIS_URL
     CACHE_DEFAULT_TIMEOUT = 300
-    CACHE_KEY_PREFIX = 'phrm:'
+    CACHE_KEY_PREFIX = "phrm:"
 
     # Session Configuration
-    SESSION_TYPE = 'redis'
+    SESSION_TYPE = "redis"
     SESSION_REDIS = REDIS_URL
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = True
-    SESSION_KEY_PREFIX = 'phrm:session:'
+    SESSION_KEY_PREFIX = "phrm:session:"
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
 
     # Security Configuration
@@ -50,20 +53,29 @@ class ProductionConfig:
 
     # File Upload Configuration
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or '/opt/phrm/uploads'
-    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx'}
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER") or "/opt/phrm/uploads"
+    ALLOWED_EXTENSIONS: ClassVar[set[str]] = {
+        "txt",
+        "pdf",
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "doc",
+        "docx",
+    }
 
     # Email Configuration (for notifications)
-    MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'smtp.gmail.com'
-    MAIL_PORT = int(os.environ.get('MAIL_PORT') or 587)
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+    MAIL_SERVER = os.environ.get("MAIL_SERVER") or "smtp.gmail.com"
+    MAIL_PORT = int(os.environ.get("MAIL_PORT") or 587)
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() in ["true", "on", "1"]
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
 
     # Logging Configuration
-    LOG_LEVEL = 'INFO'
-    LOG_FILE = '/var/log/phrm/app.log'
+    LOG_LEVEL = "INFO"
+    LOG_FILE = "/var/log/phrm/app.log"
     LOG_MAX_BYTES = 10485760  # 10MB
     LOG_BACKUP_COUNT = 10
 
@@ -71,8 +83,8 @@ class ProductionConfig:
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(seconds=31536000)  # 1 year for static files
 
     # AI/ML Configuration
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-    AI_MODEL = 'gpt-3.5-turbo'
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    AI_MODEL = "gpt-3.5-turbo"
     AI_MAX_TOKENS = 1000
     AI_TEMPERATURE = 0.7
 
@@ -82,35 +94,37 @@ class ProductionConfig:
     HEALTH_CHECK_ENABLED = True
 
     # Security Headers
-    SECURITY_HEADERS = {
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    SECURITY_HEADERS: ClassVar[dict[str, str]] = {
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
     }
 
     # Asset Optimization
     OPTIMIZE_ASSETS = True
     MINIFY_PAGE = True
-    COMPRESS_MIMETYPES = [
-        'text/html',
-        'text/css',
-        'text/xml',
-        'application/json',
-        'application/javascript'
+    COMPRESS_MIMETYPES: ClassVar[list[str]] = [
+        "text/html",
+        "text/css",
+        "text/xml",
+        "application/json",
+        "application/javascript",
     ]
 
 
 class DockerConfig(ProductionConfig):
     """Docker-specific configuration."""
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'postgresql://phrm:password@db:5432/phrm'
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://redis:6379/0'
+    SQLALCHEMY_DATABASE_URI = (
+        os.environ.get("DATABASE_URL") or "postgresql://phrm:password@db:5432/phrm"
+    )
+    REDIS_URL = os.environ.get("REDIS_URL") or "redis://redis:6379/0"
 
     # Docker-specific paths
-    UPLOAD_FOLDER = '/app/uploads'
-    LOG_FILE = '/app/logs/app.log'
+    UPLOAD_FOLDER = "/app/uploads"
+    LOG_FILE = "/app/logs/app.log"
 
 
 def create_production_dockerfile() -> str:
@@ -395,51 +409,46 @@ WantedBy=multi-user.target
 def create_monitoring_config() -> dict:
     """Create monitoring and alerting configuration."""
     monitoring_config = {
-        'health_checks': [
+        "health_checks": [
             {
-                'name': 'database',
-                'endpoint': '/health/db',
-                'timeout': 5,
-                'critical': True
+                "name": "database",
+                "endpoint": "/health/db",
+                "timeout": 5,
+                "critical": True,
             },
             {
-                'name': 'redis',
-                'endpoint': '/health/redis',
-                'timeout': 3,
-                'critical': False
+                "name": "redis",
+                "endpoint": "/health/redis",
+                "timeout": 3,
+                "critical": False,
             },
-            {
-                'name': 'api',
-                'endpoint': '/health/api',
-                'timeout': 10,
-                'critical': True
-            }
+            {"name": "api", "endpoint": "/health/api", "timeout": 10, "critical": True},
         ],
-        'metrics': [
-            'response_time',
-            'error_rate',
-            'throughput',
-            'memory_usage',
-            'cpu_usage',
-            'disk_usage',
-            'database_connections',
-            'cache_hit_rate'
+        "metrics": [
+            "response_time",
+            "error_rate",
+            "throughput",
+            "memory_usage",
+            "cpu_usage",
+            "disk_usage",
+            "database_connections",
+            "cache_hit_rate",
         ],
-        'alerts': {
-            'response_time_threshold': 2.0,  # seconds
-            'error_rate_threshold': 0.05,    # 5%
-            'memory_usage_threshold': 0.85,  # 85%
-            'disk_usage_threshold': 0.90     # 90%
-        }
+        "alerts": {
+            "response_time_threshold": 2.0,  # seconds
+            "error_rate_threshold": 0.05,  # 5%
+            "memory_usage_threshold": 0.85,  # 85%
+            "disk_usage_threshold": 0.90,  # 90%
+        },
     }
     return monitoring_config
 
 
 # Export configurations
 production_configs = {
-    'dockerfile': create_production_dockerfile(),
-    'docker_compose': create_docker_compose(),
-    'nginx_config': create_nginx_config(),
-    'systemd_service': create_systemd_service(),
-    'monitoring': create_monitoring_config()
+    "dockerfile": create_production_dockerfile(),
+    "docker_compose": create_docker_compose(),
+    "nginx_config": create_nginx_config(),
+    "systemd_service": create_systemd_service(),
+    "monitoring": create_monitoring_config(),
 }

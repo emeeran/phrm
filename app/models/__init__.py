@@ -1,6 +1,6 @@
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
@@ -10,14 +10,22 @@ from werkzeug.security import check_password_hash, generate_password_hash
 db = SQLAlchemy()
 
 # User-Family relationship table
-user_family = db.Table('user_family',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
-    db.Column('family_member_id', db.Integer, db.ForeignKey('family_members.id'), primary_key=True)
+user_family = db.Table(
+    "user_family",
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+    db.Column(
+        "family_member_id",
+        db.Integer,
+        db.ForeignKey("family_members.id"),
+        primary_key=True,
+    ),
 )
+
 
 class User(UserMixin, db.Model):
     """User model for authentication and profile management"""
-    __tablename__ = 'users'
+
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -27,7 +35,9 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(50), nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -36,15 +46,17 @@ class User(UserMixin, db.Model):
     record_reminders = db.Column(db.Boolean, default=True, nullable=False)
     security_alerts = db.Column(db.Boolean, default=True, nullable=False)
     ai_insights = db.Column(db.Boolean, default=True, nullable=False)
-    notification_frequency = db.Column(db.String(20), default='daily', nullable=False)
+    notification_frequency = db.Column(db.String(20), default="daily", nullable=False)
 
     # Password reset fields
     reset_token = db.Column(db.String(100), nullable=True)
     reset_token_expiry = db.Column(db.DateTime, nullable=True)
 
     # Relationships
-    family_members = db.relationship('FamilyMember', secondary=user_family, backref='caregivers')
-    records = db.relationship('HealthRecord', backref='user', lazy='dynamic')
+    family_members = db.relationship(
+        "FamilyMember", secondary=user_family, backref="caregivers"
+    )
+    records = db.relationship("HealthRecord", backref="user", lazy="dynamic")
 
     def set_password(self, password: str) -> None:
         """Set password hash"""
@@ -57,7 +69,7 @@ class User(UserMixin, db.Model):
     def generate_reset_token(self) -> str:
         """Generate a secure reset token"""
         self.reset_token = secrets.token_urlsafe(32)
-        self.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        self.reset_token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
         return self.reset_token
 
     def verify_reset_token(self, token: str) -> bool:
@@ -66,7 +78,7 @@ class User(UserMixin, db.Model):
             return False
         if self.reset_token != token:
             return False
-        if datetime.utcnow() > self.reset_token_expiry:
+        if datetime.now(timezone.utc) > self.reset_token_expiry:
             return False
         return True
 
@@ -77,17 +89,21 @@ class User(UserMixin, db.Model):
         self.reset_token_expiry = None
 
     def __repr__(self) -> str:
-        return f'<User {self.username}>'
+        return f"<User {self.username}>"
+
 
 class FamilyMember(db.Model):
     """Model for family members"""
-    __tablename__ = 'family_members'
+
+    __tablename__ = "family_members"
 
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=True)
-    relationship = db.Column(db.String(50), nullable=True)  # e.g., spouse, child, parent
+    relationship = db.Column(
+        db.String(50), nullable=True
+    )  # e.g., spouse, child, parent
 
     # Basic Information (existing fields)
     gender = db.Column(db.String(20), nullable=True)
@@ -113,89 +129,127 @@ class FamilyMember(db.Model):
     notes = db.Column(db.Text, nullable=True)  # Additional notes
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
-    records = db.relationship('HealthRecord', backref='family_member', lazy='dynamic')
+    records = db.relationship("HealthRecord", backref="family_member", lazy="dynamic")
 
     def get_complete_medical_context(self) -> str:
         """Get complete medical context for AI chat"""
         context = f"--- Medical Profile for {self.first_name} {self.last_name} ---\n"
 
-        # Basic Demographics
+        # Build context sections
+        context += self._get_demographics_context()
+        context += self._get_medical_conditions_context()
+        context += self._get_medications_context()
+        context += self._get_medical_history_context()
+        context += self._get_health_records_context()
+
+        return context
+
+    def _get_demographics_context(self) -> str:
+        """Get demographics section of medical context"""
+        context = ""
+
         if self.date_of_birth:
-            from datetime import datetime
-            today = datetime.today()
-            age = today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+            from datetime import datetime, timezone
+
+            today = datetime.now(timezone.utc)
+            age = (
+                today.year
+                - self.date_of_birth.year
+                - (
+                    (today.month, today.day)
+                    < (self.date_of_birth.month, self.date_of_birth.day)
+                )
+            )
             context += f"Age: {age} years old\n"
 
-        if self.relationship:
-            context += f"Relationship: {self.relationship}\n"
-
-        if self.gender:
-            context += f"Gender: {self.gender}\n"
-
-        if self.blood_type:
-            context += f"Blood Type: {self.blood_type}\n"
+        for attr, label in [
+            ("relationship", "Relationship"),
+            ("gender", "Gender"),
+            ("blood_type", "Blood Type"),
+        ]:
+            value = getattr(self, attr)
+            if value:
+                context += f"{label}: {value}\n"
 
         if self.height:
             context += f"Height: {self.height} cm\n"
-
         if self.weight:
             context += f"Weight: {self.weight} kg\n"
 
-        # Medical Conditions
+        return context
+
+    def _get_medical_conditions_context(self) -> str:
+        """Get medical conditions section"""
+        context = ""
         if self.chronic_conditions:
             context += f"\nChronic Conditions:\n{self.chronic_conditions}\n"
-
         if self.allergies:
             context += f"\nAllergies:\n{self.allergies}\n"
+        return context
 
-        # Medications
+    def _get_medications_context(self) -> str:
+        """Get medications section"""
+        context = ""
         if self.current_medications:
             context += f"\nCurrent Medications:\n{self.current_medications}\n"
+        return context
 
-        # Medical History
+    def _get_medical_history_context(self) -> str:
+        """Get medical history section"""
+        context = ""
         if self.family_medical_history:
             context += f"\nFamily Medical History:\n{self.family_medical_history}\n"
-
         if self.surgical_history:
             context += f"\nSurgical History:\n{self.surgical_history}\n"
-
-        # Additional Notes
         if self.notes:
             context += f"\nAdditional Notes:\n{self.notes}\n"
+        return context
 
-        # Add health records
+    def _get_health_records_context(self) -> str:
+        """Get health records section"""
         records = self.records.order_by(HealthRecord.date.desc()).all()
-        if records:
-            context += f"\n--- Health Records ({len(records)} total) ---\n"
-            for idx, record in enumerate(records[:10]):  # Limit to 10 most recent
-                context += f"\n{idx+1}. {record.title}\n"
-                context += f"   Type: {record.record_type.replace('_', ' ').title()}\n"
-                context += f"   Date: {record.date.strftime('%Y-%m-%d')}\n"
-                if record.description:
-                    context += f"   Details: {record.description[:200]}{'...' if len(record.description) > 200 else ''}\n"
+        if not records:
+            return ""
+
+        context = f"\n--- Health Records ({len(records)} total) ---\n"
+        for idx, record in enumerate(records[:10]):  # Limit to 10 most recent
+            context += f"\n{idx + 1}. {record.title}\n"
+            context += f"   Type: {record.record_type.replace('_', ' ').title()}\n"
+            context += f"   Date: {record.date.strftime('%Y-%m-%d')}\n"
+            if record.description:
+                MAX_DESCRIPTION_LENGTH = 200
+                context += f"   Details: {record.description[:MAX_DESCRIPTION_LENGTH]}{'...' if len(record.description) > MAX_DESCRIPTION_LENGTH else ''}\n"
 
         return context
 
     def __repr__(self) -> str:
-        return f'<FamilyMember {self.first_name} {self.last_name}>'
+        return f"<FamilyMember {self.first_name} {self.last_name}>"
+
 
 class HealthRecord(db.Model):
     """Model for health records"""
-    __tablename__ = 'health_records'
+
+    __tablename__ = "health_records"
 
     id = db.Column(db.Integer, primary_key=True)
     # Legacy fields (maintained for backward compatibility)
-    record_type = db.Column(db.String(50), nullable=True)  # complaint, doctor_visit, investigation, prescription, lab_report, note
+    record_type = db.Column(
+        db.String(50), nullable=True
+    )  # complaint, doctor_visit, investigation, prescription, lab_report, note
     title = db.Column(db.String(200), nullable=True)
     description = db.Column(db.Text, nullable=True)
 
     # Core fields
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    family_member_id = db.Column(db.Integer, db.ForeignKey('family_members.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    family_member_id = db.Column(
+        db.Integer, db.ForeignKey("family_members.id"), nullable=True
+    )
 
     # New standardized medical record fields
     chief_complaint = db.Column(db.Text, nullable=True)
@@ -207,101 +261,160 @@ class HealthRecord(db.Model):
     review_followup = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
-    documents = db.relationship('Document', backref='health_record', lazy='dynamic', cascade='all, delete-orphan')
+    documents = db.relationship(
+        "Document",
+        backref="health_record",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         # Generate title from available fields for display
         display_title = self.title
         if not display_title and self.chief_complaint:
-            display_title = self.chief_complaint[:50] + "..." if len(self.chief_complaint) > 50 else self.chief_complaint
+            MAX_TITLE_LENGTH = 50
+            display_title = (
+                self.chief_complaint[:MAX_TITLE_LENGTH] + "..."
+                if len(self.chief_complaint) > MAX_TITLE_LENGTH
+                else self.chief_complaint
+            )
         if not display_title:
             display_title = f"Health Record {self.id}"
-        return f'<HealthRecord {display_title}>'
+        return f"<HealthRecord {display_title}>"
+
 
 class Document(db.Model):
     """Model for uploaded documents"""
-    __tablename__ = 'documents'
+
+    __tablename__ = "documents"
 
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
     file_type = db.Column(db.String(50), nullable=False)  # PDF, image, etc.
     file_size = db.Column(db.Integer, nullable=False)  # Size in bytes
-    health_record_id = db.Column(db.Integer, db.ForeignKey('health_records.id'), nullable=False)
+    health_record_id = db.Column(
+        db.Integer, db.ForeignKey("health_records.id"), nullable=False
+    )
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    extracted_text = db.Column(db.Text, nullable=True)  # Store OCR extracted text for PDFs
-    vectorized = db.Column(db.Boolean, default=False)  # Flag to track if document is vectorized for RAG
+    extracted_text = db.Column(
+        db.Text, nullable=True
+    )  # Store OCR extracted text for PDFs
+    vectorized = db.Column(
+        db.Boolean, default=False
+    )  # Flag to track if document is vectorized for RAG
 
     def __repr__(self) -> str:
-        return f'<Document {self.filename}>'
+        return f"<Document {self.filename}>"
+
 
 class AISummary(db.Model):
     """Model for AI-generated summaries"""
-    __tablename__ = 'ai_summaries'
+
+    __tablename__ = "ai_summaries"
 
     id = db.Column(db.Integer, primary_key=True)
-    health_record_id = db.Column(db.Integer, db.ForeignKey('health_records.id'), nullable=False)
+    health_record_id = db.Column(
+        db.Integer, db.ForeignKey("health_records.id"), nullable=False
+    )
     summary_text = db.Column(db.Text, nullable=False)
-    summary_type = db.Column(db.String(20), nullable=False, default='standard')  # standard, detailed
+    summary_type = db.Column(
+        db.String(20), nullable=False, default="standard"
+    )  # standard, detailed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    health_record = db.relationship('HealthRecord', backref='summaries')
+    health_record = db.relationship("HealthRecord", backref="summaries")
 
     def __repr__(self) -> str:
-        return f'<AISummary for record {self.health_record_id}>'
+        return f"<AISummary for record {self.health_record_id}>"
+
 
 # =============================================================================
 # AI AUDIT MODELS
 # =============================================================================
 
+
 class AIAuditLog(db.Model):
     """
     Core audit log table for AI operations
-    
+
     This table stores detailed audit information for all AI-related operations
     including chat interactions, summary generation, symptom checking, etc.
     """
-    __tablename__ = 'ai_audit_logs'
+
+    __tablename__ = "ai_audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Basic audit information
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    session_id = db.Column(db.String(128), nullable=True, index=True)  # Track user sessions
+    timestamp = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    session_id = db.Column(
+        db.String(128), nullable=True, index=True
+    )  # Track user sessions
 
     # Operation details
-    operation_type = db.Column(db.String(50), nullable=False, index=True)  # chat, summarize, symptom_check, etc.
-    operation_subtype = db.Column(db.String(50), nullable=True)  # detailed operation classification
+    operation_type = db.Column(
+        db.String(50), nullable=False, index=True
+    )  # chat, summarize, symptom_check, etc.
+    operation_subtype = db.Column(
+        db.String(50), nullable=True
+    )  # detailed operation classification
 
     # Data classification and sensitivity
-    data_classification = db.Column(db.String(20), nullable=False, default='PHI')  # PHI, PII, PUBLIC, INTERNAL
-    sensitivity_level = db.Column(db.String(20), nullable=False, default='HIGH')  # LOW, MEDIUM, HIGH, CRITICAL
+    data_classification = db.Column(
+        db.String(20), nullable=False, default="PHI"
+    )  # PHI, PII, PUBLIC, INTERNAL
+    sensitivity_level = db.Column(
+        db.String(20), nullable=False, default="HIGH"
+    )  # LOW, MEDIUM, HIGH, CRITICAL
 
     # AI model information
-    ai_model_used = db.Column(db.String(100), nullable=True)  # gemini-2.5-flash, gpt-4, etc.
+    ai_model_used = db.Column(
+        db.String(100), nullable=True
+    )  # gemini-2.5-flash, gpt-4, etc.
     ai_model_version = db.Column(db.String(50), nullable=True)
     fallback_used = db.Column(db.Boolean, default=False)  # Was fallback model used?
 
     # Request/Response details
-    input_size = db.Column(db.Integer, nullable=True)  # Input text/data size in characters
+    input_size = db.Column(
+        db.Integer, nullable=True
+    )  # Input text/data size in characters
     output_size = db.Column(db.Integer, nullable=True)  # Output text size in characters
-    processing_time_ms = db.Column(db.Integer, nullable=True)  # Processing time in milliseconds
+    processing_time_ms = db.Column(
+        db.Integer, nullable=True
+    )  # Processing time in milliseconds
 
     # Content classification
-    medical_context_accessed = db.Column(db.Boolean, default=False)  # Was medical data accessed?
-    pii_detected = db.Column(db.Boolean, default=False)  # Was PII detected in input/output?
-    family_member_id = db.Column(db.Integer, db.ForeignKey('family_members.id'), nullable=True)  # Related family member
-    health_record_ids = db.Column(db.Text, nullable=True)  # JSON array of accessed record IDs
+    medical_context_accessed = db.Column(
+        db.Boolean, default=False
+    )  # Was medical data accessed?
+    pii_detected = db.Column(
+        db.Boolean, default=False
+    )  # Was PII detected in input/output?
+    family_member_id = db.Column(
+        db.Integer, db.ForeignKey("family_members.id"), nullable=True
+    )  # Related family member
+    health_record_ids = db.Column(
+        db.Text, nullable=True
+    )  # JSON array of accessed record IDs
 
     # Security and compliance
     ip_address = db.Column(db.String(45), nullable=True)  # IPv4/IPv6 address
     user_agent = db.Column(db.String(500), nullable=True)  # Browser/client information
-    geographic_location = db.Column(db.String(100), nullable=True)  # Country/region if available
+    geographic_location = db.Column(
+        db.String(100), nullable=True
+    )  # Country/region if available
 
     # Risk assessment
     risk_score = db.Column(db.Float, nullable=True)  # Calculated risk score (0-100)
@@ -314,46 +427,64 @@ class AIAuditLog(db.Model):
     nist_applicable = db.Column(db.Boolean, default=True)
 
     # Status and outcome
-    operation_status = db.Column(db.String(20), nullable=False, default='SUCCESS')  # SUCCESS, FAILED, PARTIAL
-    error_code = db.Column(db.String(50), nullable=True)  # Error code if operation failed
+    operation_status = db.Column(
+        db.String(20), nullable=False, default="SUCCESS"
+    )  # SUCCESS, FAILED, PARTIAL
+    error_code = db.Column(
+        db.String(50), nullable=True
+    )  # Error code if operation failed
     error_message = db.Column(db.Text, nullable=True)  # Error details
 
     # Audit metadata
-    retention_period_days = db.Column(db.Integer, nullable=False, default=2555)  # 7 years default
+    retention_period_days = db.Column(
+        db.Integer, nullable=False, default=2555
+    )  # 7 years default
     archived = db.Column(db.Boolean, default=False)
     archive_date = db.Column(db.DateTime, nullable=True)
 
     # Additional context (JSON)
-    additional_context = db.Column(db.Text, nullable=True)  # JSON blob for extensibility
+    additional_context = db.Column(
+        db.Text, nullable=True
+    )  # JSON blob for extensibility
 
     # Indexes for performance
     __table_args__ = (
-        Index('idx_ai_audit_user_timestamp', 'user_id', 'timestamp'),
-        Index('idx_ai_audit_operation_timestamp', 'operation_type', 'timestamp'),
-        Index('idx_ai_audit_classification', 'data_classification', 'sensitivity_level'),
-        Index('idx_ai_audit_compliance', 'hipaa_applicable', 'gdpr_applicable', 'timestamp'),
-        Index('idx_ai_audit_risk', 'risk_score', 'timestamp'),
-        Index('idx_ai_audit_status', 'operation_status', 'timestamp'),
-        Index('idx_ai_audit_session', 'session_id', 'timestamp'),
+        Index("idx_ai_audit_user_timestamp", "user_id", "timestamp"),
+        Index("idx_ai_audit_operation_timestamp", "operation_type", "timestamp"),
+        Index(
+            "idx_ai_audit_classification", "data_classification", "sensitivity_level"
+        ),
+        Index(
+            "idx_ai_audit_compliance",
+            "hipaa_applicable",
+            "gdpr_applicable",
+            "timestamp",
+        ),
+        Index("idx_ai_audit_risk", "risk_score", "timestamp"),
+        Index("idx_ai_audit_status", "operation_status", "timestamp"),
+        Index("idx_ai_audit_session", "session_id", "timestamp"),
     )
 
     def __repr__(self) -> str:
-        return f'<AIAuditLog {self.operation_type} for user {self.user_id} at {self.timestamp}>'
+        return f"<AIAuditLog {self.operation_type} for user {self.user_id} at {self.timestamp}>"
 
 
 class AIComplianceReport(db.Model):
     """
     Compliance assessment reports for periodic auditing
-    
+
     Stores periodic compliance reports and assessments for regulatory requirements
     """
-    __tablename__ = 'ai_compliance_reports'
+
+    __tablename__ = "ai_compliance_reports"
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Report identification
     report_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    compliance_framework = db.Column(db.String(50), nullable=False, index=True)  # HIPAA, GDPR, SOC2, NIST
+    compliance_framework = db.Column(
+        db.String(50), nullable=False, index=True
+    )  # HIPAA, GDPR, SOC2, NIST
 
     # Report period
     period_start = db.Column(db.DateTime, nullable=False, index=True)
@@ -375,7 +506,9 @@ class AIComplianceReport(db.Model):
     critical_violations = db.Column(db.Integer, nullable=False, default=0)
     major_violations = db.Column(db.Integer, nullable=False, default=0)
     minor_violations = db.Column(db.Integer, nullable=False, default=0)
-    violation_details = db.Column(db.Text, nullable=True)  # JSON array of violation details
+    violation_details = db.Column(
+        db.Text, nullable=True
+    )  # JSON array of violation details
 
     # Recommendations
     recommendations = db.Column(db.Text, nullable=True)  # JSON array of recommendations
@@ -387,8 +520,12 @@ class AIComplianceReport(db.Model):
     detailed_findings = db.Column(db.Text, nullable=True)
 
     # Status tracking
-    status = db.Column(db.String(20), nullable=False, default='DRAFT')  # DRAFT, FINAL, ARCHIVED
-    generated_by = db.Column(db.String(100), nullable=True)  # System or user who generated
+    status = db.Column(
+        db.String(20), nullable=False, default="DRAFT"
+    )  # DRAFT, FINAL, ARCHIVED
+    generated_by = db.Column(
+        db.String(100), nullable=True
+    )  # System or user who generated
     reviewed_by = db.Column(db.String(100), nullable=True)  # Who reviewed the report
     approved_by = db.Column(db.String(100), nullable=True)  # Who approved the report
 
@@ -399,28 +536,36 @@ class AIComplianceReport(db.Model):
 
     # Indexes
     __table_args__ = (
-        Index('idx_compliance_framework_period', 'compliance_framework', 'period_start', 'period_end'),
-        Index('idx_compliance_score_status', 'compliance_score', 'status'),
-        Index('idx_compliance_created', 'created_at'),
+        Index(
+            "idx_compliance_framework_period",
+            "compliance_framework",
+            "period_start",
+            "period_end",
+        ),
+        Index("idx_compliance_score_status", "compliance_score", "status"),
+        Index("idx_compliance_created", "created_at"),
     )
 
     def __repr__(self) -> str:
-        return f'<AIComplianceReport {self.report_id} for {self.compliance_framework}>'
+        return f"<AIComplianceReport {self.report_id} for {self.compliance_framework}>"
 
 
 class AIOperationMetrics(db.Model):
     """
     Performance and usage metrics aggregation
-    
+
     Stores aggregated metrics for AI operations performance monitoring
     """
-    __tablename__ = 'ai_operation_metrics'
+
+    __tablename__ = "ai_operation_metrics"
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Time aggregation
     metric_date = db.Column(db.Date, nullable=False, index=True)
-    aggregation_period = db.Column(db.String(20), nullable=False, index=True)  # HOURLY, DAILY, WEEKLY, MONTHLY
+    aggregation_period = db.Column(
+        db.String(20), nullable=False, index=True
+    )  # HOURLY, DAILY, WEEKLY, MONTHLY
 
     # Operation classification
     operation_type = db.Column(db.String(50), nullable=False, index=True)
@@ -454,50 +599,67 @@ class AIOperationMetrics(db.Model):
 
     # Error tracking
     error_rate = db.Column(db.Float, nullable=True)  # Percentage
-    common_errors = db.Column(db.Text, nullable=True)  # JSON array of error codes/counts
+    common_errors = db.Column(
+        db.Text, nullable=True
+    )  # JSON array of error codes/counts
 
     # Geographic distribution
-    geographic_distribution = db.Column(db.Text, nullable=True)  # JSON object of location:count
+    geographic_distribution = db.Column(
+        db.Text, nullable=True
+    )  # JSON object of location:count
 
     # Timestamps
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Indexes
     __table_args__ = (
-        Index('idx_metrics_date_type', 'metric_date', 'operation_type'),
-        Index('idx_metrics_period_model', 'aggregation_period', 'ai_model_used'),
-        Index('idx_metrics_performance', 'avg_processing_time_ms', 'error_rate'),
+        Index("idx_metrics_date_type", "metric_date", "operation_type"),
+        Index("idx_metrics_period_model", "aggregation_period", "ai_model_used"),
+        Index("idx_metrics_performance", "avg_processing_time_ms", "error_rate"),
     )
 
     def __repr__(self) -> str:
-        return f'<AIOperationMetrics {self.operation_type} for {self.metric_date}>'
+        return f"<AIOperationMetrics {self.operation_type} for {self.metric_date}>"
 
 
 class AISecurityEvent(db.Model):
     """
     Security-related AI events and incidents
-    
+
     Tracks security events, anomalies, and potential threats in AI operations
     """
-    __tablename__ = 'ai_security_events'
+
+    __tablename__ = "ai_security_events"
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Event identification
     event_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    event_type = db.Column(db.String(50), nullable=False, index=True)  # ANOMALY, THREAT, VIOLATION, BREACH
-    severity = db.Column(db.String(20), nullable=False, index=True)  # LOW, MEDIUM, HIGH, CRITICAL
+    event_type = db.Column(
+        db.String(50), nullable=False, index=True
+    )  # ANOMALY, THREAT, VIOLATION, BREACH
+    severity = db.Column(
+        db.String(20), nullable=False, index=True
+    )  # LOW, MEDIUM, HIGH, CRITICAL
 
     # Related audit log
-    audit_log_id = db.Column(db.Integer, db.ForeignKey('ai_audit_logs.id'), nullable=True, index=True)
+    audit_log_id = db.Column(
+        db.Integer, db.ForeignKey("ai_audit_logs.id"), nullable=True, index=True
+    )
 
     # Event details
     event_description = db.Column(db.Text, nullable=False)
-    detection_method = db.Column(db.String(100), nullable=True)  # How was this detected?
+    detection_method = db.Column(
+        db.String(100), nullable=True
+    )  # How was this detected?
 
     # Context
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=True, index=True
+    )
     operation_type = db.Column(db.String(50), nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
 
@@ -507,13 +669,17 @@ class AISecurityEvent(db.Model):
     affected_data_types = db.Column(db.Text, nullable=True)  # JSON array
 
     # Response tracking
-    status = db.Column(db.String(20), nullable=False, default='OPEN')  # OPEN, INVESTIGATING, RESOLVED, CLOSED
+    status = db.Column(
+        db.String(20), nullable=False, default="OPEN"
+    )  # OPEN, INVESTIGATING, RESOLVED, CLOSED
     assigned_to = db.Column(db.String(100), nullable=True)
     response_actions = db.Column(db.Text, nullable=True)  # JSON array of actions taken
     resolution_notes = db.Column(db.Text, nullable=True)
 
     # Timestamps
-    detected_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    detected_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
     acknowledged_at = db.Column(db.DateTime, nullable=True)
     resolved_at = db.Column(db.DateTime, nullable=True)
     closed_at = db.Column(db.DateTime, nullable=True)
@@ -525,69 +691,98 @@ class AISecurityEvent(db.Model):
 
     # Indexes
     __table_args__ = (
-        Index('idx_security_severity_status', 'severity', 'status'),
-        Index('idx_security_type_detected', 'event_type', 'detected_at'),
-        Index('idx_security_user_detected', 'user_id', 'detected_at'),
+        Index("idx_security_severity_status", "severity", "status"),
+        Index("idx_security_type_detected", "event_type", "detected_at"),
+        Index("idx_security_user_detected", "user_id", "detected_at"),
     )
 
     def __repr__(self) -> str:
-        return f'<AISecurityEvent {self.event_id} - {self.event_type} ({self.severity})>'
+        return (
+            f"<AISecurityEvent {self.event_id} - {self.event_type} ({self.severity})>"
+        )
 
 
 class AIDataAccess(db.Model):
     """
     Detailed data access tracking for AI operations
-    
+
     Tracks specific data access patterns for GDPR/HIPAA compliance
     """
-    __tablename__ = 'ai_data_access'
+
+    __tablename__ = "ai_data_access"
 
     id = db.Column(db.Integer, primary_key=True)
 
     # Access identification
     access_id = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    audit_log_id = db.Column(db.Integer, db.ForeignKey('ai_audit_logs.id'), nullable=False, index=True)
+    audit_log_id = db.Column(
+        db.Integer, db.ForeignKey("ai_audit_logs.id"), nullable=False, index=True
+    )
 
     # Data identification
-    data_type = db.Column(db.String(50), nullable=False, index=True)  # HEALTH_RECORD, FAMILY_MEMBER, USER_PROFILE
-    data_id = db.Column(db.String(100), nullable=False, index=True)  # ID of the accessed data
-    data_classification = db.Column(db.String(20), nullable=False, index=True)  # PHI, PII, PUBLIC
+    data_type = db.Column(
+        db.String(50), nullable=False, index=True
+    )  # HEALTH_RECORD, FAMILY_MEMBER, USER_PROFILE
+    data_id = db.Column(
+        db.String(100), nullable=False, index=True
+    )  # ID of the accessed data
+    data_classification = db.Column(
+        db.String(20), nullable=False, index=True
+    )  # PHI, PII, PUBLIC
 
     # Access details
-    access_purpose = db.Column(db.String(100), nullable=False, index=True)  # AI_CHAT, SUMMARIZATION, ANALYSIS
+    access_purpose = db.Column(
+        db.String(100), nullable=False, index=True
+    )  # AI_CHAT, SUMMARIZATION, ANALYSIS
     access_method = db.Column(db.String(50), nullable=False)  # READ, PROCESS, ANALYZE
-    data_fields_accessed = db.Column(db.Text, nullable=True)  # JSON array of specific fields
+    data_fields_accessed = db.Column(
+        db.Text, nullable=True
+    )  # JSON array of specific fields
 
     # Data content summary
     data_size_chars = db.Column(db.Integer, nullable=True)  # Size of accessed data
     sensitive_data_detected = db.Column(db.Boolean, default=False)
-    phi_categories = db.Column(db.Text, nullable=True)  # JSON array of PHI categories found
+    phi_categories = db.Column(
+        db.Text, nullable=True
+    )  # JSON array of PHI categories found
 
     # Legal basis (for GDPR compliance)
-    legal_basis = db.Column(db.String(100), nullable=True)  # CONSENT, LEGITIMATE_INTEREST, etc.
+    legal_basis = db.Column(
+        db.String(100), nullable=True
+    )  # CONSENT, LEGITIMATE_INTEREST, etc.
     consent_id = db.Column(db.String(100), nullable=True)  # Reference to user consent
 
     # Data minimization
-    data_necessary = db.Column(db.Boolean, default=True)  # Was this data necessary for the operation?
-    alternative_available = db.Column(db.Boolean, default=False)  # Could operation work without this data?
+    data_necessary = db.Column(
+        db.Boolean, default=True
+    )  # Was this data necessary for the operation?
+    alternative_available = db.Column(
+        db.Boolean, default=False
+    )  # Could operation work without this data?
 
     # Timestamps
-    accessed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    data_last_modified = db.Column(db.DateTime, nullable=True)  # When was the accessed data last modified?
+    accessed_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    data_last_modified = db.Column(
+        db.DateTime, nullable=True
+    )  # When was the accessed data last modified?
 
     # Retention and disposal
-    retention_period_days = db.Column(db.Integer, nullable=False, default=2555)  # 7 years
+    retention_period_days = db.Column(
+        db.Integer, nullable=False, default=2555
+    )  # 7 years
     data_disposed = db.Column(db.Boolean, default=False)
     disposal_date = db.Column(db.DateTime, nullable=True)
     disposal_method = db.Column(db.String(50), nullable=True)
 
     # Indexes
     __table_args__ = (
-        Index('idx_data_access_type_id', 'data_type', 'data_id'),
-        Index('idx_data_access_audit', 'audit_log_id', 'accessed_at'),
-        Index('idx_data_access_classification', 'data_classification', 'accessed_at'),
-        Index('idx_data_access_purpose', 'access_purpose', 'accessed_at'),
+        Index("idx_data_access_type_id", "data_type", "data_id"),
+        Index("idx_data_access_audit", "audit_log_id", "accessed_at"),
+        Index("idx_data_access_classification", "data_classification", "accessed_at"),
+        Index("idx_data_access_purpose", "access_purpose", "accessed_at"),
     )
 
     def __repr__(self) -> str:
-        return f'<AIDataAccess {self.access_id} - {self.data_type}:{self.data_id}>'
+        return f"<AIDataAccess {self.access_id} - {self.data_type}:{self.data_id}>"

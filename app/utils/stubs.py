@@ -2,6 +2,7 @@
 Centralized stub functions for missing utilities.
 This module consolidates all stub functions to eliminate redundancy across the application.
 """
+
 from typing import Any, Callable, Dict, Optional
 
 
@@ -10,7 +11,7 @@ def log_security_event(event_type: str, data: Dict[str, Any]) -> None:
     pass
 
 
-def detect_suspicious_patterns(text: str) -> bool:
+def detect_suspicious_patterns(_text: str) -> bool:
     """Stub function for suspicious pattern detection"""
     return False
 
@@ -20,7 +21,7 @@ def sanitize_html(text: Optional[str]) -> str:
     return text if text else ""
 
 
-def validate_file_type(file_path: str) -> bool:
+def validate_file_type(_file_path: str) -> bool:
     """Stub function for file type validation"""
     return True
 
@@ -28,6 +29,7 @@ def validate_file_type(file_path: str) -> bool:
 def secure_filename_enhanced(filename: str) -> str:
     """Stub function for enhanced secure filename"""
     from werkzeug.utils import secure_filename
+
     return secure_filename(filename)
 
 
@@ -47,9 +49,10 @@ def monitor_performance(func: Callable) -> Callable:
     return func
 
 
-def create_security_decorator(decorator_name: str) -> Callable:
+def create_security_decorator(_decorator_name: str) -> Callable:
     """Factory function to create security decorators"""
-    def decorator(*args, **kwargs):
+
+    def decorator(*args, **_kwargs):
         def wrapper(func: Callable) -> Callable:
             return func
 
@@ -63,7 +66,9 @@ def create_security_decorator(decorator_name: str) -> Callable:
 # Create all security decorators using the factory
 ai_security_required = create_security_decorator("ai_security_required")
 secure_ai_response_headers = create_security_decorator("secure_ai_response_headers")
-validate_medical_context_access = create_security_decorator("validate_medical_context_access")
+validate_medical_context_access = create_security_decorator(
+    "validate_medical_context_access"
+)
 ai_audit_required = create_security_decorator("ai_audit_required")
 
 
@@ -71,7 +76,7 @@ class AISecurityManager:
     """Stub class for AI security management"""
 
     @staticmethod
-    def validate_request(data: Dict[str, Any]) -> bool:
+    def validate_request(_data: Dict[str, Any]) -> bool:
         return True
 
 
@@ -79,8 +84,9 @@ class PerformanceDashboard:
     """Stub class for performance dashboard"""
 
     @staticmethod
-    def monitor_performance(*args, **kwargs) -> Callable:
+    def monitor_performance(*args, **_kwargs) -> Callable:
         """Stub decorator for performance monitoring"""
+
         def decorator(func: Callable) -> Callable:
             return func
 
@@ -89,8 +95,9 @@ class PerformanceDashboard:
         return decorator
 
     @staticmethod
-    def handle_errors(*args, **kwargs) -> Callable:
+    def handle_errors(*args, **_kwargs) -> Callable:
         """Stub decorator for error handling"""
+
         def decorator(func: Callable) -> Callable:
             return func
 

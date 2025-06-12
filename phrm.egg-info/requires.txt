@@ -31,7 +31,9 @@ Jinja2>=3.1.0
 blinker>=1.6.0
 
 [ai]
+langchain>=0.1.0
 langchain_community>=0.0.5
+langchain-openai>=0.0.5
 
 [dev]
 pytest>=7.4.0

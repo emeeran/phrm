@@ -5,7 +5,7 @@ Summary: Personal Health Record Manager - A secure and optimized health record m
 Author-email: PHRM Team <team@phrm.com>
 Project-URL: Homepage, https://github.com/phrm/phrm
 Project-URL: Documentation, https://github.com/phrm/phrm/docs
-Project-URL: Repository, https://github.com/phrm/phrm.git
+Project-URL: Repository, https://github.com/emeeran/phrm.git
 Project-URL: Bug Tracker, https://github.com/phrm/phrm/issues
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
@@ -51,7 +51,9 @@ Requires-Dist: black>=25.0.0; extra == "dev"
 Requires-Dist: isort>=6.0.0; extra == "dev"
 Requires-Dist: pre-commit>=4.0.0; extra == "dev"
 Provides-Extra: ai
+Requires-Dist: langchain>=0.1.0; extra == "ai"
 Requires-Dist: langchain_community>=0.0.5; extra == "ai"
+Requires-Dist: langchain-openai>=0.0.5; extra == "ai"
 Provides-Extra: test
 Requires-Dist: pytest>=7.4.0; extra == "test"
 Requires-Dist: pytest-flask>=1.2.0; extra == "test"

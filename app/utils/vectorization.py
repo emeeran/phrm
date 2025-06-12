@@ -39,7 +39,9 @@ try:
 
     VECTORIZATION_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"LangChain dependencies not available. Vectorization disabled. Error: {e}")
+    logger.warning(
+        f"LangChain dependencies not available. Vectorization disabled. Error: {e}"
+    )
     # Only define when types are not available
     if not TYPE_CHECKING:
         # Create dummy classes for runtime to avoid AttributeError
@@ -63,6 +65,7 @@ except ImportError as e:
 
 class VectorizationError(Exception):
     """Custom exception for vectorization operations"""
+
     pass
 
 
@@ -83,10 +86,10 @@ class DocumentLoader:
 
         try:
             loader: Union[Any, Any]  # Type hint for MyPy
-            if file_ext == '.pdf':
+            if file_ext == ".pdf":
                 loader = PyPDFLoader(file_path)
-            elif file_ext in ['.txt', '.text']:
-                loader = TextLoader(file_path, encoding='utf-8')
+            elif file_ext in [".txt", ".text"]:
+                loader = TextLoader(file_path, encoding="utf-8")
             else:
                 logger.warning(f"Unsupported file type: {file_ext}")
                 return None
@@ -110,32 +113,43 @@ class VectorStoreManager:
         base_path.mkdir(exist_ok=True)
         return str(base_path / identifier)
 
-    def load_or_create_vectorstore(self, path: str, documents: Optional[List[Any]] = None):
+    def load_or_create_vectorstore(
+        self, path: str, documents: Optional[List[Any]] = None
+    ):
         """Load existing vectorstore or create new one"""
         if os.path.exists(path) and not documents:
             return Chroma(persist_directory=path, embedding_function=self.embeddings)
 
         if documents:
             if os.path.exists(path):
-                vectorstore = Chroma(persist_directory=path, embedding_function=self.embeddings)
+                vectorstore = Chroma(
+                    persist_directory=path, embedding_function=self.embeddings
+                )
                 vectorstore.add_documents(documents)
                 return vectorstore
             else:
                 return Chroma.from_documents(
                     documents=documents,
                     embedding=self.embeddings,
-                    persist_directory=path
+                    persist_directory=path,
                 )
 
         return None
+
+
 class DocumentVectorizer:
     """Optimized service for vectorizing documents and managing vector stores"""
 
-    def __init__(self, embedding_model: str = "openai",
-                 chunk_size: int = DEFAULT_CHUNK_SIZE,
-                 chunk_overlap: int = DEFAULT_CHUNK_OVERLAP):
+    def __init__(
+        self,
+        embedding_model: str = "openai",
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+    ):
         if not VECTORIZATION_AVAILABLE:
-            raise VectorizationError("LangChain dependencies required for vectorization")
+            raise VectorizationError(
+                "LangChain dependencies required for vectorization"
+            )
 
         self.embedding_model = embedding_model
         self.chunk_size = chunk_size
@@ -167,7 +181,7 @@ class DocumentVectorizer:
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
                 length_function=len,
-                separators=["\n\n", "\n", " ", ""]
+                separators=["\n\n", "\n", " ", ""],
             )
         return self._text_splitter
 
@@ -186,7 +200,7 @@ class DocumentVectorizer:
             "file_type": document.file_type,
             "file_size": document.file_size,
             "uploaded_at": document.uploaded_at.isoformat(),
-            "health_record_id": document.health_record_id
+            "health_record_id": document.health_record_id,
         }
 
     def extract_and_prepare_text(self, document: Document) -> Optional[List[Any]]:
@@ -222,11 +236,15 @@ class DocumentVectorizer:
         try:
             chunks = self.extract_and_prepare_text(document)
             if not chunks:
-                logger.warning(f"No text content found in document: {document.filename}")
+                logger.warning(
+                    f"No text content found in document: {document.filename}"
+                )
                 return False
 
             # Get vector store
-            vector_db_path = self.vector_store_manager.get_vector_store_path(f"user_{user_id}")
+            vector_db_path = self.vector_store_manager.get_vector_store_path(
+                f"user_{user_id}"
+            )
             vectorstore = self.vector_store_manager.load_or_create_vectorstore(
                 vector_db_path, chunks
             )
@@ -239,7 +257,9 @@ class DocumentVectorizer:
             document.vectorized = True
             db.session.commit()
 
-            logger.info(f"Successfully vectorized document: {document.filename} ({len(chunks)} chunks)")
+            logger.info(
+                f"Successfully vectorized document: {document.filename} ({len(chunks)} chunks)"
+            )
             return True
 
         except Exception as e:
@@ -247,11 +267,15 @@ class DocumentVectorizer:
             db.session.rollback()
             return False
 
-    def vectorize_user_documents(self, user_id: int, force_refresh: bool = False) -> Tuple[int, int]:
+    def vectorize_user_documents(
+        self, user_id: int, force_refresh: bool = False
+    ) -> Tuple[int, int]:
         """Vectorize all documents for a user efficiently"""
         try:
             # Query optimization: get documents based on refresh flag
-            query = Document.query.join(Document.health_record).filter_by(user_id=user_id)
+            query = Document.query.join(Document.health_record).filter_by(
+                user_id=user_id
+            )
             if not force_refresh:
                 query = query.filter_by(vectorized=False)
 
@@ -262,11 +286,14 @@ class DocumentVectorizer:
                 return 0, 0
 
             successful_count = sum(
-                1 for document in documents
+                1
+                for document in documents
                 if self.vectorize_document(document, user_id)
             )
 
-            logger.info(f"Vectorization complete for user {user_id}: {successful_count}/{len(documents)} successful")
+            logger.info(
+                f"Vectorization complete for user {user_id}: {successful_count}/{len(documents)} successful"
+            )
             return successful_count, len(documents)
 
         except Exception as e:
@@ -276,13 +303,17 @@ class DocumentVectorizer:
     def get_vectorstore_for_user(self, user_id: int):
         """Get the vector store for a user"""
         try:
-            vector_db_path = self.vector_store_manager.get_vector_store_path(f"user_{user_id}")
+            vector_db_path = self.vector_store_manager.get_vector_store_path(
+                f"user_{user_id}"
+            )
             return self.vector_store_manager.load_or_create_vectorstore(vector_db_path)
         except Exception as e:
             logger.error(f"Error loading vector store for user {user_id}: {e}")
             return None
 
-    def search_documents(self, user_id: int, query: str, k: int = DEFAULT_SEARCH_K) -> List[Dict[str, Any]]:
+    def search_documents(
+        self, user_id: int, query: str, k: int = DEFAULT_SEARCH_K
+    ) -> List[Dict[str, Any]]:
         """Search vectorized documents for a user"""
         try:
             vectorstore = self.get_vectorstore_for_user(user_id)
@@ -298,7 +329,7 @@ class DocumentVectorizer:
                     "metadata": doc.metadata,
                     "document_id": doc.metadata.get("document_id"),
                     "filename": doc.metadata.get("filename"),
-                    "file_type": doc.metadata.get("file_type")
+                    "file_type": doc.metadata.get("file_type"),
                 }
                 for doc, score in results
             ]
@@ -317,27 +348,35 @@ class DocumentVectorizer:
                 db.session.query(func.count(Document.id))
                 .join(Document.health_record)
                 .filter_by(user_id=user_id)
-                .scalar() or 0
+                .scalar()
+                or 0
             )
 
             vectorized_docs = (
                 db.session.query(func.count(Document.id))
                 .join(Document.health_record)
                 .filter_by(user_id=user_id)
-                .filter(Document.vectorized == True)
-                .scalar() or 0
+                .filter(Document.vectorized)
+                .scalar()
+                or 0
             )
 
-            vector_db_path = self.vector_store_manager.get_vector_store_path(f"user_{user_id}")
+            vector_db_path = self.vector_store_manager.get_vector_store_path(
+                f"user_{user_id}"
+            )
             vector_store_exists = os.path.exists(vector_db_path)
 
             return {
                 "total_documents": total_docs,
                 "vectorized_documents": vectorized_docs,
                 "pending_vectorization": total_docs - vectorized_docs,
-                "vectorization_percentage": (vectorized_docs / total_docs * 100) if total_docs > 0 else 0,
+                "vectorization_percentage": (
+                    (vectorized_docs / total_docs * 100) if total_docs > 0 else 0
+                ),
                 "vector_store_exists": vector_store_exists,
-                "vector_store_size": len(os.listdir(vector_db_path)) if vector_store_exists else 0
+                "vector_store_size": (
+                    len(os.listdir(vector_db_path)) if vector_store_exists else 0
+                ),
             }
 
         except Exception as e:
@@ -348,11 +387,12 @@ class DocumentVectorizer:
                 "pending_vectorization": 0,
                 "vectorization_percentage": 0,
                 "vector_store_exists": False,
-                "vector_store_size": 0
+                "vector_store_size": 0,
             }
 
 
 # Utility Functions
+
 
 def get_document_vectorizer() -> Optional[DocumentVectorizer]:
     """Get a DocumentVectorizer instance if available"""
@@ -380,7 +420,9 @@ class BatchVectorizer:
 
             # Get all users with documents
             user_ids = (
-                db.session.query(distinct(Document.health_record.property.mapper.class_.user_id))
+                db.session.query(
+                    distinct(Document.health_record.property.mapper.class_.user_id)
+                )
                 .join(Document.health_record)
                 .all()
             )
@@ -389,20 +431,28 @@ class BatchVectorizer:
 
             for (user_id,) in user_ids:
                 if user_id:  # Skip None values
-                    successful, total = self.vectorizer.vectorize_user_documents(user_id)
+                    successful, total = self.vectorizer.vectorize_user_documents(
+                        user_id
+                    )
                     stats["total_processed"] += total
                     stats["total_successful"] += successful
                     stats["users_processed"] += 1
-                    logger.info(f"User {user_id}: {successful}/{total} documents vectorized")
+                    logger.info(
+                        f"User {user_id}: {successful}/{total} documents vectorized"
+                    )
 
-            logger.info(f"Batch vectorization complete: {stats['total_successful']}/{stats['total_processed']} documents processed")
+            logger.info(
+                f"Batch vectorization complete: {stats['total_successful']}/{stats['total_processed']} documents processed"
+            )
             return stats
 
         except Exception as e:
             logger.error(f"Error in batch vectorization: {e}")
             return {"total_processed": 0, "total_successful": 0, "users_processed": 0}
 
-    def process_folder_documents(self, folder_path: str, identifier: str) -> Dict[str, Any]:
+    def process_folder_documents(
+        self, folder_path: str, identifier: str
+    ) -> Dict[str, Any]:
         """Process documents from a specific folder"""
         folder_path_obj = Path(folder_path)
 
@@ -411,9 +461,8 @@ class BatchVectorizer:
             return {"processed_files": [], "total_files": 0, "success": False}
 
         # Find supported files
-        supported_files = (
-            list(folder_path_obj.glob("**/*.pdf")) +
-            list(folder_path_obj.glob("**/*.txt"))
+        supported_files = list(folder_path_obj.glob("**/*.pdf")) + list(
+            folder_path_obj.glob("**/*.txt")
         )
 
         if not supported_files:
@@ -421,7 +470,9 @@ class BatchVectorizer:
             return {"processed_files": [], "total_files": 0, "success": True}
 
         # Load processed files index
-        processed_index_path = self._get_processed_index_path(folder_path_obj, identifier)
+        processed_index_path = self._get_processed_index_path(
+            folder_path_obj, identifier
+        )
         already_processed = self._load_processed_index(processed_index_path)
 
         # Filter new files
@@ -429,10 +480,16 @@ class BatchVectorizer:
 
         if not new_files:
             logger.info(f"All files in {folder_path_obj} already processed")
-            return {"processed_files": list(already_processed), "total_files": len(supported_files), "success": True}
+            return {
+                "processed_files": list(already_processed),
+                "total_files": len(supported_files),
+                "success": True,
+            }
 
         # Process new files
-        processed_files = self._vectorize_folder_files(new_files, folder_path_obj, identifier)
+        processed_files = self._vectorize_folder_files(
+            new_files, folder_path_obj, identifier
+        )
 
         # Update processed index
         already_processed.update(processed_files)
@@ -441,7 +498,7 @@ class BatchVectorizer:
         return {
             "processed_files": processed_files,
             "total_files": len(supported_files),
-            "success": True
+            "success": True,
         }
 
     def _get_processed_index_path(self, folder_path: Path, identifier: str) -> Path:
@@ -469,18 +526,22 @@ class BatchVectorizer:
             index_data = {
                 "processed_at": datetime.now().isoformat(),
                 "processed_files": list(processed_files),
-                "total_files": len(processed_files)
+                "total_files": len(processed_files),
             }
 
-            with open(index_path, 'w') as f:
+            with open(index_path, "w") as f:
                 json.dump(index_data, f, indent=2)
 
         except Exception as e:
             logger.error(f"Could not save processed index {index_path}: {e}")
 
-    def _vectorize_folder_files(self, files: List[Path], base_path: Path, identifier: str) -> List[str]:
+    def _vectorize_folder_files(
+        self, files: List[Path], base_path: Path, identifier: str
+    ) -> List[str]:
         """Vectorize files from a folder"""
-        vector_db_path = self.vectorizer.vector_store_manager.get_vector_store_path(identifier)
+        vector_db_path = self.vectorizer.vector_store_manager.get_vector_store_path(
+            identifier
+        )
         processed_files = []
 
         for file_path in files:
@@ -497,10 +558,10 @@ class BatchVectorizer:
                 metadata = {
                     "filename": file_path.name,
                     "file_path": str(file_path),
-                    "file_type": file_path.suffix.lower().replace('.', ''),
+                    "file_type": file_path.suffix.lower().replace(".", ""),
                     "file_size": file_path.stat().st_size,
                     "source": identifier,
-                    "processed_at": datetime.now().isoformat()
+                    "processed_at": datetime.now().isoformat(),
                 }
 
                 # Update metadata for all documents
@@ -512,19 +573,25 @@ class BatchVectorizer:
 
                 if chunks:
                     # Add to vector store
-                    vectorstore = self.vectorizer.vector_store_manager.load_or_create_vectorstore(
-                        vector_db_path, chunks
+                    vectorstore = (
+                        self.vectorizer.vector_store_manager.load_or_create_vectorstore(
+                            vector_db_path, chunks
+                        )
                     )
 
                     if vectorstore:
                         processed_files.append(str(file_path))
-                        logger.info(f"Successfully processed: {file_path} ({len(chunks)} chunks)")
+                        logger.info(
+                            f"Successfully processed: {file_path} ({len(chunks)} chunks)"
+                        )
 
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {e}")
                 continue
 
-        logger.info(f"Folder processing complete: {len(processed_files)} files processed")
+        logger.info(
+            f"Folder processing complete: {len(processed_files)} files processed"
+        )
         return processed_files
 
 
@@ -564,16 +631,16 @@ def vectorize_and_status_reference_books():
         return []
 
     batch_vectorizer = BatchVectorizer(vectorizer)
-    result = batch_vectorizer.process_folder_documents(str(ref_folder), "reference_books")
+    result = batch_vectorizer.process_folder_documents(
+        str(ref_folder), "reference_books"
+    )
 
     # Convert to expected format
     status_list = []
     for file_path in result.get("processed_files", []):
         path_obj = Path(file_path)
-        status_list.append({
-            "filename": path_obj.name,
-            "file_path": str(path_obj),
-            "vectorized": True
-        })
+        status_list.append(
+            {"filename": path_obj.name, "file_path": str(path_obj), "vectorized": True}
+        )
 
     return status_list

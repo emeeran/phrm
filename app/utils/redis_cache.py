@@ -28,14 +28,14 @@ class RedisCache:
     def init_app(self, app) -> None:
         """Initialize Redis cache with Flask app."""
         try:
-            redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+            redis_url = app.config.get("REDIS_URL", "redis://localhost:6379/0")
             self.redis_client = redis.from_url(
                 redis_url,
                 decode_responses=True,
                 health_check_interval=30,
                 retry_on_timeout=True,
                 socket_connect_timeout=5,
-                socket_timeout=5
+                socket_timeout=5,
             )
 
             # Test Redis connection
@@ -57,7 +57,7 @@ class RedisCache:
                         return json.loads(value)
                     except json.JSONDecodeError:
                         # Try pickle for complex objects
-                        return pickle.loads(value.encode('latin-1'))
+                        return pickle.loads(value.encode("latin-1"))
                 return default
             else:
                 return self.fallback_cache.get(key, default)
@@ -74,7 +74,7 @@ class RedisCache:
                     serialized_value = json.dumps(value)
                 except (TypeError, ValueError):
                     # Use pickle for complex objects
-                    serialized_value = pickle.dumps(value).decode('latin-1')
+                    serialized_value = pickle.dumps(value).decode("latin-1")
 
                 return bool(self.redis_client.setex(key, timeout, serialized_value))
             else:
@@ -129,21 +129,21 @@ class RedisCache:
             try:
                 info = self.redis_client.info()
                 return {
-                    'type': 'redis',
-                    'connected_clients': info.get('connected_clients', 0),
-                    'used_memory': info.get('used_memory', 0),
-                    'used_memory_human': info.get('used_memory_human', '0B'),
-                    'keyspace_hits': info.get('keyspace_hits', 0),
-                    'keyspace_misses': info.get('keyspace_misses', 0),
-                    'total_commands_processed': info.get('total_commands_processed', 0)
+                    "type": "redis",
+                    "connected_clients": info.get("connected_clients", 0),
+                    "used_memory": info.get("used_memory", 0),
+                    "used_memory_human": info.get("used_memory_human", "0B"),
+                    "keyspace_hits": info.get("keyspace_hits", 0),
+                    "keyspace_misses": info.get("keyspace_misses", 0),
+                    "total_commands_processed": info.get("total_commands_processed", 0),
                 }
             except Exception as e:
                 logger.error(f"Error getting Redis stats: {e}")
 
         return {
-            'type': 'fallback',
-            'keys_count': len(self.fallback_cache),
-            'available': self.is_redis_available
+            "type": "fallback",
+            "keys_count": len(self.fallback_cache),
+            "available": self.is_redis_available,
         }
 
 
@@ -153,6 +153,7 @@ cache = RedisCache()
 
 def cached(timeout: int = 300, key_prefix: str = "phrm"):
     """Decorator for caching function results."""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -176,6 +177,7 @@ def cached(timeout: int = 300, key_prefix: str = "phrm"):
             return result
 
         return wrapper
+
     return decorator
 
 
@@ -207,7 +209,11 @@ class CacheManager:
                 logger.error(f"Error invalidating user cache: {e}")
         else:
             # Fallback for in-memory cache
-            keys_to_delete = [k for k in cache.fallback_cache.keys() if k.startswith(f"user:{user_id}:")]
+            keys_to_delete = [
+                k
+                for k in cache.fallback_cache.keys()
+                if k.startswith(f"user:{user_id}:")
+            ]
             for key in keys_to_delete:
                 cache.delete(key)
         return False
@@ -240,20 +246,19 @@ class CacheManager:
 def configure_redis_for_production():
     """Configure Redis for production deployment."""
     config = {
-        'REDIS_URL': 'redis://localhost:6379/0',
-        'CACHE_TYPE': 'redis',
-        'CACHE_REDIS_URL': 'redis://localhost:6379/0',
-        'CACHE_DEFAULT_TIMEOUT': 300,
-        'CACHE_KEY_PREFIX': 'phrm:',
-
+        "REDIS_URL": "redis://localhost:6379/0",
+        "CACHE_TYPE": "redis",
+        "CACHE_REDIS_URL": "redis://localhost:6379/0",
+        "CACHE_DEFAULT_TIMEOUT": 300,
+        "CACHE_KEY_PREFIX": "phrm:",
         # Redis connection pool settings
-        'REDIS_CONNECTION_POOL': {
-            'max_connections': 20,
-            'retry_on_timeout': True,
-            'health_check_interval': 30,
-            'socket_connect_timeout': 5,
-            'socket_timeout': 5
-        }
+        "REDIS_CONNECTION_POOL": {
+            "max_connections": 20,
+            "retry_on_timeout": True,
+            "health_check_interval": 30,
+            "socket_connect_timeout": 5,
+            "socket_timeout": 5,
+        },
     }
 
     return config
@@ -261,30 +266,38 @@ def configure_redis_for_production():
 
 def setup_redis_monitoring():
     """Setup Redis monitoring and alerts."""
+
     def check_redis_health():
         """Check Redis health and log metrics."""
         stats = cache.get_stats()
 
-        if stats.get('type') == 'redis':
-            memory_usage = stats.get('used_memory', 0)
+        if stats.get("type") == "redis":
+            memory_usage = stats.get("used_memory", 0)
             hit_rate = 0
 
-            hits = stats.get('keyspace_hits', 0)
-            misses = stats.get('keyspace_misses', 0)
+            hits = stats.get("keyspace_hits", 0)
+            misses = stats.get("keyspace_misses", 0)
 
             if hits + misses > 0:
                 hit_rate = hits / (hits + misses) * 100
 
-            logger.info(f"Redis Stats - Memory: {stats.get('used_memory_human', '0B')}, "
-                       f"Hit Rate: {hit_rate:.2f}%, Clients: {stats.get('connected_clients', 0)}")
+            logger.info(
+                f"Redis Stats - Memory: {stats.get('used_memory_human', '0B')}, "
+                f"Hit Rate: {hit_rate:.2f}%, Clients: {stats.get('connected_clients', 0)}"
+            )
+
+            # Import constants from utils
+            from . import MIN_CACHE_HIT_RATE, MIN_REQUESTS_FOR_ALERT
 
             # Alert on low hit rate
-            if hit_rate < 50 and hits + misses > 100:
+            if hit_rate < MIN_CACHE_HIT_RATE and hits + misses > MIN_REQUESTS_FOR_ALERT:
                 logger.warning(f"Low Redis hit rate: {hit_rate:.2f}%")
 
             # Alert on high memory usage (>1GB)
             if memory_usage > 1024 * 1024 * 1024:
-                logger.warning(f"High Redis memory usage: {stats.get('used_memory_human', '0B')}")
+                logger.warning(
+                    f"High Redis memory usage: {stats.get('used_memory_human', '0B')}"
+                )
 
         return stats
 

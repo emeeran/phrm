@@ -6,7 +6,7 @@ Unified dashboard for monitoring PHRM production deployment
 
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_required
@@ -99,7 +99,6 @@ def analyze_logs():
     )
 
     return jsonify(results)
-
 
 
 @ops_bp.route("/api/logs/alerts")
@@ -293,8 +292,10 @@ def system_info():
                 "environment": os.getenv("FLASK_ENV", "production"),
                 "debug": current_app.debug,
                 "uptime_hours": (
-                    datetime.now()
-                    - datetime.fromtimestamp(psutil.Process().create_time())
+                    datetime.now(timezone.utc)
+                    - datetime.fromtimestamp(
+                        psutil.Process().create_time(), timezone.utc
+                    )
                 ).total_seconds()
                 / 3600,
             },
@@ -357,9 +358,9 @@ def download_logs():
     try:
         import tempfile
         import zipfile
+        from pathlib import Path
 
         from flask import send_file
-        from pathlib import Path
 
         log_dir = Path("/home/em/code/wip/phrm/logs")
 
@@ -375,7 +376,7 @@ def download_logs():
         return send_file(
             tmp_file.name,
             as_attachment=True,
-            download_name=f'phrm_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip',
+            download_name=f"phrm_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
         )
 
     except Exception as e:
@@ -385,12 +386,12 @@ def download_logs():
 
 # Register error handlers
 @ops_bp.errorhandler(403)
-def forbidden(error):
+def forbidden(_error):
     return jsonify({"error": "Access denied - admin privileges required"}), 403
 
 
 @ops_bp.errorhandler(500)
-def internal_error(error):
+def internal_error(_error):
     return jsonify({"error": "Internal server error"}), 500
 
 
