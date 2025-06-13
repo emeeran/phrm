@@ -9,6 +9,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 from typing import Any, Callable, Dict, List, Optional
 
 import click
@@ -131,6 +132,28 @@ def track_performance(func: Callable) -> Callable:
                     ][-MAX_PERFORMANCE_ENTRIES:]
 
     return wrapper
+
+
+def monitor_performance(func: Callable) -> Callable:
+    """Performance monitoring decorator (simple version for route timing)"""
+
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            execution_time = time.time() - start_time
+            if execution_time > 1.0:
+                logger.warning(
+                    f"Slow operation: {func.__name__} took {execution_time:.2f}s"
+                )
+            return result
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(f"Error in {func.__name__} after {execution_time:.2f}s: {e}")
+            raise
+
+    return decorated_function
 
 
 def track_database_query(

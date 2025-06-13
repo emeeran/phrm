@@ -11,9 +11,9 @@
                 {% if record.date %} - {{ record.date|format_date }}{% endif %}
                 </h4>
                 <div>
-                    <a href="{{ url_for('records.edit_record', record_id=record.id) }}"
+                    <a href="{{ url_for('records.health_records_routes.edit_record', record_id=record.id) }}"
                         class="btn btn-outline-light btn-sm"><i class="fas fa-edit"></i> Edit</a>
-                    <form action="{{ url_for('records.delete_record', record_id=record.id) }}" method="post"
+                    <form action="{{ url_for('records.health_records_routes.delete_record', record_id=record.id) }}" method="post"
                         class="d-inline-block" onsubmit="return confirm('Delete this record?');">
                         <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i>
                             Delete</button>
@@ -29,53 +29,53 @@
                     <dt class="col-sm-4">Patient</dt>
                     <dd class="col-sm-8">Myself</dd>
                     {% endif %}
-                    
+
                     {% if record.date %}
                     <dt class="col-sm-4">Date</dt>
                     <dd class="col-sm-8">{{ record.date|format_date }}</dd>
                     {% endif %}
-                    
+
                     {% if record.chief_complaint %}
                     <dt class="col-sm-4">Chief Complaint</dt>
                     <dd class="col-sm-8">{{ record.chief_complaint }}</dd>
                     {% endif %}
-                    
+
                     {% if record.doctor %}
                     <dt class="col-sm-4">Doctor</dt>
                     <dd class="col-sm-8">{{ record.doctor }}</dd>
                     {% endif %}
-                    
+
                     {% if record.investigations %}
                     <dt class="col-sm-4">Investigations</dt>
                     <dd class="col-sm-8">{{ record.investigations|nl2br|safe }}</dd>
                     {% endif %}
-                    
+
                     {% if record.diagnosis %}
                     <dt class="col-sm-4">Diagnosis</dt>
                     <dd class="col-sm-8">{{ record.diagnosis|nl2br|safe }}</dd>
                     {% endif %}
-                    
+
                     {% if record.prescription %}
                     <dt class="col-sm-4">Prescription</dt>
                     <dd class="col-sm-8">{{ record.prescription|nl2br|safe }}</dd>
                     {% endif %}
-                    
+
                     {% if record.notes %}
                     <dt class="col-sm-4">Notes</dt>
                     <dd class="col-sm-8">{{ record.notes|nl2br|safe }}</dd>
                     {% endif %}
-                    
+
                     {% if record.review_followup %}
                     <dt class="col-sm-4">Review/Follow up</dt>
                     <dd class="col-sm-8">{{ record.review_followup|nl2br|safe }}</dd>
                     {% endif %}
-                    
+
                     <!-- Legacy field support for backward compatibility -->
                     {% if record.title and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                     <dt class="col-sm-4">Title</dt>
                     <dd class="col-sm-8">{{ record.title }}</dd>
                     {% endif %}
-                    
+
                     {% if record.description and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                     <dt class="col-sm-4">Description</dt>
                     <dd class="col-sm-8">{{ record.description|nl2br|safe }}</dd>
@@ -90,7 +90,7 @@
                         <div class="card document-card">
                             {% if doc.file_type in ['jpg', 'jpeg', 'png'] %}
                             <div class="position-relative">
-                                <img src="{{ url_for('records.serve_upload', record_id=record.id, filename=doc.file_path.split('/')[-1]) }}" 
+                                <img src="{{ url_for('records.file_routes.serve_upload', record_id=record.id, filename=doc.file_path.split('/')[-1]) }}"
                                      class="card-img-top document-preview-img" style="height: 200px; object-fit: cover;" alt="{{ doc.filename }}">
                                 <span class="file-type-indicator">{{ doc.file_type.upper() }}</span>
                             </div>
@@ -110,7 +110,7 @@
                                     {{ (doc.file_size / 1024 / 1024) | round(2) }} MB<br>
                                     Uploaded: {{ doc.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
                                 </p>
-                                <a href="{{ url_for('records.serve_upload', record_id=record.id, filename=doc.file_path.split('/')[-1]) }}" 
+                                <a href="{{ url_for('records.file_routes.serve_upload', record_id=record.id, filename=doc.file_path.split('/')[-1]) }}"
                                    class="btn btn-sm btn-primary" target="_blank">
                                     <i class="fas fa-external-link-alt me-1"></i>View
                                 </a>
@@ -121,7 +121,7 @@
                 </div>
                 {% endif %}
                 <div class="d-grid gap-2">
-                    <a href="{{ url_for('ai.summarize_record', record_id=record.id) }}" class="btn btn-outline-info">
+                    <a href="{{ url_for('ai.summarization.summarize_record', record_id=record.id) }}" class="btn btn-outline-info">
                         <i class="fas fa-brain me-1"></i>AI Summary
                     </a>
                 </div>

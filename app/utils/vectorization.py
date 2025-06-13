@@ -164,7 +164,7 @@ class DocumentVectorizer:
     def embeddings(self) -> Any:
         """Get or create embeddings model (lazy initialization)"""
         if self._embeddings is None:
-            from ..utils.ai_helpers import get_openai_api_key
+            from ..utils.ai_utils import get_openai_api_key
 
             api_key = get_openai_api_key()
             if not api_key:

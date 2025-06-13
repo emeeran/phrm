@@ -7,7 +7,7 @@
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0"><i class="fas fa-file-medical me-2"></i>Health Records</h2>
-            <a href="{{ url_for('records.create_record') }}" class="btn btn-primary">
+            <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-1"></i>Add Record
             </a>
         </div>
@@ -53,7 +53,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">&nbsp;</label>
-                <a href="{{ url_for('records.list_records') }}" class="btn btn-outline-secondary w-100 d-block">
+                <a href="{{ url_for('records.health_records_routes.list_records') }}" class="btn btn-outline-secondary w-100 d-block">
                     <i class="fas fa-times me-1"></i>Clear
                 </a>
             </div>
@@ -75,7 +75,7 @@
                     <tr>
                         <td>{{ record.date|format_date if record.date else 'No date' }}</td>
                         <td>
-                            <a href="{{ url_for('records.view_record', record_id=record.id) }}">
+                            <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}">
                                 {% if record.chief_complaint %}
                                     {{ record.chief_complaint[:50] }}{% if record.chief_complaint|length > 50 %}...{% endif %}
                                 {% elif record.title %}
@@ -94,9 +94,9 @@
                             record.family_member.first_name }}{% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('records.edit_record', record_id=record.id) }}"
+                            <a href="{{ url_for('records.health_records_routes.edit_record', record_id=record.id) }}"
                                 class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>
-                            <form action="{{ url_for('records.delete_record', record_id=record.id) }}" method="post"
+                            <form action="{{ url_for('records.health_records_routes.delete_record', record_id=record.id) }}" method="post"
                                 class="d-inline-block" onsubmit="return confirm('Delete this record?');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i
                                         class="fas fa-trash"></i></button>
@@ -111,7 +111,7 @@
             <ul class="pagination justify-content-center">
                 {% if records.has_prev %}
                 <li class="page-item"><a class="page-link"
-                        href="{{ url_for('records.list_records', page=records.prev_num, type=record_type, family_member=family_member_id, name=search_name) }}">Previous</a>
+                        href="{{ url_for('records.health_records_routes.list_records', page=records.prev_num, type=record_type, family_member=family_member_id, name=search_name) }}">Previous</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled"><span class="page-link">Previous</span></li>
@@ -120,7 +120,7 @@
                         }}</span></li>
                 {% if records.has_next %}
                 <li class="page-item"><a class="page-link"
-                        href="{{ url_for('records.list_records', page=records.next_num, type=record_type, family_member=family_member_id, name=search_name) }}">Next</a>
+                        href="{{ url_for('records.health_records_routes.list_records', page=records.next_num, type=record_type, family_member=family_member_id, name=search_name) }}">Next</a>
                 </li>
                 {% else %}
                 <li class="page-item disabled"><span class="page-link">Next</span></li>

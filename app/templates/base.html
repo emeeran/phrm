@@ -25,7 +25,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand"
-                href="{{ url_for('records.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">
+                href="{{ url_for('records.dashboard_routes.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">
                 <i class="fas fa-heartbeat me-2"></i>Health Record Manager
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -36,20 +36,20 @@
                 {% if current_user.is_authenticated %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'records.dashboard' %}active{% endif %}"
-                            href="{{ url_for('records.dashboard') }}">
+                        <a class="nav-link {% if request.endpoint == 'records.dashboard_routes.dashboard' %}active{% endif %}"
+                            href="{{ url_for('records.dashboard_routes.dashboard') }}">
                             <i class="fas fa-home me-1"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'records.list_records' %}active{% endif %}"
-                            href="{{ url_for('records.list_records') }}">
+                        <a class="nav-link {% if request.endpoint == 'records.health_records_routes.list_records' %}active{% endif %}"
+                            href="{{ url_for('records.health_records_routes.list_records') }}">
                             <i class="fas fa-file-medical me-1"></i>Records
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'records.list_family' %}active{% endif %}"
-                            href="{{ url_for('records.list_family') }}">
+                        <a class="nav-link {% if request.endpoint == 'records.family_member_routes.list_family' %}active{% endif %}"
+                            href="{{ url_for('records.family_member_routes.list_family') }}">
                             <i class="fas fa-users me-1"></i>Family
                         </a>
                     </li>
@@ -60,13 +60,8 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="aiDropdown">
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('ai.chatbot') }}">
+                                <a class="dropdown-item" href="{{ url_for('ai.ai_chat.chat') }}">
                                     <i class="fas fa-comment-medical me-2"></i>Health Assistant
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('ai.symptom_checker') }}">
-                                    <i class="fas fa-stethoscope me-2"></i>Symptom Checker
                                 </a>
                             </li>
                         </ul>

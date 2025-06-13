@@ -7,7 +7,7 @@
     <div class="col-md-10 mx-auto">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0"><i class="fas fa-users me-2"></i>Family Members</h2>
-            <a href="{{ url_for('records.add_family_member') }}" class="btn btn-primary">
+            <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="btn btn-primary">
                 <i class="fas fa-user-plus me-1"></i>Add Family Member
             </a>
         </div>
@@ -32,19 +32,19 @@
                         <td>{{ member.records.count() }}</td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('records.view_family_member', family_member_id=member.id) }}" 
+                                <a href="{{ url_for('records.family_member_routes.view_family_member', family_member_id=member.id) }}"
                                    class="btn btn-outline-secondary" title="View Profile">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{{ url_for('records.edit_family_member', family_member_id=member.id) }}" 
+                                <a href="{{ url_for('records.family_member_routes.edit_family_member', family_member_id=member.id) }}"
                                    class="btn btn-outline-primary" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('records.list_records', family_member=member.id) }}" 
+                                <a href="{{ url_for('records.health_records_routes.list_records', family_member=member.id) }}"
                                    class="btn btn-outline-info" title="View Records">
                                     <i class="fas fa-file-medical"></i>
                                 </a>
-                                <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                <button type="button" class="btn btn-outline-danger" title="Delete"
                                         data-bs-toggle="modal" data-bs-target="#deleteModal{{ member.id }}">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -89,7 +89,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="{{ url_for('records.delete_family_member', family_member_id=member.id) }}" class="d-inline">
+                <form method="POST" action="{{ url_for('records.family_member_routes.delete_family_member', family_member_id=member.id) }}" class="d-inline">
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-trash me-2"></i>Delete Permanently
                     </button>

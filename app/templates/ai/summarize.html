@@ -60,7 +60,7 @@
                                 <td>{{ record.notes|nl2br|safe }}</td>
                             </tr>
                             {% endif %}
-                            
+
                             <!-- Legacy field support for backward compatibility -->
                             {% if record.title and not (record.chief_complaint or record.doctor or record.diagnosis) %}
                             <tr>
@@ -88,7 +88,7 @@
                             This record already has an AI summary. Generating a new one will replace the existing
                             summary.
                         </div>
-                        <a href="{{ url_for('ai.view_summary', record_id=record.id) }}" class="btn btn-info">
+                        <a href="{{ url_for('ai.summarization.view_summary', record_id=record.id) }}" class="btn btn-info">
                             <i class="fas fa-eye me-1"></i>View Existing Summary
                         </a>
                         {% endif %}
@@ -99,7 +99,7 @@
                                     <i class="fas fa-magic me-1"></i>{{ 'Regenerate Summary' if existing_summary else
                                     'Generate Summary' }}
                                 </button>
-                                <a href="{{ url_for('records.view_record', record_id=record.id) }}"
+                                <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}"
                                     class="btn btn-outline-secondary">
                                     <i class="fas fa-arrow-left me-1"></i>Back to Record
                                 </a>

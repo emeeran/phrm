@@ -164,7 +164,7 @@ class ResetPasswordForm(FlaskForm):
 @limiter.limit("10 per minute")
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("records.dashboard"))
+        return redirect(url_for("records.dashboard_routes.dashboard"))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -185,7 +185,7 @@ def login():
 
         next_page = request.args.get("next")
         if not next_page or not next_page.startswith("/"):
-            next_page = url_for("records.dashboard")
+            next_page = url_for("records.dashboard_routes.dashboard")
 
         flash("Logged in successfully!", "success")
         return redirect(next_page)
@@ -206,7 +206,7 @@ def logout():
 @limiter.limit("5 per minute")
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("records.dashboard"))
+        return redirect(url_for("records.dashboard_routes.dashboard"))
 
     form = RegistrationForm()
     if form.validate_on_submit():
