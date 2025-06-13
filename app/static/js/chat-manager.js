@@ -27,7 +27,13 @@ export class ChatManager {
                 if (Array.isArray(parsed) && parsed.length > 0) {
                     this.chatMessages.innerHTML = '';
                     parsed.forEach(entry => {
-                        this.appendMessage(entry.role, entry.content, entry.timestamp);
+                        this.appendMessage(
+                            entry.role,
+                            entry.content,
+                            entry.timestamp,
+                            entry.model || 'MedGemma',
+                            entry.citations || []
+                        );
                     });
                     this.conversationHistory = parsed;
                     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
@@ -208,19 +214,18 @@ export class ChatManager {
         });
         this.saveConversation();
 
-        const typingIndicator = this.showTypingIndicator();
-
-        try {
+        const typingIndicator = this.showTypingIndicator();        try {
             const response = await this.sendMessage(message);
             this.chatMessages.removeChild(typingIndicator);
 
             const responseTimestamp = new Date().toISOString();
-            this.appendMessage('assistant', response.response, responseTimestamp, response.model);
-
+            this.appendMessage('assistant', response.response, responseTimestamp, response.model, response.citations);
             this.conversationHistory.push({
                 role: 'assistant',
                 content: response.response,
-                timestamp: responseTimestamp
+                timestamp: responseTimestamp,
+                model: response.model,
+                citations: response.citations
             });
             this.saveConversation();
         } catch (error) {
@@ -266,7 +271,7 @@ export class ChatManager {
         return indicator;
     }
 
-    appendMessage(sender, text, timestamp, model = 'MedGemma') {
+    appendMessage(sender, text, timestamp, model = 'MedGemma', citations = []) {
         const messageEl = document.createElement('div');
         messageEl.className = `chat-message ${sender}-message`;
 
@@ -286,16 +291,58 @@ export class ChatManager {
             }
         }
 
+        // Add citations section for assistant messages if available
+        let citationsHtml = '';
+        if (sender === 'assistant' && citations && citations.length > 0) {
+            citationsHtml = this.buildCitationsHtml(citations);
+        }
+
         messageEl.innerHTML = `
             <div class="chat-avatar">${avatarIcon}</div>
             <div class="message-content">
                 <div class="message-sender">${senderName} <span class="message-time">${time}</span></div>
                 ${messageContent}
+                ${citationsHtml}
             </div>
         `;
 
         this.chatMessages.appendChild(messageEl);
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    buildCitationsHtml(citations) {
+        if (!citations || citations.length === 0) return '';
+
+        let citationsHtml = '<div class="message-citations">';
+        citationsHtml += '<div class="citations-header"><i class="fas fa-file-medical"></i> Referenced Health Records:</div>';
+        citationsHtml += '<div class="citations-list">';
+
+        citations.forEach((citation, index) => {
+            citationsHtml += `
+                <div class="citation-item">
+                    <a href="/records/view/${citation.id}" target="_blank" class="citation-link">
+                        <div class="citation-content">
+                            <div class="citation-title">${this.escapeHtml(citation.title)}</div>
+                            <div class="citation-meta">
+                                <span class="citation-date">${citation.date}</span>
+                                <span class="citation-type">${this.escapeHtml(citation.type)}</span>
+                                <span class="citation-owner">${this.escapeHtml(citation.owner)}</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-external-link-alt citation-icon"></i>
+                    </a>
+                </div>
+            `;
+        });
+
+        citationsHtml += '</div></div>';
+        return citationsHtml;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     saveConversation() {

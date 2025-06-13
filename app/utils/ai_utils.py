@@ -91,8 +91,20 @@ def get_huggingface_api_key():
     api_key = None
     try:
         api_key = current_app.config.get("HUGGINGFACE_ACCESS_TOKEN")
+        if not api_key:
+            logger.warning(
+                "HUGGINGFACE_ACCESS_TOKEN not found in Flask config, trying environment"
+            )
     except RuntimeError:
+        logger.info("Flask app context not available, using environment variable")
+
+    if not api_key:
         api_key = os.getenv("HUGGINGFACE_ACCESS_TOKEN")
+        if api_key:
+            logger.info("Got HUGGINGFACE_ACCESS_TOKEN from environment")
+        else:
+            logger.error("HUGGINGFACE_ACCESS_TOKEN not found in environment either")
+
     return api_key
 
 

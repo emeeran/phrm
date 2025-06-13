@@ -44,7 +44,9 @@ class Config:
 
     # Hugging Face API Configuration (Primary Provider for MedGemma)
     HUGGINGFACE_ACCESS_TOKEN = os.environ.get("HUGGINGFACE_ACCESS_TOKEN")
-    HUGGINGFACE_MODEL = os.environ.get("HUGGINGFACE_MODEL", "google/medgemma-4b-it")
+    HUGGINGFACE_MODEL = os.environ.get(
+        "HUGGINGFACE_MODEL", "google/medgemma-27b-text-it"
+    )  # Use 27B text-only as default
     HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/"
 
     # GROQ API Configuration (Secondary Provider)

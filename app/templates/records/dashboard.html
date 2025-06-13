@@ -2,158 +2,153 @@
 
 {% block title %}Dashboard{% endblock %}
 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-home me-2"></i>Dashboard</h4>
-            </div>
-            <div class="card-body">
-                <h5 class="mb-3">Welcome, {{ current_user.first_name }}!</h5>
-                <p>This is your personal health record dashboard. Here you can manage your health records and those of
-                    your family members.</p>
+<!-- Compact Header with Stats -->
+<div class="dashboard-hero shadow-sm mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h2 class="mb-1">Welcome back, {{ current_user.first_name }}!</h2>
+            <p class="mb-0 opacity-90">Your health records at a glance</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="stat-mini">
+                        <div class="stat-number">{{ own_records|length + family_records|length }}</div>
+                        <div class="stat-label">Total Records</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-mini">
+                        <div class="stat-number">{{ family_members|length }}</div>
+                        <div class="stat-label">Family Members</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-4 mb-4">
-        <div class="card shadow dashboard-card">
-            <div class="card-body text-center">
-                <div class="dashboard-icon mb-3">
-                    <i class="fas fa-file-medical"></i>
-                </div>
-                <h5>Add Health Record</h5>
-                <p>Add a new health record, complaint, or doctor's note.</p>
-                <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus me-1"></i>New Record
-                </a>
-            </div>
+<!-- Compact Quick Actions -->
+<div class="quick-actions-bar mb-4">
+    <div class="row g-2">
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.health_records_routes.create_record') }}" class="action-card">
+                <i class="fas fa-plus-circle text-primary"></i>
+                <span>Add Record</span>
+            </a>
         </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card shadow dashboard-card">
-            <div class="card-body text-center">
-                <div class="dashboard-icon mb-3">
-                    <i class="fas fa-user-friends"></i>
-                </div>
-                <h5>Manage Family</h5>
-                <p>Add or manage your family members' profiles.</p>
-                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-users me-1"></i>Family Members
-                </a>
-            </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.family_member_routes.list_family') }}" class="action-card">
+                <i class="fas fa-users text-success"></i>
+                <span>Family</span>
+            </a>
         </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card shadow dashboard-card">
-            <div class="card-body text-center">
-                <div class="dashboard-icon mb-3">
-                    <i class="fas fa-brain"></i>
-                </div>
-                <h5>AI Assistant</h5>
-                <p>Ask questions about your health or check symptoms.</p>
-                <a href="{{ url_for('ai.ai_chat.chat') }}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-comment-medical me-1"></i>Health Assistant
-                </a>
-            </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('ai.ai_chat.chat') }}" class="action-card">
+                <i class="fas fa-brain text-info"></i>
+                <span>AI Assistant</span>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.health_records_routes.list_records') }}" class="action-card">
+                <i class="fas fa-list text-secondary"></i>
+                <span>All Records</span>
+            </a>
         </div>
     </div>
 </div>
 
+<!-- Streamlined Records Overview -->
 <div class="row">
     <div class="col-md-6">
-        <div class="card shadow mb-4">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Records</h5>
-                <a href="{{ url_for('records.health_records_routes.list_records') }}" class="btn btn-sm btn-light">View All</a>
+        <div class="records-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-user me-2"></i>My Recent Records</h5>
+                <a href="{{ url_for('records.health_records_routes.list_records') }}" class="view-all-link">View All</a>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 {% if own_records %}
-                <div class="timeline">
                     {% for record in own_records %}
-                    <div class="timeline-item">
-                        <div class="d-flex justify-content-between">
-                            <h6 class="mb-1">
-                                <span class="badge {{ get_record_badge_class(record.record_type) }}">
-                                    <i class="fas {{ get_record_icon(record.record_type) }} me-1"></i>
-                                    {{ record.record_type|replace('_', ' ')|title }}
-                                </span>
-                                <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}">{{ record.title
-                                    }}</a>
-                            </h6>
-                            <small class="text-muted">{{ record.date|format_date }}</small>
+                    <div class="record-item">
+                        <div class="record-meta">
+                            <span class="record-badge {{ get_record_badge_class(record.record_type) }}">
+                                {{ record.record_type|replace('_', ' ')|title }}
+                            </span>
+                            <span class="record-date">{{ record.date.strftime('%b %d') if record.date else 'No date' }}</span>
                         </div>
-                        <p class="mb-0 small text-truncate">
-                            {{ record.description|truncate(100) if record.description else 'No description provided.' }}
-                        </p>
+                        <div class="record-content">
+                            <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}" class="record-title">
+                                {{ record.title if record.title else (record.chief_complaint[:50] + '...' if record.chief_complaint and record.chief_complaint|length > 50 else record.chief_complaint or 'Medical Record') }}
+                            </a>
+                            {% if record.doctor %}
+                            <div class="record-detail">Dr. {{ record.doctor }}</div>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
-                </div>
                 {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-file-medical fs-1 text-muted mb-3"></i>
-                    <p>No records yet. Start by adding your first health record.</p>
-                    <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i>Add Record
-                    </a>
-                </div>
+                    <div class="empty-state">
+                        <i class="fas fa-file-medical-alt text-muted"></i>
+                        <p><strong>No health records yet</strong></p>
+                        <p class="small">Start building your health history by adding your first medical record</p>
+                        <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Record
+                        </a>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
     <div class="col-md-6">
-        <div class="card shadow mb-4">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Family Records</h5>
-                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-sm btn-light">Manage Family</a>
+        <div class="records-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-users me-2"></i>Family Records</h5>
+                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="view-all-link">Manage</a>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 {% if family_members %}
-                {% if family_records %}
-                <div class="timeline">
-                    {% for record in family_records %}
-                    <div class="timeline-item">
-                        <div class="d-flex justify-content-between">
-                            <h6 class="mb-1">
-                                <span class="badge {{ get_record_badge_class(record.record_type) }}">
-                                    <i class="fas {{ get_record_icon(record.record_type) }} me-1"></i>
+                    {% if family_records %}
+                        {% for record in family_records %}
+                        <div class="record-item">
+                            <div class="record-meta">
+                                <span class="record-badge {{ get_record_badge_class(record.record_type) }}">
                                     {{ record.record_type|replace('_', ' ')|title }}
                                 </span>
-                                <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}">{{ record.title
-                                    }}</a>
-                                <small class="text-muted">({{ record.family_member.first_name }})</small>
-                            </h6>
-                            <small class="text-muted">{{ record.date|format_date }}</small>
+                                <span class="record-date">{{ record.date.strftime('%b %d') if record.date else 'No date' }}</span>
+                            </div>
+                            <div class="record-content">
+                                <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}" class="record-title">
+                                    {{ record.title if record.title else (record.chief_complaint[:50] + '...' if record.chief_complaint and record.chief_complaint|length > 50 else record.chief_complaint or 'Medical Record') }}
+                                </a>
+                                <div class="record-detail">{{ record.family_member.first_name }}</div>
+                            </div>
                         </div>
-                        <p class="mb-0 small text-truncate">
-                            {{ record.description|truncate(100) if record.description else 'No description provided.' }}
-                        </p>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-clipboard-list text-muted"></i>
+                            <p><strong>No family records yet</strong></p>
+                            <p class="small">Add health records for your family members to track their medical history</p>
+                            <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus me-1"></i>Add Family Record
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-user-plus text-muted"></i>
+                        <p><strong>No family members yet</strong></p>
+                        <p class="small">Add family members to manage their health records alongside yours</p>
+                        <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-user-plus me-1"></i>Add Family Member
+                        </a>
                     </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-clipboard-list fs-1 text-muted mb-3"></i>
-                    <p>No family records yet. Add health records for your family members.</p>
-                    <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i>Add Family Record
-                    </a>
-                </div>
-                {% endif %}
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-users fs-1 text-muted mb-3"></i>
-                    <p>No family members added yet. Add family members to manage their health records.</p>
-                    <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-user-plus me-1"></i>Add Family Member
-                    </a>
-                </div>
                 {% endif %}
             </div>
         </div>

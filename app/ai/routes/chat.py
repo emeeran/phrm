@@ -19,7 +19,7 @@ ai_chat_bp = Blueprint("ai_chat", __name__)
 def get_user_context(mode, patient_id=None):
     """Get user health context based on mode and patient selection"""
     if mode == "public":
-        return ""
+        return "", []
 
     try:
         if patient_id == "self" or not patient_id:
@@ -28,7 +28,7 @@ def get_user_context(mode, patient_id=None):
             return _get_family_member_records_context(patient_id)
     except Exception as e:
         logger.error(f"Error getting user context: {e}")
-        return ""
+        return "", []
 
 
 def _get_user_records_context():
@@ -41,12 +41,24 @@ def _get_user_records_context():
     )
 
     if not records:
-        return ""
+        return "", []
 
     context = "User's recent health records:\n"
+    citations = []
     for record in records[:5]:  # Limit to avoid token overflow
         context += _format_record_context(record)
-    return context
+        citations.append(
+            {
+                "id": record.id,
+                "date": record.date.strftime("%Y-%m-%d"),
+                "title": record.title
+                or record.chief_complaint
+                or f"Health Record #{record.id}",
+                "type": record.record_type or "Medical Record",
+                "owner": "You",
+            }
+        )
+    return context, citations
 
 
 def _get_family_member_records_context(patient_id):
@@ -56,7 +68,7 @@ def _get_family_member_records_context(patient_id):
     ).first()
 
     if not family_member:
-        return ""
+        return "", []
 
     records = (
         HealthRecord.query.filter_by(family_member_id=family_member.id)
@@ -66,12 +78,24 @@ def _get_family_member_records_context(patient_id):
     )
 
     if not records:
-        return ""
+        return "", []
 
     context = f"{family_member.first_name}'s recent health records:\n"
+    citations = []
     for record in records[:5]:
         context += _format_record_context(record)
-    return context
+        citations.append(
+            {
+                "id": record.id,
+                "date": record.date.strftime("%Y-%m-%d"),
+                "title": record.title
+                or record.chief_complaint
+                or f"Health Record #{record.id}",
+                "type": record.record_type or "Medical Record",
+                "owner": f"{family_member.first_name} {family_member.last_name}",
+            }
+        )
+    return context, citations
 
 
 def _format_record_context(record):
@@ -88,9 +112,9 @@ def _format_record_context(record):
 def call_ai_with_fallback(
     system_message, user_message, temperature=0.3, max_tokens=2000
 ):
-    """Call AI providers with fallback logic"""
+    """Call AI providers with fallback logic - prioritizing MedGemma for medical queries"""
 
-    # Try MedGemma first (primary provider)
+    # Try MedGemma first (Google's specialized medical AI)
     try:
         logger.info("Attempting MedGemma API call...")
         response = call_medgemma_api(
@@ -101,6 +125,16 @@ def call_ai_with_fallback(
             return response, "MedGemma"
     except Exception as e:
         logger.warning(f"MedGemma API failed: {e}")
+
+    # Try GROQ second (reliable for general queries)
+    try:
+        logger.info("Attempting GROQ API call...")
+        response = call_groq_api(system_message, user_message, temperature, max_tokens)
+        if response:
+            logger.info("GROQ API call successful")
+            return response, "GROQ"
+    except Exception as e:
+        logger.warning(f"GROQ API failed: {e}")
 
     # Try HuggingFace general API
     try:
@@ -113,16 +147,6 @@ def call_ai_with_fallback(
             return response, "HuggingFace"
     except Exception as e:
         logger.warning(f"HuggingFace API failed: {e}")
-
-    # Try GROQ as fallback
-    try:
-        logger.info("Attempting GROQ API call...")
-        response = call_groq_api(system_message, user_message, temperature, max_tokens)
-        if response:
-            logger.info("GROQ API call successful")
-            return response, "GROQ"
-    except Exception as e:
-        logger.warning(f"GROQ API failed: {e}")
 
     # Try DeepSeek as final fallback
     try:
@@ -169,13 +193,18 @@ def _handle_chat_json_request():
         return jsonify({"error": "Message is required"}), 400
 
     try:
-        system_message = _build_system_message(mode, patient_id)
-        ai_response = _get_ai_response(system_message, user_message)
+        system_message, citations = _build_system_message(mode, patient_id)
+        ai_response, model_used = _get_ai_response(system_message, user_message)
 
         if ai_response:
-            return jsonify(
-                {"response": ai_response, "mode": mode, "patient": patient_id}
-            )
+            response_data = {
+                "response": ai_response,
+                "mode": mode,
+                "patient": patient_id,
+                "model": model_used or "Unknown",
+                "citations": citations if mode == "private" else [],
+            }
+            return jsonify(response_data)
         else:
             return jsonify({"error": "AI service unavailable"}), 503
 
@@ -193,29 +222,68 @@ def _handle_chat_form_request():
 def _build_system_message(mode, patient_id):
     """Build system message based on chat mode and patient selection"""
     if mode == "public":
-        return """You are a helpful medical AI assistant. Provide general health information and guidance.
-        Always remind users to consult with healthcare professionals for personalized medical advice.
-        Do not provide specific diagnoses or treatment recommendations. Keep responses informative but not overly technical."""
+        return (
+            """You are MedGemma, a specialized medical AI assistant developed by Google for healthcare applications.
+        You have been trained on extensive medical literature and datasets to provide accurate health information.
+
+        Provide evidence-based general health information and guidance. Always remind users to consult with
+        healthcare professionals for personalized medical advice. Do not provide specific diagnoses or treatment
+        recommendations. Keep responses informative, medically accurate, and appropriately technical for general audiences.
+
+        Focus on:
+        - Evidence-based medical information
+        - General health guidance and prevention
+        - Explanation of medical concepts
+        - When to seek professional medical care
+
+        Always emphasize the importance of professional medical consultation for specific health concerns.""",
+            [],
+        )
     else:
         # Private mode - include user context
-        user_context = get_user_context(mode, patient_id)
+        user_context, citations = get_user_context(mode, patient_id)
         if user_context:
-            return f"""You are a personal health AI assistant with access to the user's medical records.
-            Provide personalized health insights based on their history. Always remind users to consult with healthcare professionals.
+            return (
+                f"""You are MedGemma, a specialized medical AI assistant with access to this user's medical records.
+            You have been trained on extensive medical literature to provide personalized health insights.
+
+            Analyze the provided medical history and provide relevant, personalized health insights and recommendations.
+            Always remind users to consult with healthcare professionals for medical decisions.
+
+            Key capabilities:
+            - Medical record analysis and pattern recognition
+            - Personalized health risk assessment
+            - Medication interaction awareness
+            - Clinical correlation and insights
+            - Evidence-based recommendations
 
             Medical History Context:
             {user_context}
 
-            Use this context to provide more relevant and personalized responses."""
+            Use this context to provide medically sound, personalized responses. Cite relevant information from the
+            medical records when applicable, and highlight any patterns or concerns that warrant professional attention.""",
+                citations,
+            )
         else:
-            return """You are a personal health AI assistant. Provide personalized health guidance and insights.
-            Always remind users to consult with healthcare professionals for medical decisions."""
+            return (
+                """You are MedGemma, a specialized medical AI assistant for personal health management.
+            Provide personalized health guidance and insights based on medical best practices.
+
+            Focus on:
+            - Preventive health measures
+            - Health monitoring and tracking guidance
+            - General wellness recommendations
+            - When to seek professional medical care
+
+            Always remind users to consult with healthcare professionals for specific medical decisions and diagnoses.""",
+                [],
+            )
 
 
 def _get_ai_response(system_message, user_message):
     """Get AI response with fallback logic"""
     ai_response, model_used = call_ai_with_fallback(system_message, user_message)
-    return ai_response
+    return ai_response, model_used
 
 
 def _handle_chat_form_request():

@@ -17,35 +17,34 @@ dependencies = [
     "Flask-Migrate>=4.0.7",
     "Flask-Mail>=0.10.0",
     "Flask-Session>=0.8.0",
-
     # Security and Rate Limiting
     "Flask-Limiter>=3.8.0",
     "Flask-Talisman>=1.1.0",
     "WTForms>=3.2.1",
     "bcrypt>=4.2.1",
     "cryptography>=43.0.0",
-
     # Database and Caching
     "SQLAlchemy>=2.0.30",
     "psycopg2-binary>=2.9.9",
     "redis>=5.2.0",
     "Flask-Caching>=2.3.0",
-
     # WSGI Server and Async Support
     "gunicorn>=22.0.0",
     "gevent>=24.2.1",
 
-    # AI/ML Integration (optional - can be installed separately if needed)
+    # AI Integration (remote API only - minimal dependencies)
     "openai>=1.50.0",
+    "requests>=2.32.3",
+
+    # Document Processing (lightweight)
     "PyMuPDF>=1.24.0",
-    "transformers>=4.44.0",
+    "Pillow>=10.4.0",
 
     # Utilities and System Monitoring
     "python-dotenv>=1.0.1",
     "psutil>=6.0.0",
     "requests>=2.32.3",
     "Pillow>=10.4.0",
-
     # Core Dependencies
     "Werkzeug>=3.1.0",
     "click>=8.1.7",
@@ -53,6 +52,7 @@ dependencies = [
     "MarkupSafe>=3.0.0",
     "Jinja2>=3.1.4",
     "blinker>=1.9.0",
+    "email-validator>=2.2.0",
 ]
 
 [project.optional-dependencies]

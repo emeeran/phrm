@@ -1,16 +1,16 @@
 # Personal Health Record Manager (PHRM)
 
 ## Overview
-PHRM is a Flask-based web application for managing personal health records, featuring AI-powered chat, symptom checker, and document summarization. The default AI provider is MedGemma (via Hugging Face or local), with GROQ and DEEPSEEK as fallbacks.
+PHRM is a Flask-based web application for managing personal health records, featuring AI-powered chat, symptom checker, and document summarization. The default AI provider is MedGemma (via Hugging Face Inference API only), with GROQ and DEEPSEEK as fallbacks.
 
 ## AI Provider Fallback Logic
-- **Primary:** MedGemma (Hugging Face Inference API or local transformers)
+- **Primary:** MedGemma 27B (Hugging Face Inference API - remote only, no local models)
 - **Fallbacks:** GROQ, DEEPSEEK
 
 ## Setup
 1. Clone the repo and install dependencies:
    ```sh
-   pip install -r requirements.txt
+   uv sync
    ```
 2. Configure `.env` with your API keys (see example in repo).
 3. Run the app:
