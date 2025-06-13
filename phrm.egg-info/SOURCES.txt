@@ -1,12 +1,14 @@
 README.md
 pyproject.toml
 app/__init__.py
+app/admin_utils.py
 app/config.py
 app/config_optimized.py
 app/ai/__init__.py
 app/ai/summarization.py
 app/ai/providers/__init__.py
 app/ai/routes/__init__.py
+app/ai/routes/chat.py
 app/ai/routes/summarization.py
 app/api/__init__.py
 app/auth/__init__.py
@@ -32,6 +34,7 @@ app/records/routes/family_members.py
 app/records/routes/files.py
 app/records/routes/records.py
 app/utils/__init__.py
+app/utils/ai_helpers.py
 app/utils/ai_security_stubs.py
 app/utils/ai_utils.py
 app/utils/auth_decorators.py

@@ -3,12 +3,14 @@ Shared utility functions and decorators for the Personal Health Record Manager.
 This module consolidates common functionality to eliminate redundancy.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from flask import current_app, jsonify, request
 from flask_login import current_user
 
-from .security_utils import log_security_event
+from .security_utils import (
+    log_security_event,
+)
 
 # ============================================================================
 # SHARED UTILITY FUNCTIONS
@@ -26,7 +28,7 @@ def get_user_context():
     return {"user_id": None, "email": "anonymous", "is_admin": False}
 
 
-def safe_jsonify(data: Dict[str, Any], status_code: int = 200) -> tuple:
+def safe_jsonify(data: dict[str, Any], status_code: int = 200) -> tuple:
     """Safely create JSON response with error handling"""
     try:
         return jsonify(data), status_code
@@ -35,7 +37,7 @@ def safe_jsonify(data: Dict[str, Any], status_code: int = 200) -> tuple:
         return jsonify({"error": "Internal server error"}), 500
 
 
-def log_user_action(action: str, details: Optional[Dict[str, Any]] = None):
+def log_user_action(action: str, details: Optional[dict[str, Any]] = None):
     """Log user actions with context"""
     user_context = get_user_context()
     ip_address = request.remote_addr if request else "unknown"

@@ -1,7 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
 from wtforms import (
@@ -31,7 +39,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 # Forms
-class LoginForm(SecurityValidationMixin, FlaskForm):
+class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired()])
     remember_me = BooleanField("Remember Me")
@@ -266,15 +274,39 @@ def forgot_password():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
-            if send_password_reset_email(user):
+            try:
+                if send_password_reset_email(user):
+                    # Commit the reset token to database
+                    db.session.commit()
+
+                    # Log security event
+                    log_security_event(
+                        "password_reset_requested",
+                        {"user_id": user.id, "email": user.email},
+                    )
+
+                    flash(
+                        "Password reset email sent! Check your email for instructions. "
+                        "(In development mode, check the server console for the reset link)",
+                        "info",
+                    )
+                else:
+                    flash(
+                        "Failed to send reset email. Please try again later.", "error"
+                    )
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"Password reset error: {e!s}")
                 flash(
-                    "Check your email for instructions to reset your password.", "info"
+                    "Failed to process password reset. Please try again later.", "error"
                 )
-            else:
-                flash("Failed to send reset email. Please try again later.", "error")
         else:
             # Don't reveal whether the email exists or not for security
-            flash("Check your email for instructions to reset your password.", "info")
+            flash(
+                "Password reset email sent! Check your email for instructions. "
+                "(In development mode, check the server console for the reset link)",
+                "info",
+            )
 
         return redirect(url_for("auth.login"))
 
@@ -292,15 +324,36 @@ def reset_password(token):
     # Find user by token
     user = User.query.filter_by(reset_token=token).first()
     if not user or not user.verify_reset_token(token):
+        # Log security event for invalid token usage
+        log_security_event(
+            "invalid_password_reset_token",
+            {"token": token[:8] + "...", "ip_address": request.remote_addr},
+        )
         flash("Invalid or expired password reset link.", "danger")
         return redirect(url_for("auth.forgot_password"))
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        user.reset_password(form.password.data)
-        db.session.commit()
-        flash("Your password has been reset successfully! Please log in.", "success")
-        return redirect(url_for("auth.login"))
+        try:
+            user.reset_password(form.password.data)
+            db.session.commit()
+
+            # Log successful password reset
+            log_security_event(
+                "password_reset_completed", {"user_id": user.id, "email": user.email}
+            )
+
+            flash(
+                "Your password has been reset successfully! Please log in.", "success"
+            )
+            return redirect(url_for("auth.login"))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Password reset completion error: {e!s}")
+            flash(
+                "An error occurred while resetting your password. Please try again.",
+                "error",
+            )
 
     return render_template(
         "auth/reset_password.html", title="Reset Password", form=form
@@ -415,4 +468,44 @@ def delete_account():
 
     return render_template(
         "auth/delete_account.html", title="Delete Account", form=form
+    )
+
+
+@auth_bp.route("/dev/reset-links")
+def dev_reset_links():
+    """Development only: Show recent password reset links"""
+    # Only show in development mode
+    if not current_app.config.get("DEBUG", False):
+        flash("This page is only available in development mode.", "error")
+        return redirect(url_for("auth.login"))
+
+    # Get users with active reset tokens
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+
+    users_with_tokens = User.query.filter(
+        User.reset_token.isnot(None), User.reset_token_expiry.isnot(None)
+    ).all()
+
+    reset_tokens = []
+    for user in users_with_tokens:
+        reset_tokens.append(
+            {
+                "email": user.email,
+                "token": user.reset_token,
+                "created_at": user.reset_token_expiry
+                - timedelta(hours=1),  # Approximate creation time
+                "expires_at": user.reset_token_expiry,
+            }
+        )
+
+    # Sort by creation time (descending)
+    reset_tokens.sort(key=lambda x: x["created_at"], reverse=True)
+
+    return render_template(
+        "auth/dev_reset_links.html",
+        title="Password Reset Links",
+        reset_tokens=reset_tokens,
+        now=now,
     )

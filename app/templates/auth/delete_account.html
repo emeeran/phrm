@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import render_field, render_button %}
+
+{% block title %}Delete Account{% endblock %}
+
+{% block content %}
+<!-- Flashed messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Delete Account</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All your health records, family member data, and account information will be permanently deleted.
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="text-danger">What will be deleted:</h5>
+                    <ul class="list-unstyled ms-3">
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>Your user account and profile</li>
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>All health records and medical data</li>
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>Family member information</li>
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>Uploaded documents and files</li>
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>AI chat history and insights</li>
+                        <li><i class="fas fa-times-circle text-danger me-2"></i>All preferences and settings</li>
+                    </ul>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ render_field(form.password, placeholder="Enter your current password") }}
+                        <small class="form-text text-muted">Your password is required to confirm this action</small>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ render_field(form.confirmation, placeholder="Type DELETE to confirm") }}
+                        <small class="form-text text-muted">Type exactly "DELETE" (in capital letters) to proceed</small>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.reason.label(class="form-label") }}
+                        {{ form.reason(class="form-control", rows="3", placeholder="Optional: Tell us why you're leaving (this helps us improve)") }}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {{ render_button("Delete My Account Permanently", type="submit", btn_class="btn-danger", icon="fas fa-trash-alt") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">
+                    <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Cancel & Back to Profile
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

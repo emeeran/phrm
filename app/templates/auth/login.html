@@ -42,6 +42,12 @@
                         {{ render_button("Login", type="submit", btn_class="btn-primary", icon="fas fa-sign-in-alt") }}
                     </div>
                 </form>
+
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('auth.forgot_password') }}" class="text-decoration-none">
+                        <i class="fas fa-key me-1"></i>Forgot your password?
+                    </a>
+                </div>
             </div>
             <div class="card-footer text-center">
                 <p class="mb-0">Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></p>

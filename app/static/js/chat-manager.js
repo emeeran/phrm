@@ -11,7 +11,7 @@ export class ChatManager {
 
     init() {
         if (!this.chatForm || !this.chatInput || !this.chatMessages) return;
-        
+
         this.loadConversationHistory();
         this.setupEventListeners();
         this.initializeVoiceInput();
@@ -65,9 +65,14 @@ export class ChatManager {
     }
 
     setupActionButtons() {
+        const newBtn = document.getElementById('new-chat');
         const clearBtn = document.getElementById('clear-chat');
         const copyBtn = document.getElementById('copy-chat');
         const exportBtn = document.getElementById('export-md');
+
+        if (newBtn) {
+            newBtn.addEventListener('click', () => this.startNewConversation());
+        }
 
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
@@ -97,7 +102,7 @@ export class ChatManager {
         recognition.continuous = false;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
-        
+
         let isListening = false;
 
         voiceBtn.addEventListener('click', () => {
@@ -163,7 +168,7 @@ export class ChatManager {
 
         const mode = document.getElementById('mode-selector')?.value || 'public';
         const patient = document.getElementById('patient-selector')?.value || 'self';
-        
+
         let messageText, contextInfo;
 
         if (mode === 'public') {
@@ -208,10 +213,10 @@ export class ChatManager {
         try {
             const response = await this.sendMessage(message);
             this.chatMessages.removeChild(typingIndicator);
-            
+
             const responseTimestamp = new Date().toISOString();
             this.appendMessage('assistant', response.response, responseTimestamp, response.model);
-            
+
             this.conversationHistory.push({
                 role: 'assistant',
                 content: response.response,
@@ -221,11 +226,11 @@ export class ChatManager {
         } catch (error) {
             console.error('Chat error:', error);
             this.chatMessages.removeChild(typingIndicator);
-            
+
             const errorMsg = 'Sorry, there was an error processing your request. Please try again.';
             const errorTimestamp = new Date().toISOString();
             this.appendMessage('assistant', errorMsg, errorTimestamp);
-            
+
             this.conversationHistory.push({
                 role: 'assistant',
                 content: errorMsg,
@@ -301,6 +306,20 @@ export class ChatManager {
         this.chatMessages.innerHTML = '';
         this.conversationHistory = [];
         localStorage.removeItem('chatConversation');
+        this.updateWelcomeMessage();
+    }
+
+    startNewConversation() {
+        if (this.conversationHistory.length > 0) {
+            if (confirm('Start a new conversation? Current conversation will be lost unless you export it first.')) {
+                this.clearConversation();
+                this.chatInput.focus();
+            }
+        } else {
+            // If no conversation exists, just focus the input and ensure welcome message is shown
+            this.updateWelcomeMessage();
+            this.chatInput.focus();
+        }
     }
 
     copyConversation(button) {
@@ -340,7 +359,7 @@ export class ChatManager {
         this.conversationHistory.forEach((entry, index) => {
             const sender = entry.role === 'user' ? '👤 You' : '🤖 Health Assistant';
             const time = new Date(entry.timestamp).toLocaleString();
-            
+
             content += `## ${sender}\n*${time}*\n\n${entry.content}\n\n`;
             if (index < this.conversationHistory.length - 1) content += `---\n\n`;
         });
@@ -361,10 +380,10 @@ export class ChatManager {
     showButtonFeedback(button, type) {
         const originalHTML = button.innerHTML;
         const originalClasses = button.className;
-        
+
         button.innerHTML = '<i class="fas fa-check"></i>';
         button.className = button.className.replace('btn-outline-light', `btn-${type}`);
-        
+
         setTimeout(() => {
             button.innerHTML = originalHTML;
             button.className = originalClasses;
