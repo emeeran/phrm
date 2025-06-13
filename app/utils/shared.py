@@ -8,9 +8,48 @@ from typing import Any, Optional
 from flask import current_app, jsonify, request
 from flask_login import current_user
 
-from .security_utils import (
-    log_security_event,
+# Import functions to re-export for other modules
+from .ai_security_stubs import (
+    AISecurityManager,
+    ai_audit_required,
+    ai_security_required,
+    secure_ai_response_headers,
 )
+from .auth_decorators import api_login_required, require_admin
+from .email_utils import send_password_reset_email
+from .performance_monitor import monitor_performance
+from .security_utils import (
+    detect_suspicious_patterns,
+    log_security_event,
+    sanitize_html,
+    secure_filename_enhanced,
+    validate_file_type,
+)
+
+# Explicitly define what this module exports
+__all__ = [
+    "AISecurityManager",
+    # AI security
+    "ai_audit_required",
+    "ai_security_required",
+    # Authentication
+    "api_login_required",
+    # Security functions
+    "detect_suspicious_patterns",
+    # Shared utility functions defined in this module
+    "get_user_context",
+    "log_security_event",
+    # Performance monitoring
+    "monitor_performance",
+    "require_admin",
+    "safe_jsonify",
+    "sanitize_html",
+    "secure_ai_response_headers",
+    "secure_filename_enhanced",
+    # Email utilities
+    "send_password_reset_email",
+    "validate_file_type",
+]
 
 # ============================================================================
 # SHARED UTILITY FUNCTIONS

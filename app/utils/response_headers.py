@@ -3,7 +3,7 @@ Response and security headers utilities for the Personal Health Record Manager.
 Includes security headers and audit logging.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from flask import current_app, request
 from flask_login import current_user
@@ -23,7 +23,7 @@ def security_headers(response: Any) -> Any:
     return response
 
 
-def audit_log(action: str, details: Optional[Dict[str, Any]] = None) -> None:
+def audit_log(action: str, details: Optional[dict[str, Any]] = None) -> None:
     """Log audit events for security tracking"""
     user_id = (
         current_user.id

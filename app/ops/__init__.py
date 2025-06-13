@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from app.utils.performance import PerformanceDashboard, monitor_performance
+from app.utils.performance_monitor import monitor_performance
 
 # Import shared utilities
 from app.utils.shared import log_security_event, require_admin

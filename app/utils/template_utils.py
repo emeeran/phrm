@@ -11,7 +11,7 @@ Consolidates common template functions and filters.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 # ============================================================================
 # TEMPLATE UTILITY FUNCTIONS
@@ -103,7 +103,7 @@ def format_file_size(bytes_size: int) -> str:
 # ============================================================================
 
 
-def get_template_utilities() -> Dict[str, Any]:
+def get_template_utilities() -> dict[str, Any]:
     """Get all template utility functions for injection into templates"""
     return {
         "now": datetime.now(),
@@ -114,7 +114,7 @@ def get_template_utilities() -> Dict[str, Any]:
     }
 
 
-def get_template_filters() -> Dict[str, Any]:
+def get_template_filters() -> dict[str, Any]:
     """Get all template filters for registration with Jinja2"""
     return {
         "format_date": format_date,

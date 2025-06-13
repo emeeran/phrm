@@ -52,6 +52,10 @@ htmlcov/
 test_*.py
 debug_*.py
 generate_*.py
+check_*.py
+fix_*.py
+*_demo.html
+*.egg-info/
 enhanced_integration_report.py
 test_medgemma_transformers.py
 test_enhanced_medgemma.py

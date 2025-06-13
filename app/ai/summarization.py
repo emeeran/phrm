@@ -4,13 +4,15 @@ Summarization Logic for AI Module
 Contains functions for generating AI-powered summaries of health records, including prompt construction and provider fallback logic.
 """
 
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from flask import current_app
 
-from ..utils.deepseek_helpers import call_deepseek_api
-from ..utils.groq_helpers import call_groq_api
-from ..utils.huggingface_helpers import call_huggingface_api
+from ..utils.ai_helpers import (
+    call_deepseek_api,
+    call_groq_api,
+    call_huggingface_api,
+)
 
 try:
     from langchain.chains import RetrievalQA
@@ -30,7 +32,7 @@ except ImportError:
 
 
 def summarize_health_records(
-    records: List[Any], summary_type: str = "standard"
+    records: list[Any], summary_type: str = "standard"
 ) -> Optional[str]:
     """
     Summarize multiple health records using AI.
@@ -171,7 +173,7 @@ def _try_ai_providers_for_summary(prompt):
         return None
 
 
-def create_rag_for_documents(documents: List[Any]) -> Optional[Any]:
+def create_rag_for_documents(documents: list[Any]) -> Optional[Any]:
     """Create a RAG (Retrieval-Augmented Generation) model for the given documents."""
     # Implementation remains the same as in the original file
     ...

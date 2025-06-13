@@ -7,7 +7,7 @@ This module contains file handling utilities for the records module.
 import mimetypes
 import os
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 from flask import current_app
 from flask_login import current_user
@@ -87,7 +87,7 @@ def _extract_text_if_pdf(file_path: str, file_type: str, filename: str) -> str:
 
 
 @monitor_performance
-def save_document(file, record_id: int) -> Dict[str, Any]:
+def save_document(file, record_id: int) -> dict[str, Any]:
     """Save an uploaded document and return file information"""
     try:
         # Validate and secure the file

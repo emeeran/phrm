@@ -6,7 +6,7 @@ Consolidates configuration logic and provides caching for better performance.
 import os
 from datetime import timedelta
 from functools import lru_cache
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @lru_cache(maxsize=1)
@@ -16,7 +16,7 @@ def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
 
 
 @lru_cache(maxsize=1)
-def get_database_config() -> Dict[str, Any]:
+def get_database_config() -> dict[str, Any]:
     """Get database configuration with optimizations"""
     # Use SQLALCHEMY_DATABASE_URI if set, else fallback to DATABASE_URL, else default
     database_uri = (
@@ -46,7 +46,7 @@ def get_database_config() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def get_security_config() -> Dict[str, Any]:
+def get_security_config() -> dict[str, Any]:
     """Get security configuration"""
     return {
         "SECRET_KEY": get_secret("SECRET_KEY", "dev-key-for-development-only"),
@@ -62,7 +62,7 @@ def get_security_config() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def get_ai_config() -> Dict[str, Any]:
+def get_ai_config() -> dict[str, Any]:
     """Get AI-related configuration"""
     return {
         # Hugging Face Configuration
@@ -87,7 +87,7 @@ def get_ai_config() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def get_upload_config() -> Dict[str, Any]:
+def get_upload_config() -> dict[str, Any]:
     """Get file upload configuration"""
     upload_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
     return {
@@ -97,7 +97,7 @@ def get_upload_config() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def get_rate_limiting_config() -> Dict[str, Any]:
+def get_rate_limiting_config() -> dict[str, Any]:
     """Get rate limiting configuration"""
     return {
         "RATELIMIT_STORAGE_URL": get_secret("REDIS_URL", "redis://localhost:6379"),
@@ -106,7 +106,7 @@ def get_rate_limiting_config() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def get_caching_config() -> Dict[str, Any]:
+def get_caching_config() -> dict[str, Any]:
     """Get caching configuration"""
     cache_type = "redis" if get_secret("REDIS_URL") else "simple"
 
@@ -143,7 +143,7 @@ class Config:
         self.DEBUG = (get_secret("FLASK_DEBUG", "False") or "False").lower() == "true"
         self.TESTING = False
 
-    def update_from_dict(self, config_dict: Dict[str, Any]) -> None:
+    def update_from_dict(self, config_dict: dict[str, Any]) -> None:
         """Update configuration from dictionary"""
         for key, value in config_dict.items():
             setattr(self, key, value)
@@ -225,7 +225,7 @@ class ConfigManager:
     """Configuration manager class for centralized config access"""
 
     def __init__(self) -> None:
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value with caching"""

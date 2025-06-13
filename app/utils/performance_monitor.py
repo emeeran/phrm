@@ -10,7 +10,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 import click
 import psutil
@@ -58,7 +58,7 @@ class PerformanceTracker:
                 self.metrics["memory_end"] - self.metrics["memory_start"]
             )
 
-    def add_query(self, query: str, duration: float, parameters: Optional[Dict] = None):
+    def add_query(self, query: str, duration: float, parameters: Optional[dict] = None):
         """Add database query metrics"""
         self.queries.append(
             {
@@ -82,7 +82,7 @@ class PerformanceTracker:
             }
         )
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get performance summary"""
         return {
             "total_duration": self.metrics.get("duration", 0),
@@ -157,7 +157,7 @@ def monitor_performance(func: Callable) -> Callable:
 
 
 def track_database_query(
-    query: str, duration: float, parameters: Optional[Dict] = None
+    query: str, duration: float, parameters: Optional[dict] = None
 ):
     """
     Track database query performance
@@ -192,7 +192,7 @@ def track_database_query(
 
 
 def track_template_render(
-    template_name: str, duration: float, context_keys: Optional[List[str]] = None
+    template_name: str, duration: float, context_keys: Optional[list[str]] = None
 ):
     """
     Track template rendering performance
@@ -266,7 +266,7 @@ class CacheManager:
             del self.local_cache[key]
         return len(expired_keys)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         total_hits = sum(stats["hits"] for stats in self.cache_stats.values())
         total_misses = sum(stats["misses"] for stats in self.cache_stats.values())
@@ -290,7 +290,7 @@ class CacheManager:
 cache_manager = CacheManager()
 
 
-def get_performance_report() -> Dict[str, Any]:
+def get_performance_report() -> dict[str, Any]:
     """
     Generate comprehensive performance report
     """
@@ -363,7 +363,7 @@ def _analyze_system_resources():
     }
 
 
-def generate_performance_recommendations() -> List[str]:
+def generate_performance_recommendations() -> list[str]:
     """
     Generate performance optimization recommendations
     """

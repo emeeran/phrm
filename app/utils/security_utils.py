@@ -5,12 +5,12 @@ Includes security event logging, suspicious pattern detection, HTML sanitization
 
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from flask import current_app
 
 
-def log_security_event(event_type: str, data: Dict[str, Any]) -> None:
+def log_security_event(event_type: str, data: dict[str, Any]) -> None:
     """Centralized security event logging"""
     if current_app:
         current_app.logger.info(f"Security Event: {event_type} - {data}")

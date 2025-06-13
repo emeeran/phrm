@@ -7,7 +7,7 @@ and family member management.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from flask import current_app, flash
 from flask_login import current_user
@@ -31,7 +31,7 @@ class RecordService:
     """
 
     @staticmethod
-    def create_record(form_data: Dict[str, Any]) -> HealthRecord:
+    def create_record(form_data: dict[str, Any]) -> HealthRecord:
         """
         Create a new health record from form data.
 
@@ -107,7 +107,7 @@ class RecordService:
         return record
 
     @staticmethod
-    def update_record(record: HealthRecord, form_data: Dict[str, Any]) -> HealthRecord:
+    def update_record(record: HealthRecord, form_data: dict[str, Any]) -> HealthRecord:
         """
         Update an existing health record with new data.
 
@@ -159,7 +159,7 @@ class RecordService:
         return record
 
     @staticmethod
-    def handle_document_uploads(record: HealthRecord, files: List[FileStorage]) -> int:
+    def handle_document_uploads(record: HealthRecord, files: list[FileStorage]) -> int:
         """
         Handle multiple document uploads for a health record.
 
@@ -216,7 +216,7 @@ class FamilyMemberService:
     """Service class for family member operations"""
 
     @staticmethod
-    def create_family_member(form_data: Dict[str, Any]) -> FamilyMember:
+    def create_family_member(form_data: dict[str, Any]) -> FamilyMember:
         """Create a new family member from form data"""
         # Sanitize all inputs
         first_name = sanitize_html(form_data["first_name"].strip())
@@ -287,7 +287,7 @@ class FamilyMemberService:
     @staticmethod
     def create_initial_medical_records(
         family_member: FamilyMember,
-    ) -> List[HealthRecord]:
+    ) -> list[HealthRecord]:
         """Create initial medical history records for a family member"""
         records_to_create = []
 
@@ -400,7 +400,7 @@ class RecordQueryService:
         return query.order_by(HealthRecord.date.desc())
 
     @staticmethod
-    def get_dashboard_stats() -> Dict[str, int]:
+    def get_dashboard_stats() -> dict[str, int]:
         """Get dashboard statistics for the current user"""
         # Count user's own records
         user_records_count = HealthRecord.query.filter_by(

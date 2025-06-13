@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from flask import current_app
 
@@ -73,7 +73,7 @@ class DocumentLoader:
     """Unified document loader for different file types"""
 
     @staticmethod
-    def load_document(file_path: str) -> Optional[List[Any]]:
+    def load_document(file_path: str) -> Optional[list[Any]]:
         """Load document based on file extension"""
         if not VECTORIZATION_AVAILABLE:
             raise VectorizationError("LangChain dependencies not available")
@@ -114,7 +114,7 @@ class VectorStoreManager:
         return str(base_path / identifier)
 
     def load_or_create_vectorstore(
-        self, path: str, documents: Optional[List[Any]] = None
+        self, path: str, documents: Optional[list[Any]] = None
     ):
         """Load existing vectorstore or create new one"""
         if os.path.exists(path) and not documents:
@@ -192,7 +192,7 @@ class DocumentVectorizer:
             self._vector_store_manager = VectorStoreManager(self.embeddings)
         return self._vector_store_manager
 
-    def _create_document_metadata(self, document: Document) -> Dict[str, Any]:
+    def _create_document_metadata(self, document: Document) -> dict[str, Any]:
         """Create metadata dictionary for a document"""
         return {
             "document_id": document.id,
@@ -203,7 +203,7 @@ class DocumentVectorizer:
             "health_record_id": document.health_record_id,
         }
 
-    def extract_and_prepare_text(self, document: Document) -> Optional[List[Any]]:
+    def extract_and_prepare_text(self, document: Document) -> Optional[list[Any]]:
         """Extract text and prepare LangChain documents"""
         # Use pre-extracted text if available
         if document.extracted_text and document.extracted_text.strip():
@@ -269,7 +269,7 @@ class DocumentVectorizer:
 
     def vectorize_user_documents(
         self, user_id: int, force_refresh: bool = False
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """Vectorize all documents for a user efficiently"""
         try:
             # Query optimization: get documents based on refresh flag
@@ -313,7 +313,7 @@ class DocumentVectorizer:
 
     def search_documents(
         self, user_id: int, query: str, k: int = DEFAULT_SEARCH_K
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search vectorized documents for a user"""
         try:
             vectorstore = self.get_vectorstore_for_user(user_id)
@@ -338,7 +338,7 @@ class DocumentVectorizer:
             logger.error(f"Error searching documents for user {user_id}: {e}")
             return []
 
-    def get_vectorization_stats(self, user_id: int) -> Dict[str, Any]:
+    def get_vectorization_stats(self, user_id: int) -> dict[str, Any]:
         """Get comprehensive vectorization statistics for a user"""
         try:
             from sqlalchemy import func
@@ -413,7 +413,7 @@ class BatchVectorizer:
     def __init__(self, vectorizer: DocumentVectorizer):
         self.vectorizer = vectorizer
 
-    def vectorize_all_unprocessed_documents(self) -> Dict[str, int]:
+    def vectorize_all_unprocessed_documents(self) -> dict[str, int]:
         """Vectorize all unprocessed documents in the system"""
         try:
             from sqlalchemy import distinct
@@ -452,7 +452,7 @@ class BatchVectorizer:
 
     def process_folder_documents(
         self, folder_path: str, identifier: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Process documents from a specific folder"""
         folder_path_obj = Path(folder_path)
 
@@ -536,8 +536,8 @@ class BatchVectorizer:
             logger.error(f"Could not save processed index {index_path}: {e}")
 
     def _vectorize_folder_files(
-        self, files: List[Path], base_path: Path, identifier: str
-    ) -> List[str]:
+        self, files: list[Path], base_path: Path, identifier: str
+    ) -> list[str]:
         """Vectorize files from a folder"""
         vector_db_path = self.vectorizer.vector_store_manager.get_vector_store_path(
             identifier
