@@ -107,9 +107,8 @@ def call_medgemma_api(
     """
     Call MedGemma using HuggingFace Inference API (remote-only, no local downloads)
 
-    NOTE: As of current status, MedGemma models are not available via Hugging Face
-    Inference API due to terms of use requirements and deployment status.
-    This function demonstrates the approach and provides fallback options.
+    First checks if user has access to MedGemma models and provides guidance if needed.
+    Falls back to medical-focused alternatives if MedGemma is not accessible.
 
     Args:
         system_message (str): System instruction for the AI
@@ -119,7 +118,7 @@ def call_medgemma_api(
         images (list, optional): List of medical images for multimodal analysis
 
     Returns:
-        str: Generated response from MedGemma or None if failed
+        str: Generated response from MedGemma or medical alternative
     """
     try:
         api_key = get_huggingface_api_key()
@@ -130,31 +129,53 @@ def call_medgemma_api(
             )
             return None
 
-        # Primary attempt: Try MedGemma models (currently not available via Inference API)
-        if images and len(images) > 0:
-            model_name = (
-                "google/medgemma-4b-it"  # Multimodal variant for image analysis
+        # Check MedGemma access status
+        access_status = check_medgemma_access(api_key)
+
+        if not access_status["has_access"]:
+            logger.warning(f"MedGemma access issue: {access_status['message']}")
+            if access_status.get("guidance"):
+                logger.info(f"Guidance: {access_status['guidance']}")
+
+        # Try MedGemma models if we have access
+        if access_status["has_access"]:
+            if images and len(images) > 0:
+                model_name = "google/medgemma-4b-it"  # Multimodal variant
+                logger.info("Using MedGemma 4B multimodal for text + image analysis")
+            else:
+                model_name = "google/medgemma-27b-text-it"  # Text-only variant
+                logger.info("Using MedGemma 27B text-only for optimal text performance")
+
+            # Try main Inference API first
+            response = _call_medgemma_inference_api(
+                system_message, prompt, temperature, max_tokens, model_name, api_key
             )
-            logger.info("Attempting MedGemma 4B multimodal for text + image analysis")
-        else:
-            model_name = (
-                "google/medgemma-27b-text-it"  # Text-only variant (recommended)
+            if response:
+                logger.info("Successfully used MedGemma via Inference API")
+                return response
+
+            # Try via Hugging Face Spaces
+            logger.info("Inference API failed, trying MedGemma via Spaces")
+            response = try_medgemma_via_spaces(
+                system_message, prompt, temperature, max_tokens, api_key
             )
-            logger.info(
-                "Attempting MedGemma 27B text-only for optimal text performance"
+            if response:
+                return response
+
+            # Try via third-party providers
+            logger.info("Spaces failed, trying third-party providers")
+            response = try_medgemma_via_third_party_providers(
+                system_message, prompt, temperature, max_tokens
+            )
+            if response:
+                return response
+
+            logger.warning(
+                "All MedGemma access methods failed, falling back to alternatives"
             )
 
-        # Try MedGemma first
-        response = _call_medgemma_inference_api(
-            system_message, prompt, temperature, max_tokens, model_name, api_key
-        )
-        if response:
-            return response
-
-        # Fallback: Use medical-focused alternative models available on Inference API
-        logger.warning(
-            "MedGemma models not available via Inference API, using medical-focused alternative"
-        )
+        # Fallback: Use medical-focused alternative models
+        logger.info("Using medical-focused alternative models")
         return _call_medical_text_alternative(
             system_message, prompt, temperature, max_tokens, api_key
         )
@@ -369,4 +390,184 @@ def call_deepseek_api(system_message, prompt, temperature=0.7, max_tokens=4000):
         return None
     except Exception as e:
         logger.error(f"DEEPSEEK API call failed: {e}")
+        return None
+
+
+def check_medgemma_access(api_key):
+    """
+    Check if the user has access to MedGemma models on Hugging Face.
+
+    Args:
+        api_key (str): Hugging Face API token
+
+    Returns:
+        dict: Access status and guidance
+    """
+    try:
+        import requests
+
+        # Check user authentication
+        headers = {"Authorization": f"Bearer {api_key}"}
+        whoami_response = requests.get(
+            "https://huggingface.co/api/whoami", headers=headers
+        )
+
+        if whoami_response.status_code != HTTP_OK:
+            return {
+                "has_access": False,
+                "reason": "invalid_token",
+                "message": "Invalid or expired Hugging Face token",
+                "guidance": "Please check your HUGGINGFACE_ACCESS_TOKEN environment variable",
+            }
+
+        # Check MedGemma model access
+        model_url = "https://huggingface.co/api/models/google/medgemma-27b-text-it"
+        model_response = requests.get(model_url, headers=headers)
+
+        if model_response.status_code == HTTP_OK:
+            model_info = model_response.json()
+            is_gated = model_info.get("gated", False)
+
+            if is_gated == "auto":
+                # Try to access the model files to check if terms are accepted
+                files_url = "https://huggingface.co/api/models/google/medgemma-27b-text-it/tree/main"
+                files_response = requests.get(files_url, headers=headers)
+
+                if files_response.status_code == HTTP_OK:
+                    return {
+                        "has_access": True,
+                        "reason": "terms_accepted",
+                        "message": "MedGemma access granted - terms of use accepted",
+                    }
+                else:
+                    return {
+                        "has_access": False,
+                        "reason": "terms_not_accepted",
+                        "message": "MedGemma requires accepting Health AI Developer Foundation terms",
+                        "guidance": "Visit https://huggingface.co/google/medgemma-27b-text-it and accept the terms of use",
+                    }
+            else:
+                return {
+                    "has_access": True,
+                    "reason": "public_access",
+                    "message": "MedGemma model is accessible",
+                }
+        else:
+            return {
+                "has_access": False,
+                "reason": "model_not_found",
+                "message": "Cannot access MedGemma model information",
+                "guidance": "Check if the model exists and your token has proper permissions",
+            }
+
+    except Exception as e:
+        logger.error(f"Error checking MedGemma access: {e}")
+        return {
+            "has_access": False,
+            "reason": "error",
+            "message": f"Error checking access: {e!s}",
+            "guidance": "Check your internet connection and API token",
+        }
+
+
+def try_medgemma_via_spaces(system_message, prompt, temperature, max_tokens, api_key):
+    """
+    Try to access MedGemma via Hugging Face Spaces that might have the model deployed.
+    This is an experimental approach when the main Inference API doesn't work.
+    """
+    try:
+        import requests
+
+        # List of known MedGemma spaces
+        medgemma_spaces = ["rishiraj/medgemma-27b-text-it", "Taylor658/medgemma27b"]
+
+        for space_name in medgemma_spaces:
+            try:
+                logger.info(f"Trying MedGemma via Space: {space_name}")
+
+                # Try to access the space API
+                space_url = f"https://huggingface.co/spaces/{space_name}/api/predict"
+
+                payload = {
+                    "data": [
+                        f"System: {system_message}\n\nUser: {prompt}\n\nAssistant:",
+                        max_tokens,
+                        temperature,
+                    ]
+                }
+
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                }
+
+                response = requests.post(
+                    space_url, json=payload, headers=headers, timeout=30
+                )
+
+                if response.status_code == HTTP_OK:
+                    result = response.json()
+                    if result.get("data"):
+                        generated_text = result["data"][0]
+                        logger.info(
+                            f"Successfully used MedGemma via Space: {space_name}"
+                        )
+                        return generated_text
+
+            except Exception as e:
+                logger.warning(f"Space {space_name} failed: {e}")
+                continue
+
+        return None
+
+    except Exception as e:
+        logger.error(f"Error trying MedGemma via Spaces: {e}")
+        return None
+
+
+def try_medgemma_via_third_party_providers(
+    system_message, prompt, temperature, max_tokens
+):
+    """
+    Try to access MedGemma via third-party inference providers.
+    This includes providers like Replicate, Together AI, etc.
+
+    Note: This is a placeholder function for future implementation.
+    All parameters are preserved for API compatibility.
+    """
+    # Suppress unused argument warnings - function is a placeholder
+    _ = system_message, prompt, temperature, max_tokens
+    try:
+        import os
+
+        # This is a placeholder for third-party provider integrations
+        # In practice, you would need API keys for these services
+
+        providers = [
+            {
+                "name": "together_ai",
+                "model": "google/medgemma-27b-text-it",
+                "api_key_env": "TOGETHER_API_KEY",
+                "endpoint": "https://api.together.ai/inference",
+            },
+            {
+                "name": "replicate",
+                "model": "google/medgemma-27b-text-it",
+                "api_key_env": "REPLICATE_API_TOKEN",
+                "endpoint": "https://api.replicate.com/v1/predictions",
+            },
+        ]
+
+        for provider in providers:
+            provider_key = os.environ.get(provider["api_key_env"])
+            if provider_key:
+                logger.info(f"Trying MedGemma via {provider['name']}")
+                # Implementation would depend on specific provider API
+                # This is a placeholder for future implementation
+                pass
+
+        return None
+
+    except Exception as e:
+        logger.error(f"Error trying third-party providers: {e}")
         return None

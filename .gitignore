@@ -52,16 +52,20 @@ htmlcov/
 test_*.py
 debug_*.py
 generate_*.py
-check_*.py
+# Test and debug files (keep essential ones)
+check_users.py
 fix_*.py
 *_demo.html
 *.egg-info/
 enhanced_integration_report.py
 test_medgemma_transformers.py
 test_enhanced_medgemma.py
-test_medgemma.py
 test_phrm_application.py
 test_ai_providers.py
+
+# Keep these test files for development:
+# test_medgemma.py - MedGemma integration testing
+# check_medgemma_token.py - Token validation tool
 
 # Application specific
 uploads/*
