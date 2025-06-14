@@ -1,7 +1,5 @@
 """
-Routes Module Initialization
-
-This module initializes and exports all route blueprints for the records module.
+Routes Module - Streamlined route initialization
 """
 
 from .dashboard import dashboard_routes
