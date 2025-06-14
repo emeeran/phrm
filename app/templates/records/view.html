@@ -45,11 +45,6 @@
                     <dd class="col-sm-8">{{ record.doctor }}</dd>
                     {% endif %}
 
-                    {% if record.investigations %}
-                    <dt class="col-sm-4">Investigations</dt>
-                    <dd class="col-sm-8">{{ record.investigations|nl2br|safe }}</dd>
-                    {% endif %}
-
                     {% if record.diagnosis %}
                     <dt class="col-sm-4">Diagnosis</dt>
                     <dd class="col-sm-8">{{ record.diagnosis|nl2br|safe }}</dd>
@@ -63,11 +58,6 @@
                     {% if record.notes %}
                     <dt class="col-sm-4">Notes</dt>
                     <dd class="col-sm-8">{{ record.notes|nl2br|safe }}</dd>
-                    {% endif %}
-
-                    {% if record.review_followup %}
-                    <dt class="col-sm-4">Review/Follow up</dt>
-                    <dd class="col-sm-8">{{ record.review_followup|nl2br|safe }}</dd>
                     {% endif %}
 
                     <!-- Legacy field support for backward compatibility -->

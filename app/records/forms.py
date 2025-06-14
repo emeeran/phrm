@@ -105,11 +105,15 @@ class RecordForm(FlaskForm, SecurityValidationMixin):
         from flask_login import current_user
 
         if current_user.is_authenticated:
-            from ..models import FamilyMember
-
-            family_members = FamilyMember.query.filter_by(user_id=current_user.id).all()
+            # Use the many-to-many relationship to get family members
+            family_members = current_user.family_members
             choices = [("", "Select Family Member")]
-            choices.extend([(member.id, member.name) for member in family_members])
+            choices.extend(
+                [
+                    (member.id, f"{member.first_name} {member.last_name}")
+                    for member in family_members
+                ]
+            )
             self.family_member.choices = choices
 
 
@@ -190,11 +194,15 @@ class MedicalConditionForm(FlaskForm, SecurityValidationMixin):
         from flask_login import current_user
 
         if current_user.is_authenticated:
-            from ..models import FamilyMember
-
-            family_members = FamilyMember.query.filter_by(user_id=current_user.id).all()
+            # Use the many-to-many relationship to get family members
+            family_members = current_user.family_members
             choices = [("", "Select Family Member")]
-            choices.extend([(member.id, member.name) for member in family_members])
+            choices.extend(
+                [
+                    (member.id, f"{member.first_name} {member.last_name}")
+                    for member in family_members
+                ]
+            )
             self.family_member.choices = choices
 
 

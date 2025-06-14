@@ -12,7 +12,7 @@
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
                     {{ form.hidden_tag() }}
-                    
+
                     <div class="mb-3">
                         {{ form.family_member.label(class="form-label") }}
                         {{ form.family_member(class="form-select" + (" is-invalid" if form.family_member.errors else "")) }}
@@ -20,7 +20,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
                     <div class="mb-3">
                         {{ form.date.label(class="form-label") }}
                         {{ form.date(class="form-control" + (" is-invalid" if form.date.errors else ""), type="date") }}
@@ -28,7 +28,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
                     <div class="mb-3">
                         {{ form.chief_complaint.label(class="form-label") }}
                         {{ form.chief_complaint(class="form-control" + (" is-invalid" if form.chief_complaint.errors else "")) }}
@@ -36,7 +36,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
                     <div class="mb-3">
                         {{ form.doctor.label(class="form-label") }}
                         {{ form.doctor(class="form-control" + (" is-invalid" if form.doctor.errors else "")) }}
@@ -44,15 +44,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="mb-3">
-                        {{ form.investigations.label(class="form-label") }}
-                        {{ form.investigations(class="form-control" + (" is-invalid" if form.investigations.errors else "")) }}
-                        {% for error in form.investigations.errors %}
-                        <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
+
                     <div class="mb-3">
                         {{ form.diagnosis.label(class="form-label") }}
                         {{ form.diagnosis(class="form-control" + (" is-invalid" if form.diagnosis.errors else "")) }}
@@ -60,7 +52,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
                     <div class="mb-3">
                         {{ form.prescription.label(class="form-label") }}
                         {{ form.prescription(class="form-control" + (" is-invalid" if form.prescription.errors else "")) }}
@@ -68,7 +60,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
+
                     <div class="mb-3">
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else "")) }}
@@ -76,15 +68,7 @@
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="mb-3">
-                        {{ form.review_followup.label(class="form-label") }}
-                        {{ form.review_followup(class="form-control" + (" is-invalid" if form.review_followup.errors else "")) }}
-                        {% for error in form.review_followup.errors %}
-                        <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                    
+
                     <div class="mb-3">
                         {{ form.documents.label(class="form-label") }}
                         {{ form.documents(class="form-control" + (" is-invalid" if form.documents.errors else ""), id="documents-input", accept=".jpg,.jpeg,.png,.pdf", aria_describedby="documents-help") }}

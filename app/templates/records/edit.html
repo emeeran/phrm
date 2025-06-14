@@ -46,14 +46,6 @@
                     </div>
 
                     <div class="mb-3">
-                        {{ form.investigations.label(class="form-label") }}
-                        {{ form.investigations(class="form-control" + (" is-invalid" if form.investigations.errors else "")) }}
-                        {% for error in form.investigations.errors %}
-                        <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-3">
                         {{ form.diagnosis.label(class="form-label") }}
                         {{ form.diagnosis(class="form-control" + (" is-invalid" if form.diagnosis.errors else "")) }}
                         {% for error in form.diagnosis.errors %}
@@ -73,14 +65,6 @@
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else "")) }}
                         {% for error in form.notes.errors %}
-                        <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-3">
-                        {{ form.review_followup.label(class="form-label") }}
-                        {{ form.review_followup(class="form-control" + (" is-invalid" if form.review_followup.errors else "")) }}
-                        {% for error in form.review_followup.errors %}
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
