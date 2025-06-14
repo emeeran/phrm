@@ -24,20 +24,11 @@
                                 <i class="fas fa-user me-2"></i>Basic Information
                             </h5>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <div class="mb-3">
-                                {{ form.first_name.label(class="form-label") }}
-                                {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
-                                {% for error in form.first_name.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                {{ form.last_name.label(class="form-label") }}
-                                {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
-                                {% for error in form.last_name.errors %}
+                                {{ form.name.label(class="form-label") }}
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                                {% for error in form.name.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
                                 {% endfor %}
                             </div>
@@ -60,38 +51,19 @@
                                 {% endfor %}
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                {{ form.gender.label(class="form-label") }}
-                                {{ form.gender(class="form-control" + (" is-invalid" if form.gender.errors else "")) }}
-                                {% for error in form.gender.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                                {% endfor %}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{{ url_for('records.family_members') }}" class="btn btn-outline-secondary me-md-2">
+                                    <i class="fas fa-arrow-left me-1"></i>Cancel
+                                </a>
+                                {{ form.submit(class="btn btn-primary") }}
                             </div>
                         </div>
                     </div>
-
-                    <!-- Physical Information -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <h5 class="text-secondary border-bottom pb-2 mb-3">
-                                <i class="fas fa-ruler me-2"></i>Physical Information
-                            </h5>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                {{ form.blood_type.label(class="form-label") }}
-                                {{ form.blood_type(class="form-control" + (" is-invalid" if form.blood_type.errors else "")) }}
-                                {% for error in form.blood_type.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                {{ form.height.label(class="form-label") }}
-                                {{ form.height(class="form-control" + (" is-invalid" if form.height.errors else "")) }}
-                                {% for error in form.height.errors %}
                                 <div class="invalid-feedback">{{ error }}</div>
                                 {% endfor %}
                             </div>

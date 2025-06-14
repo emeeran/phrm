@@ -70,19 +70,17 @@
                     </div>
 
                     <div class="mb-3">
-                        {{ form.documents.label(class="form-label") }}
-                        {{ form.documents(class="form-control" + (" is-invalid" if form.documents.errors else ""), id="documents-input", accept=".jpg,.jpeg,.png,.pdf", aria_describedby="documents-help") }}
-                        {% for error in form.documents.errors %}
+                        {{ form.file.label(class="form-label") }}
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else ""), id="file-input", accept=".jpg,.jpeg,.png,.pdf", aria_describedby="file-help") }}
+                        {% for error in form.file.errors %}
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
-                        <div id="documents-help" class="form-text">
+                        <div id="file-help" class="form-text">
                             <i class="fas fa-info-circle me-1"></i>
-                            <strong>Add more documents:</strong> Hold Ctrl/Cmd to select multiple files, or drag and drop files here.<br>
+                            <strong>Add document:</strong> Select a document to upload.<br>
                             <i class="fas fa-file-image me-1"></i> Supported formats: JPG, PNG, PDF<br>
                             <i class="fas fa-weight-hanging me-1"></i> Maximum size: 16MB per file
                         </div>
-                        <!-- File preview container -->
-                        <div id="file-preview" class="mt-3" style="display: none;"></div>
 
                         <!-- Show existing documents -->
                         {% if record.documents %}
