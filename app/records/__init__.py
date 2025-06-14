@@ -27,6 +27,7 @@ from .routes import (
     family_member_routes,
     file_routes,
     health_records_routes,
+    medical_conditions_routes,
 )
 
 # Create main blueprint
@@ -37,3 +38,4 @@ records_bp.register_blueprint(dashboard_routes)
 records_bp.register_blueprint(health_records_routes)
 records_bp.register_blueprint(family_member_routes)
 records_bp.register_blueprint(file_routes)
+records_bp.register_blueprint(medical_conditions_routes)

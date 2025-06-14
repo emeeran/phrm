@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Medical Conditions - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Medical Conditions Management</h1>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('records.medical_conditions_routes.create_condition') }}"
+                       class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Condition
+                    </a>
+                    <button type="button" class="btn btn-outline-primary" id="getInsightsBtn">
+                        <i class="fas fa-brain"></i> AI Insights
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-0">Active Conditions</h5>
+                                    <h3 class="mb-0">
+                                        {{ user_conditions.items|selectattr('current_status', 'equalto', 'active')|list|length +
+                                           family_conditions|sum(attribute='conditions')|selectattr('current_status', 'equalto', 'active')|list|length }}
+                                    </h3>
+                                </div>
+                                <i class="fas fa-heartbeat fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-0">Well Managed</h5>
+                                    <h3 class="mb-0">
+                                        {{ user_conditions.items|selectattr('current_status', 'equalto', 'managed')|list|length +
+                                           family_conditions|sum(attribute='conditions')|selectattr('current_status', 'equalto', 'managed')|list|length }}
+                                    </h3>
+                                </div>
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-0">Under Monitoring</h5>
+                                    <h3 class="mb-0">
+                                        {{ user_conditions.items|selectattr('current_status', 'equalto', 'monitoring')|list|length +
+                                           family_conditions|sum(attribute='conditions')|selectattr('current_status', 'equalto', 'monitoring')|list|length }}
+                                    </h3>
+                                </div>
+                                <i class="fas fa-eye fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-0">Resolved</h5>
+                                    <h3 class="mb-0">
+                                        {{ user_conditions.items|selectattr('current_status', 'equalto', 'resolved')|list|length +
+                                           family_conditions|sum(attribute='conditions')|selectattr('current_status', 'equalto', 'resolved')|list|length }}
+                                    </h3>
+                                </div>
+                                <i class="fas fa-smile fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User's Conditions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Your Medical Conditions</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_conditions.items %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Condition</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        <th>Severity</th>
+                                        <th>Quality of Life Impact</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for condition in user_conditions.items %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ condition.condition_name }}</strong>
+                                            {% if condition.icd_code %}
+                                                <br><small class="text-muted">ICD: {{ condition.icd_code }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-secondary">{{ condition.condition_category|title if condition.condition_category else 'Not specified' }}</span>
+                                        </td>
+                                        <td>
+                                            {% set status_class = 'primary' if condition.current_status == 'active' else
+                                                                  'success' if condition.current_status == 'managed' else
+                                                                  'warning' if condition.current_status == 'monitoring' else
+                                                                  'info' if condition.current_status == 'resolved' else 'secondary' %}
+                                            <span class="badge badge-{{ status_class }}">{{ condition.current_status|title }}</span>
+                                        </td>
+                                        <td>
+                                            {% if condition.severity %}
+                                                {% set severity_class = 'danger' if condition.severity == 'severe' else
+                                                                       'warning' if condition.severity == 'moderate' else 'success' %}
+                                                <span class="badge badge-{{ severity_class }}">{{ condition.severity|title }}</span>
+                                            {% else %}
+                                                <span class="text-muted">Not assessed</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if condition.quality_of_life_impact %}
+                                                {% set impact_class = 'danger' if condition.quality_of_life_impact == 'severe' else
+                                                                     'warning' if condition.quality_of_life_impact == 'significant' else
+                                                                     'info' if condition.quality_of_life_impact == 'moderate' else 'success' %}
+                                                <span class="badge badge-{{ impact_class }}">{{ condition.quality_of_life_impact|title }}</span>
+                                            {% else %}
+                                                <span class="text-muted">Not assessed</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ condition.updated_at.strftime('%Y-%m-%d') if condition.updated_at else condition.created_at.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('records.medical_conditions_routes.view_condition', condition_id=condition.id) }}"
+                                                   class="btn btn-outline-primary" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('records.medical_conditions_routes.edit_condition', condition_id=condition.id) }}"
+                                                   class="btn btn-outline-secondary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{{ url_for('records.medical_conditions_routes.add_progress_note', condition_id=condition.id) }}"
+                                                   class="btn btn-outline-success" title="Add Progress Note">
+                                                    <i class="fas fa-plus"></i>
+                                                </a>
+                                                <button class="btn btn-outline-info analyze-btn"
+                                                        data-condition-id="{{ condition.id }}"
+                                                        title="AI Analysis">
+                                                    <i class="fas fa-brain"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if user_conditions.pages > 1 %}
+                        <nav aria-label="Conditions pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if user_conditions.has_prev %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('records.medical_conditions_routes.list_conditions', page=user_conditions.prev_num) }}">Previous</a>
+                                    </li>
+                                {% endif %}
+
+                                {% for page_num in user_conditions.iter_pages() %}
+                                    {% if page_num %}
+                                        {% if page_num != user_conditions.page %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="{{ url_for('records.medical_conditions_routes.list_conditions', page=page_num) }}">{{ page_num }}</a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ page_num }}</span>
+                                            </li>
+                                        {% endif %}
+                                    {% else %}
+                                        <li class="page-item disabled">
+                                            <span class="page-link">...</span>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if user_conditions.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('records.medical_conditions_routes.list_conditions', page=user_conditions.next_num) }}">Next</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-heart fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No medical conditions recorded yet</h5>
+                            <p class="text-muted">Start by adding your first medical condition to track your health journey.</p>
+                            <a href="{{ url_for('records.medical_conditions_routes.create_condition') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add First Condition
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Family Members' Conditions -->
+            {% if family_conditions %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Family Members' Medical Conditions</h5>
+                </div>
+                <div class="card-body">
+                    {% for family_data in family_conditions %}
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2">
+                            {{ family_data.family_member.first_name }} {{ family_data.family_member.last_name }}
+                            <small class="text-muted">({{ family_data.family_member.relationship|title }})</small>
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Condition</th>
+                                        <th>Status</th>
+                                        <th>Severity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for condition in family_data.conditions %}
+                                    <tr>
+                                        <td>{{ condition.condition_name }}</td>
+                                        <td>
+                                            {% set status_class = 'primary' if condition.current_status == 'active' else
+                                                                  'success' if condition.current_status == 'managed' else
+                                                                  'warning' if condition.current_status == 'monitoring' else
+                                                                  'info' if condition.current_status == 'resolved' else 'secondary' %}
+                                            <span class="badge badge-{{ status_class }} badge-sm">{{ condition.current_status|title }}</span>
+                                        </td>
+                                        <td>
+                                            {% if condition.severity %}
+                                                {% set severity_class = 'danger' if condition.severity == 'severe' else
+                                                                       'warning' if condition.severity == 'moderate' else 'success' %}
+                                                <span class="badge badge-{{ severity_class }} badge-sm">{{ condition.severity|title }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('records.medical_conditions_routes.view_condition', condition_id=condition.id) }}"
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('records.medical_conditions_routes.edit_condition', condition_id=condition.id) }}"
+                                                   class="btn btn-outline-secondary btn-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- AI Analysis Modal -->
+<div class="modal fade" id="aiAnalysisModal" tabindex="-1" role="dialog" aria-labelledby="aiAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiAnalysisModalLabel">AI Condition Analysis</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="aiAnalysisContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="mt-2">Analyzing condition with AI...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights Modal -->
+<div class="modal fade" id="aiInsightsModal" tabindex="-1" role="dialog" aria-labelledby="aiInsightsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiInsightsModalLabel">Comprehensive Health Insights</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="aiInsightsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="mt-2">Generating comprehensive health insights...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Handle individual condition analysis
+    $('.analyze-btn').click(function() {
+        const conditionId = $(this).data('condition-id');
+        $('#aiAnalysisModal').modal('show');
+
+        $.get(`/records/conditions/${conditionId}/analyze`)
+            .done(function(data) {
+                let content = `
+                    <div class="alert alert-info">
+                        <strong>Analysis for:</strong> ${data.condition_name}<br>
+                        <strong>Analysis Date:</strong> ${new Date(data.analysis_date).toLocaleString()}<br>
+                        <strong>Data Points Analyzed:</strong> ${data.data_points_analyzed}
+                    </div>
+                    <div class="condition-analysis">
+                        ${data.analysis.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+                $('#aiAnalysisContent').html(content);
+            })
+            .fail(function() {
+                $('#aiAnalysisContent').html(`
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> Failed to generate AI analysis. Please try again later.
+                    </div>
+                `);
+            });
+    });
+
+    // Handle comprehensive insights
+    $('#getInsightsBtn').click(function() {
+        $('#aiInsightsModal').modal('show');
+
+        $.get('/records/conditions/insights')
+            .done(function(data) {
+                let content = `
+                    <div class="alert alert-info">
+                        <strong>Conditions Analyzed:</strong> ${data.conditions_count}<br>
+                        <strong>Analysis Date:</strong> ${new Date(data.analysis_date).toLocaleString()}
+                    </div>
+                    <div class="health-insights">
+                        ${data.insights.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+                $('#aiInsightsContent').html(content);
+            })
+            .fail(function() {
+                $('#aiInsightsContent').html(`
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> Failed to generate comprehensive insights. Please try again later.
+                    </div>
+                `);
+            });
+    });
+});
+</script>
+{% endblock %}

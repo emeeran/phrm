@@ -37,6 +37,55 @@ class HealthRecord(db.Model):
     notes = db.Column(db.Text, nullable=True)
     review_followup = db.Column(db.Text, nullable=True)
 
+    # Enhanced doctor visit tracking fields
+    appointment_type = db.Column(
+        db.String(100), nullable=True
+    )  # consultation, follow-up, emergency, routine
+    doctor_specialty = db.Column(
+        db.String(100), nullable=True
+    )  # cardiology, neurology, general practice, etc.
+    clinic_hospital = db.Column(db.String(200), nullable=True)  # facility name
+    visit_duration = db.Column(db.Integer, nullable=True)  # minutes
+    insurance_claim = db.Column(
+        db.String(100), nullable=True
+    )  # claim number if applicable
+    cost = db.Column(db.Float, nullable=True)  # visit cost
+
+    # Medical condition tracking
+    current_symptoms = db.Column(
+        db.Text, nullable=True
+    )  # active symptoms at time of visit
+    vital_signs = db.Column(
+        db.Text, nullable=True
+    )  # blood pressure, heart rate, temperature, etc.
+    medical_urgency = db.Column(
+        db.String(20), nullable=True, default="routine"
+    )  # routine, urgent, emergency
+
+    # Treatment and prognosis tracking
+    treatment_plan = db.Column(db.Text, nullable=True)  # detailed treatment plan
+    medication_changes = db.Column(db.Text, nullable=True)  # changes to medications
+    prognosis = db.Column(db.Text, nullable=True)  # doctor's prognosis
+    next_appointment = db.Column(db.DateTime, nullable=True)  # scheduled follow-up
+
+    # Condition progression tracking
+    condition_status = db.Column(
+        db.String(50), nullable=True
+    )  # improving, stable, worsening, resolved
+    pain_scale = db.Column(db.Integer, nullable=True)  # 1-10 pain scale if applicable
+    functional_status = db.Column(
+        db.Text, nullable=True
+    )  # how condition affects daily activities
+
+    # Link to ongoing medical conditions
+    related_condition_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "medical_conditions.id", name="fk_health_records_related_condition"
+        ),
+        nullable=True,
+    )
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

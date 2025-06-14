@@ -10,6 +10,7 @@ from .ai_audit import AIAuditLog, AIComplianceReport, AIDataAccess, AIOperationM
 # Import database instance and core models
 from .core.base import db, user_family
 from .core.health_record import AISummary, Document, HealthRecord
+from .core.medical_condition import ConditionProgressNote, MedicalCondition
 from .core.user import FamilyMember, User
 
 # Import security models
@@ -26,9 +27,11 @@ __all__ = [
     "AISecurityEvent",
     # Core models
     "AISummary",
+    "ConditionProgressNote",
     "Document",
     "FamilyMember",
     "HealthRecord",
+    "MedicalCondition",
     "User",
     # Database
     "db",
