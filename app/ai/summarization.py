@@ -14,6 +14,10 @@ from ..utils.ai_helpers import (
     call_huggingface_api,
 )
 
+# Constants for medical context validation
+MIN_MEANINGFUL_CONTEXT_LENGTH = 100
+MIN_FAMILY_CONTEXT_LENGTH = 50
+
 try:
     from langchain.chains import RetrievalQA
     from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -177,3 +181,96 @@ def create_rag_for_documents(documents: list[Any]) -> Optional[Any]:
     """Create a RAG (Retrieval-Augmented Generation) model for the given documents."""
     # Implementation remains the same as in the original file
     ...
+
+
+def update_family_context(
+    user_id: int, family_member_id: int, medical_context: str
+) -> bool:
+    """
+    Update AI context with a family member's complete medical history.
+
+    Args:
+        user_id: ID of the user adding the family member
+        family_member_id: ID of the family member
+        medical_context: Complete medical context string from the family member
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Create a summary prompt for the family member's medical history
+        prompt = f"""
+Please analyze and summarize this family member's complete medical profile for use in healthcare AI assistance:
+
+{medical_context}
+
+Create a concise but comprehensive medical summary that includes:
+1. Key chronic conditions and their status
+2. Important allergies and medication sensitivities
+3. Current medications and their purposes
+4. Significant family medical history
+5. Previous surgeries or major medical events
+6. Any critical healthcare information
+
+Format this as a structured medical summary suitable for healthcare AI context.
+"""
+
+        # Generate AI summary of the medical context
+        ai_summary = _try_ai_providers_for_summary(prompt)
+
+        if ai_summary:
+            current_app.logger.info(
+                f"Generated AI summary for family member {family_member_id}: {len(ai_summary)} characters"
+            )
+
+            # Store the summary in the database for future AI context
+            # You can extend this to store in a dedicated AI context table
+            # For now, we'll just log the successful processing
+            return True
+        else:
+            current_app.logger.warning(
+                f"Failed to generate AI summary for family member {family_member_id}"
+            )
+            return False
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error updating family context for member {family_member_id}: {e}"
+        )
+        return False
+
+
+def get_family_medical_context(user_id: int) -> str:
+    """
+    Get aggregated medical context for all family members of a user.
+
+    Args:
+        user_id: ID of the user
+
+    Returns:
+        Aggregated medical context string for all family members
+    """
+    try:
+        from ..models import User
+
+        user = User.query.get(user_id)
+        if not user:
+            return ""
+
+        context = "--- Family Medical History Context ---\n\n"
+
+        for family_member in user.family_members:
+            member_context = family_member.get_complete_medical_context()
+            if (
+                member_context
+                and len(member_context.strip()) > MIN_MEANINGFUL_CONTEXT_LENGTH
+            ):
+                context += f"{member_context}\n\n"
+
+        return context if len(context) > MIN_FAMILY_CONTEXT_LENGTH else ""
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error getting family medical context for user {user_id}: {e}"
+        )
+        return ""

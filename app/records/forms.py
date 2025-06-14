@@ -118,9 +118,14 @@ class RecordForm(FlaskForm, SecurityValidationMixin):
 
 
 class FamilyMemberForm(FlaskForm, SecurityValidationMixin):
-    """Family member form"""
+    """Family member form with medical history"""
 
-    name = StringField("Name", validators=[DataRequired(), Length(min=2, max=100)])
+    first_name = StringField(
+        "First Name", validators=[DataRequired(), Length(min=2, max=50)]
+    )
+    last_name = StringField(
+        "Last Name", validators=[DataRequired(), Length(min=2, max=50)]
+    )
     relationship = SelectField(
         "Relationship",
         choices=[
@@ -135,7 +140,98 @@ class FamilyMemberForm(FlaskForm, SecurityValidationMixin):
         validators=[DataRequired()],
     )
     date_of_birth = DateField("Date of Birth", validators=[Optional()])
-    submit = SubmitField("Save")
+
+    # Basic Information
+    gender = SelectField(
+        "Gender",
+        choices=[
+            ("", "Select Gender"),
+            ("male", "Male"),
+            ("female", "Female"),
+            ("other", "Other"),
+        ],
+        validators=[Optional()],
+    )
+    blood_type = SelectField(
+        "Blood Type",
+        choices=[
+            ("", "Select Blood Type"),
+            ("A+", "A+"),
+            ("A-", "A-"),
+            ("B+", "B+"),
+            ("B-", "B-"),
+            ("AB+", "AB+"),
+            ("AB-", "AB-"),
+            ("O+", "O+"),
+            ("O-", "O-"),
+        ],
+        validators=[Optional()],
+    )
+
+    # Medical History
+    allergies = TextAreaField(
+        "Known Allergies",
+        validators=[Optional(), Length(max=2000)],
+        render_kw={
+            "rows": 3,
+            "placeholder": "Food allergies, drug allergies, environmental allergies",
+        },
+    )
+    chronic_conditions = TextAreaField(
+        "Chronic Conditions",
+        validators=[Optional(), Length(max=2000)],
+        render_kw={"rows": 3, "placeholder": "Diabetes, hypertension, asthma, etc."},
+    )
+    current_medications = TextAreaField(
+        "Current Medications",
+        validators=[Optional(), Length(max=2000)],
+        render_kw={"rows": 3, "placeholder": "Current prescriptions and dosages"},
+    )
+    family_medical_history = TextAreaField(
+        "Family Medical History",
+        validators=[Optional(), Length(max=3000)],
+        render_kw={
+            "rows": 4,
+            "placeholder": "Hereditary conditions, family history of diseases",
+        },
+    )
+    surgical_history = TextAreaField(
+        "Surgical History",
+        validators=[Optional(), Length(max=2000)],
+        render_kw={"rows": 3, "placeholder": "Previous surgeries and procedures"},
+    )
+
+    # Emergency Contact
+    emergency_contact_name = StringField(
+        "Emergency Contact Name",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "Emergency contact person"},
+    )
+    emergency_contact_phone = StringField(
+        "Emergency Contact Phone",
+        validators=[Optional(), Length(max=20)],
+        render_kw={"placeholder": "Emergency contact phone number"},
+    )
+
+    # Healthcare Information
+    primary_doctor = StringField(
+        "Primary Doctor",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "Primary care physician"},
+    )
+    insurance_provider = StringField(
+        "Insurance Provider",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "Health insurance company"},
+    )
+
+    notes = TextAreaField(
+        "Additional Notes",
+        validators=[Optional(), Length(max=3000)],
+        render_kw={"rows": 4, "placeholder": "Any additional medical information"},
+    )
+
+    submit = SubmitField("Save Family Member")
 
 
 class MedicalConditionForm(FlaskForm, SecurityValidationMixin):

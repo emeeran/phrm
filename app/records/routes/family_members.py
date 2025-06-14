@@ -22,6 +22,9 @@ from ...models import Document, FamilyMember, HealthRecord, db
 from ...utils.shared import log_security_event, monitor_performance, sanitize_html
 from ..forms import FamilyMemberForm
 
+# Constants for medical context validation
+MIN_MEANINGFUL_CONTEXT_LENGTH = 100
+
 family_member_routes = Blueprint("family_member_routes", __name__)
 
 
@@ -91,7 +94,29 @@ def add_family_member():
             )
             notes = sanitize_html(form.notes.data) if form.notes.data else None
 
-            # Create new family member
+            # Sanitize contact and healthcare info
+            emergency_contact_name = (
+                sanitize_html(form.emergency_contact_name.data.strip())
+                if form.emergency_contact_name.data
+                else None
+            )
+            emergency_contact_phone = (
+                sanitize_html(form.emergency_contact_phone.data.strip())
+                if form.emergency_contact_phone.data
+                else None
+            )
+            primary_doctor = (
+                sanitize_html(form.primary_doctor.data.strip())
+                if form.primary_doctor.data
+                else None
+            )
+            insurance_provider = (
+                sanitize_html(form.insurance_provider.data.strip())
+                if form.insurance_provider.data
+                else None
+            )
+
+            # Create new family member with all fields
             family_member = FamilyMember(
                 first_name=first_name,
                 last_name=last_name,
@@ -99,19 +124,29 @@ def add_family_member():
                 relationship=relationship,
                 gender=gender,
                 blood_type=blood_type,
-                height=form.height.data,
-                weight=form.weight.data,
                 family_medical_history=family_medical_history,
                 surgical_history=surgical_history,
                 current_medications=current_medications,
                 allergies=allergies,
                 chronic_conditions=chronic_conditions,
+                emergency_contact_name=emergency_contact_name,
+                emergency_contact_phone=emergency_contact_phone,
+                primary_doctor=primary_doctor,
+                insurance_provider=insurance_provider,
                 notes=notes,
-                user_id=current_user.id,
             )
 
+            # Add family member to current user's family
+            current_user.family_members.append(family_member)
             db.session.add(family_member)
             db.session.commit()
+
+            # Update AI context with new family member's medical history
+            try:
+                _update_ai_context_for_new_family_member(family_member)
+            except Exception as ai_error:
+                current_app.logger.warning(f"Failed to update AI context: {ai_error}")
+                # Don't fail the family member creation if AI update fails
 
             # Log successful family member creation
             log_security_event(
@@ -120,14 +155,20 @@ def add_family_member():
                     "user_id": current_user.id,
                     "family_member_id": family_member.id,
                     "family_member_name": f"{first_name} {last_name}",
+                    "has_medical_history": bool(
+                        family_medical_history
+                        or chronic_conditions
+                        or allergies
+                        or current_medications
+                    ),
                 },
             )
 
             flash(
-                f"Family member {first_name} {last_name} added successfully!",
+                f"Family member {first_name} {last_name} added successfully! Their medical history is now available to the AI.",
                 "success",
             )
-            return redirect(url_for("records.list_family"))
+            return redirect(url_for("records.family_member_routes.list_family"))
 
         except Exception as e:
             db.session.rollback()
@@ -184,8 +225,6 @@ def edit_family_member(family_member_id):
                 if form.blood_type.data
                 else None
             )
-            family_member.height = form.height.data
-            family_member.weight = form.weight.data
             family_member.family_medical_history = (
                 sanitize_html(form.family_medical_history.data)
                 if form.family_medical_history.data
@@ -209,11 +248,37 @@ def edit_family_member(family_member_id):
                 if form.chronic_conditions.data
                 else None
             )
+            family_member.emergency_contact_name = (
+                sanitize_html(form.emergency_contact_name.data.strip())
+                if form.emergency_contact_name.data
+                else None
+            )
+            family_member.emergency_contact_phone = (
+                sanitize_html(form.emergency_contact_phone.data.strip())
+                if form.emergency_contact_phone.data
+                else None
+            )
+            family_member.primary_doctor = (
+                sanitize_html(form.primary_doctor.data.strip())
+                if form.primary_doctor.data
+                else None
+            )
+            family_member.insurance_provider = (
+                sanitize_html(form.insurance_provider.data.strip())
+                if form.insurance_provider.data
+                else None
+            )
             family_member.notes = (
                 sanitize_html(form.notes.data) if form.notes.data else None
             )
 
             db.session.commit()
+
+            # Update AI context with updated medical history
+            try:
+                _update_ai_context_for_new_family_member(family_member)
+            except Exception as ai_error:
+                current_app.logger.warning(f"Failed to update AI context: {ai_error}")
 
             # Log successful family member update
             log_security_event(
@@ -229,7 +294,7 @@ def edit_family_member(family_member_id):
                 f"Family member {family_member.first_name} {family_member.last_name} updated successfully!",
                 "success",
             )
-            return redirect(url_for("records.list_family"))
+            return redirect(url_for("records.family_member_routes.list_family"))
 
         except Exception as e:
             db.session.rollback()
@@ -378,6 +443,40 @@ def view_family_member(family_member_id):
 # Helper functions for family member operations
 
 
+def _update_ai_context_for_new_family_member(family_member):
+    """Update AI context with new family member's complete medical history"""
+    try:
+        # Import AI services here to avoid circular imports
+        from ...ai.summarization import update_family_context
+
+        # Get complete medical context for this family member
+        medical_context = family_member.get_complete_medical_context()
+
+        # Update AI context if we have medical information
+        if (
+            medical_context
+            and len(medical_context.strip()) > MIN_MEANINGFUL_CONTEXT_LENGTH
+        ):  # Basic check for meaningful content
+            update_family_context(current_user.id, family_member.id, medical_context)
+            current_app.logger.info(
+                f"Updated AI context for family member {family_member.id}"
+            )
+        else:
+            current_app.logger.info(
+                f"No significant medical history to add to AI context for family member {family_member.id}"
+            )
+
+    except ImportError:
+        current_app.logger.warning(
+            "AI summarization module not available - skipping context update"
+        )
+    except Exception as e:
+        current_app.logger.error(
+            f"Failed to update AI context for family member {family_member.id}: {e}"
+        )
+        raise
+
+
 def _populate_family_member_form(form, family_member):
     """Populate form with existing family member data"""
     form.first_name.data = family_member.first_name
@@ -386,11 +485,13 @@ def _populate_family_member_form(form, family_member):
     form.relationship.data = family_member.relationship
     form.gender.data = family_member.gender
     form.blood_type.data = family_member.blood_type
-    form.height.data = family_member.height
-    form.weight.data = family_member.weight
     form.family_medical_history.data = family_member.family_medical_history
     form.surgical_history.data = family_member.surgical_history
     form.current_medications.data = family_member.current_medications
     form.allergies.data = family_member.allergies
     form.chronic_conditions.data = family_member.chronic_conditions
+    form.emergency_contact_name.data = family_member.emergency_contact_name
+    form.emergency_contact_phone.data = family_member.emergency_contact_phone
+    form.primary_doctor.data = family_member.primary_doctor
+    form.insurance_provider.data = family_member.insurance_provider
     form.notes.data = family_member.notes
