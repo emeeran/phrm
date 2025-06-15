@@ -149,40 +149,39 @@ def create_record():
             db.session.add(record)
             db.session.commit()
 
-            # Handle multiple document uploads if provided
-            if form.documents.data:
-                files = request.files.getlist("documents")
-                upload_count = 0
-                for file in files:
-                    if file and file.filename:  # Check if file is not empty
-                        try:
-                            file_info = save_document(file, record.id)
+            # Handle document upload if provided
+            if form.file.data:
+                file = form.file.data
+                if file and file.filename:  # Check if file is not empty
+                    try:
+                        file_info = save_document(file, record.id)
 
-                            # Create document record
-                            document = Document(
-                                filename=file_info["filename"],
-                                file_path=file_info["file_path"],
-                                file_type=file_info["file_type"],
-                                file_size=file_info["file_size"],
-                                extracted_text=file_info["extracted_text"],
-                                health_record_id=record.id,
-                            )
-                            db.session.add(document)
-                            upload_count += 1
-                        except Exception as e:
-                            current_app.logger.error(
-                                f"Error uploading file {file.filename}: {e}"
-                            )
-                            flash(
-                                f"Error uploading file {file.filename}: {e!s}",
-                                "warning",
-                            )
-
-                if upload_count > 0:
-                    db.session.commit()
-                    current_app.logger.info(
-                        f"Successfully uploaded {upload_count} files for record {record.id}"
-                    )
+                        # Create document record
+                        document = Document(
+                            filename=file_info["filename"],
+                            file_path=file_info["file_path"],
+                            content_type=file_info[
+                                "file_type"
+                            ],  # Map file_type to content_type
+                            file_size=file_info["file_size"],
+                            extracted_text=file_info[
+                                "extracted_text"
+                            ],  # Store OCR content for AI
+                            health_record_id=record.id,
+                        )
+                        db.session.add(document)
+                        db.session.commit()
+                        current_app.logger.info(
+                            f"Successfully uploaded file for record {record.id}. Extracted {len(file_info['extracted_text']) if file_info['extracted_text'] else 0} characters."
+                        )
+                    except Exception as e:
+                        current_app.logger.error(
+                            f"Error uploading file {file.filename}: {e}"
+                        )
+                        flash(
+                            f"Error uploading file {file.filename}: {e!s}",
+                            "warning",
+                        )
 
             # Log successful record creation
             log_security_event(
@@ -195,7 +194,11 @@ def create_record():
             )
 
             flash("Health record created successfully!", "success")
-            return redirect(url_for("records.view_record", record_id=record.id))
+            return redirect(
+                url_for(
+                    "records.health_records_routes.view_record", record_id=record.id
+                )
+            )
 
         except Exception as e:
             db.session.rollback()
@@ -247,7 +250,9 @@ def view_record(record_id):
             {"user_id": current_user.id, "record_id": record_id},
         )
 
-        return render_template("records/view.html", title=record.title, record=record)
+        return render_template(
+            "records/view.html", title="Health Record", record=record
+        )
 
     except Exception as e:
         current_app.logger.error(f"Error viewing record {record_id}: {e}")
@@ -480,33 +485,33 @@ def _update_family_member_assignment(record, form, record_id):
 
 def _handle_document_uploads(form, record):
     """Handle document uploads for record"""
-    if not form.documents.data:
+    if not form.file.data:
         return
 
-    files = request.files.getlist("documents")
-    upload_count = 0
-    for file in files:
-        if file and file.filename:  # Check if file is not empty
-            try:
-                file_info = save_document(file, record.id)
+    file = form.file.data
+    if file and file.filename:  # Check if file is not empty
+        try:
+            file_info = save_document(file, record.id)
 
-                # Create document record
-                document = Document(
-                    filename=file_info["filename"],
-                    file_path=file_info["file_path"],
-                    file_type=file_info["file_type"],
-                    file_size=file_info["file_size"],
-                    extracted_text=file_info["extracted_text"],
-                    health_record_id=record.id,
-                )
-                db.session.add(document)
-                upload_count += 1
-            except Exception as e:
-                current_app.logger.error(f"Error uploading file {file.filename}: {e}")
-                flash(
-                    f"Error uploading file {file.filename}: {e!s}",
-                    "warning",
-                )
+            # Create document record
+            document = Document(
+                filename=file_info["filename"],
+                file_path=file_info["file_path"],
+                content_type=file_info["file_type"],  # Map file_type to content_type
+                file_size=file_info["file_size"],
+                extracted_text=file_info["extracted_text"],  # Store OCR content for AI
+                health_record_id=record.id,
+            )
+            db.session.add(document)
+            current_app.logger.info(
+                f"Successfully uploaded file for record {record.id}. Extracted {len(file_info['extracted_text']) if file_info['extracted_text'] else 0} characters."
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error uploading file {file.filename}: {e}")
+            flash(
+                f"Error uploading file {file.filename}: {e!s}",
+                "warning",
+            )
 
 
 def _populate_form_with_record_data(form, record):

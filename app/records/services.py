@@ -187,7 +187,9 @@ class RecordService:
                     document = Document(
                         filename=file_info["filename"],
                         file_path=file_info["file_path"],
-                        file_type=file_info["file_type"],
+                        content_type=file_info[
+                            "file_type"
+                        ],  # Map file_type to content_type
                         file_size=file_info["file_size"],
                         extracted_text=file_info["extracted_text"],
                         health_record_id=record.id,
@@ -390,11 +392,10 @@ class RecordQueryService:
         if search:
             search_term = f"%{search}%"
             query = query.filter(
-                (HealthRecord.title.ilike(search_term))
-                | (HealthRecord.description.ilike(search_term))
-                | (HealthRecord.chief_complaint.ilike(search_term))
+                (HealthRecord.chief_complaint.ilike(search_term))
                 | (HealthRecord.diagnosis.ilike(search_term))
                 | (HealthRecord.notes.ilike(search_term))
+                | (HealthRecord.doctor.ilike(search_term))
             )
 
         return query.order_by(HealthRecord.date.desc())

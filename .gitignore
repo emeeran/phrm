@@ -23,6 +23,14 @@ uploads/
 logs/
 *.log
 
+# Vector stores and RAG data
+reference_books/.vector_store/
+reference_books/.vector_store_isolated/
+reference_books/.metadata.json
+*.vector_store/
+.chroma/
+vectorization.log
+
 # Build/deployment
 build/
 dist/
@@ -72,6 +80,8 @@ uploads/*
 !uploads/.gitkeep
 logs/
 *.log
+app/reference_books/
+reference_books/
 
 # Desktop shortcut (if not needed in repo)
 usr/share/applications/phrm.desktop

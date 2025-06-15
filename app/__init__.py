@@ -32,16 +32,29 @@ def get_limiter_key():
 
 
 # Try to use Redis for rate limiting, fallback to in-memory
+redis_available = False
 try:
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     import redis
 
     r = redis.from_url(redis_url, decode_responses=True)
     r.ping()
-    limiter = Limiter(key_func=get_limiter_key, storage_uri=redis_url)
-except Exception:
-    # Fallback to in-memory storage
-    limiter = Limiter(key_func=get_limiter_key)
+    limiter = Limiter(
+        key_func=get_limiter_key,
+        storage_uri=redis_url,
+        default_limits=["100 per hour", "20 per minute"],
+    )
+    redis_available = True
+    print("✅ Redis connected successfully for rate limiting")
+except Exception as e:
+    # Fallback to in-memory storage with explicit configuration
+    limiter = Limiter(
+        key_func=get_limiter_key,
+        storage_uri="memory://",  # Explicitly specify in-memory storage
+        default_limits=["100 per hour", "20 per minute"],
+    )
+    print(f"⚠️ Redis unavailable, using in-memory rate limiting: {e}")
+    print("   This is acceptable for development but not recommended for production.")
 
 cache = Cache()
 talisman = Talisman()
@@ -78,6 +91,15 @@ def _initialize_extensions(app):
     limiter.init_app(app)
     cache.init_app(app)
 
+    # Initialize RAG service for medical reference books (temporarily disabled for troubleshooting)
+    # with app.app_context():
+    #     try:
+    #         from .utils.local_rag import initialize_rag
+    #         initialize_rag()
+    #     except Exception as e:
+    #         app.logger.error(f"Failed to initialize RAG service: {e}")
+    #         app.logger.info("Application will continue without RAG functionality")
+
 
 def _configure_security(app):
     """Configure security settings including Talisman"""
@@ -111,6 +133,11 @@ def _register_blueprints(app):
     from .ai import ai_bp
 
     app.register_blueprint(ai_bp)
+
+    # Register RAG blueprint
+    from .ai.routes.rag import rag_bp
+
+    app.register_blueprint(rag_bp)
 
     from .api import api_bp
 

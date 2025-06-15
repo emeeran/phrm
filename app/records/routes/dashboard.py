@@ -8,6 +8,7 @@ from flask import Blueprint, render_template
 from flask_login import current_user, login_required
 
 from ...models import HealthRecord
+from ...utils.local_rag import get_rag_status
 from ...utils.shared import monitor_performance
 
 dashboard_routes = Blueprint("dashboard_routes", __name__)
@@ -42,10 +43,14 @@ def dashboard():
             .all()
         )
 
+    # Get RAG system status and available references
+    rag_status = get_rag_status()
+
     return render_template(
         "records/dashboard.html",
         title="Dashboard",
         own_records=own_records,
         family_records=family_records,
         family_members=family_members,
+        rag_status=rag_status,
     )

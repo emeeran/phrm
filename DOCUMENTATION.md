@@ -26,14 +26,17 @@ PHRM is a secure, production-ready Flask-based Personal Health Record Manager th
 - **Secure Health Record Management**: Create, view, edit, and organize health records
 - **Family Member Support**: Manage health records for family members
 - **AI Medical Assistant**: Chat interface with medical AI models (MedGemma, GROQ, DeepSeek)
-- **Document Storage**: Upload and manage medical documents (PDF, images)
-- **AI Summarization**: Generate summaries of health records
+- **Local RAG System**: Enhanced AI responses using vectorized medical reference books
+- **Document Storage**: Upload and manage medical documents with automatic OCR text extraction
+- **AI Summarization**: Generate summaries of health records with reference context
 - **Security-First Design**: Comprehensive security features and audit logging
 - **Production Ready**: Optimized for production deployment with Docker support
 
 ### 🏗️ Technology Stack
 - **Backend**: Flask 3.1+, Python 3.9+
 - **Database**: SQLAlchemy with PostgreSQL/SQLite support
+- **Vector Database**: ChromaDB for Local RAG functionality
+- **Document Processing**: PyMuPDF for PDF text extraction
 - **Caching**: Redis for session management and rate limiting
 - **Security**: Flask-Talisman, bcrypt, CSRF protection
 - **AI Integration**: Hugging Face Inference API, GROQ, DeepSeek
@@ -120,9 +123,7 @@ def create_app(config_name=None):
 ```bash
 git clone <repository-url>
 cd phrm
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+uv sync
 ```
 
 #### 2. Environment Configuration
@@ -148,7 +149,23 @@ python run.py
 flask run
 ```
 
-#### 5. Access Application
+#### 5. Local RAG Setup (Optional)
+```bash
+# Create reference books directory
+mkdir -p reference_books
+
+# Place PDF medical reference books in the directory
+# Example: cp ~/medical-books/*.pdf reference_books/
+
+# Process reference books for AI enhancement
+./scripts/run_vectorization.sh
+# Choose option 2 to vectorize books
+
+# Verify RAG status
+python scripts/rag_manager.py status
+```
+
+#### 6. Access Application
 Open http://localhost:5000 in your browser.
 
 ### 🐳 Docker Setup
@@ -219,6 +236,10 @@ UPLOAD_FOLDER=uploads
 # Rate Limiting
 RATELIMIT_DEFAULT=100 per hour
 RATELIMIT_STORAGE_URL=redis://localhost:6379/0
+
+# Local RAG Configuration
+RAG_ISOLATED_MODE=false  # Set to true for standalone processing scripts
+REFERENCE_BOOKS_PATH=reference_books  # Path to PDF reference books
 ```
 
 ### 📁 Configuration Classes
@@ -476,6 +497,45 @@ X-RateLimit-Reset: 3600
 - **Record Summarization**: AI-generated health record summaries
 - **Symptom Analysis**: Symptom checker functionality
 - **Health Insights**: Personalized health recommendations
+- **Local RAG**: Enhanced responses using vectorized medical reference books
+
+### 📚 Local RAG (Retrieval-Augmented Generation)
+
+#### Overview
+The Local RAG system enhances AI responses by providing context from vectorized medical reference books. This allows the AI to give more accurate, evidence-based medical information.
+
+#### Features
+- **PDF Vectorization**: Automatic processing of medical reference books
+- **Semantic Search**: Find relevant medical content for user queries
+- **Context Integration**: Seamlessly integrate reference content into AI responses
+- **Separate Processing**: Vectorization runs independently from app startup
+- **Process Isolation**: Safe concurrent operation with the main application
+
+#### Setup Process
+1. **Add Reference Books**: Place PDF medical references in `reference_books/` directory
+2. **Run Vectorization**: Use `./scripts/run_vectorization.sh` for interactive setup
+3. **Verify Status**: Check processing status via dashboard or CLI tools
+4. **Enhanced AI**: AI responses automatically include relevant reference context
+
+#### Management Commands
+```bash
+# Interactive management
+./scripts/run_vectorization.sh
+
+# Command-line management
+python scripts/rag_manager.py status
+python scripts/rag_manager.py vectorize
+python scripts/rag_manager.py refresh
+python scripts/rag_manager.py clean
+python scripts/rag_manager.py test
+```
+
+#### Technical Architecture
+- **Vector Database**: ChromaDB for semantic similarity search
+- **Text Processing**: PyMuPDF for PDF text extraction
+- **Isolation**: Separate vector stores for app vs standalone processing
+- **API Integration**: RESTful endpoints for RAG management
+- **Background Processing**: Non-blocking vectorization with progress tracking
 
 ### 🔧 Configuration
 
@@ -689,8 +749,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # Development dependencies
+uv sync
+uv sync --group dev  # Development dependencies
 
 # Setup pre-commit hooks
 pre-commit install

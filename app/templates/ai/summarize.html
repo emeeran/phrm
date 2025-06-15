@@ -17,6 +17,29 @@
                             This tool uses AI to create a summary of your health record that's easier to understand.
                             The summary is created just for you and is not shared with anyone else.
                         </div>
+
+                        {% if record_stats %}
+                        <div class="alert alert-light border">
+                            <h6 class="mb-2"><i class="fas fa-chart-bar me-2"></i>Record Analysis</h6>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <small class="text-muted">
+                                        Content Richness:
+                                        <span class="badge bg-{% if record_stats.richness_score >= 80 %}success{% elif record_stats.richness_score >= 50 %}warning{% else %}secondary{% endif %}">
+                                            {{ record_stats.richness_score }}/100
+                                        </span>
+                                    </small>
+                                </div>
+                                <div class="col-md-4">
+                                    {% if record_stats.document_count > 0 %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-file-medical me-1"></i>{{ record_stats.document_count }} document(s)
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -93,11 +116,16 @@
                         </a>
                         {% endif %}
 
-                        <form method="POST" class="mt-4">
+                        <form method="POST" class="mt-4" id="summaryForm">
                             <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-magic me-1"></i>{{ 'Regenerate Summary' if existing_summary else
-                                    'Generate Summary' }}
+                                <button type="submit" class="btn btn-primary" id="generateBtn">
+                                    <span id="btnText">
+                                        <i class="fas fa-magic me-1"></i>{{ 'Regenerate Summary' if existing_summary else
+                                        'Generate Summary' }}
+                                    </span>
+                                    <span id="btnLoading" class="d-none">
+                                        <i class="fas fa-spinner fa-spin me-1"></i>Generating...
+                                    </span>
                                 </button>
                                 <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}"
                                     class="btn btn-outline-secondary">
@@ -111,9 +139,44 @@
             <div class="card-footer bg-light">
                 <small class="text-muted">
                     <i class="fas fa-shield-alt me-1"></i>Your health data is kept private and secure
+                    <br>
+                    <i class="fas fa-clock me-1"></i>Rate limit: 10 requests per minute • Recent summaries are cached for faster access
                 </small>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('summaryForm');
+    const generateBtn = document.getElementById('generateBtn');
+    const btnText = document.getElementById('btnText');
+    const btnLoading = document.getElementById('btnLoading');
+
+    if (form && generateBtn) {
+        form.addEventListener('submit', function(e) {
+            // Show loading state
+            generateBtn.disabled = true;
+            btnText.classList.add('d-none');
+            btnLoading.classList.remove('d-none');
+
+            // Add a timeout to prevent indefinite loading if something goes wrong
+            setTimeout(function() {
+                if (generateBtn.disabled) {
+                    generateBtn.disabled = false;
+                    btnText.classList.remove('d-none');
+                    btnLoading.classList.add('d-none');
+
+                    // Show an error message if still loading after 60 seconds
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-warning mt-3';
+                    alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Generation is taking longer than expected. Please wait or try again.';
+                    form.appendChild(alertDiv);
+                }
+            }, 60000); // 60 seconds timeout
+        });
+    }
+});
+</script>
 {% endblock %}

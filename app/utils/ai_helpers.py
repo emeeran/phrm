@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 HTTP_OK = 200
+HTTP_UNAUTHORIZED = 401
+HTTP_PAYMENT_REQUIRED = 402
 
 
 def get_groq_api_key():
@@ -92,8 +94,20 @@ def call_huggingface_api(
             elif isinstance(result, dict) and "error" in result:
                 logger.error(f"HuggingFace API error: {result['error']}")
                 return None
+        elif response.status_code == HTTP_PAYMENT_REQUIRED:
+            # Credits exhausted - log and fail fast
+            logger.warning(
+                "HuggingFace API credits exhausted - skipping further attempts"
+            )
+            return None
+        elif response.status_code == HTTP_UNAUTHORIZED:
+            # Invalid token - log and fail fast
+            logger.warning("HuggingFace API token invalid - skipping further attempts")
+            return None
         else:
             logger.error(f"HuggingFace API call failed. Status: {response.status_code}")
+            if response.text:
+                logger.error(f"Response: {response.text}")
             return None
 
     except Exception as e:
@@ -418,6 +432,23 @@ def check_medgemma_access(api_key):
                 "reason": "invalid_token",
                 "message": "Invalid or expired Hugging Face token",
                 "guidance": "Please check your HUGGINGFACE_ACCESS_TOKEN environment variable",
+            }
+
+        # Quick check for API credits by testing a simple call
+        test_url = (
+            "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+        )
+        test_payload = {"inputs": "test"}
+        test_response = requests.post(
+            test_url, headers=headers, json=test_payload, timeout=10
+        )
+
+        if test_response.status_code == HTTP_PAYMENT_REQUIRED:
+            return {
+                "has_access": False,
+                "reason": "credits_exhausted",
+                "message": "HuggingFace API credits exhausted",
+                "guidance": "Please upgrade to PRO or wait for monthly credit reset",
             }
 
         # Check MedGemma model access

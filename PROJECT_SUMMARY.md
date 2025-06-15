@@ -1,7 +1,7 @@
 # PHRM Project Summary
 
 ## 🎯 Current Status
-PHRM is a production-ready Flask-based Personal Health Record Manager with remote-only AI integration, minimal resource usage, and comprehensive medical AI capabilities.
+PHRM is a production-ready Flask-based Personal Health Record Manager with remote-only AI integration, Local RAG capability with medical reference books, minimal resource usage, and comprehensive medical AI capabilities.
 
 ## 🚀 Key Achievements
 
@@ -19,7 +19,14 @@ PHRM is a production-ready Flask-based Personal Health Record Manager with remot
 - ✅ **Improved data density** - 40% less space usage
 - ✅ **Better visual hierarchy** and user experience
 
-### 3. Code Quality & Dependencies
+### 3. Local RAG (Retrieval-Augmented Generation)
+- ✅ **Medical reference vectorization** - PDF medical books processed for AI context
+- ✅ **Separate processing** - No app startup delays, runs independently
+- ✅ **Isolated vector databases** - ChromaDB with process separation
+- ✅ **Standalone management tools** - Scripts for vectorization and maintenance
+- ✅ **Enhanced AI responses** - Context-aware medical insights from reference books
+
+### 4. Code Quality & Dependencies
 - ✅ **Dependency cleanup** - removed heavy ML libraries
 - ✅ **Import fixes** - resolved all missing imports
 - ✅ **Linting compliance** - zero Ruff/Black errors
@@ -34,20 +41,33 @@ app/
 ├── __init__.py                 # Flask app factory
 ├── config.py                   # Configuration settings
 ├── ai/routes/chat.py          # AI chat endpoints
+├── ai/routes/rag.py           # RAG API endpoints
 ├── utils/ai_helpers.py        # MedGemma integration
 ├── utils/ai_utils.py          # AI utility functions
+├── utils/local_rag.py         # Local RAG service
 ├── static/js/                 # Frontend JavaScript
 ├── static/css/                # Styling
 └── templates/                 # Jinja2 templates
+```
+
+### RAG Management Tools
+```
+scripts/
+├── run_vectorization.sh       # Interactive vectorization script
+├── rag_manager.py             # Advanced RAG management
+├── vectorize_references.py    # Detailed vectorization tool
+└── README.md                  # Complete RAG documentation
 ```
 
 ### Documentation & Tools
 ```
 README.md                      # Main documentation
 MEDGEMMA_ACCESS_GUIDE.md      # MedGemma setup guide
+VECTORIZATION_SEPARATION.md   # RAG separation documentation
 check_medgemma_token.py       # Token validation tool
 test_medgemma.py              # MedGemma testing
 pyproject.toml                # Dependencies
+reference_books/              # Medical reference PDFs (user-provided)
 ```
 
 ## 🧹 Cleanup Completed
@@ -103,7 +123,18 @@ python check_medgemma_token.py
 python test_medgemma.py
 ```
 
-### 3. Production Deployment
+### 3. Local RAG Setup (Optional)
+```bash
+# Add medical reference books (PDFs) to reference_books/ directory
+
+# Process reference books for AI enhancement
+./scripts/run_vectorization.sh
+
+# Check RAG status
+python scripts/rag_manager.py status
+```
+
+### 4. Production Deployment
 ```bash
 ./run_gunicorn.sh
 # App available at http://localhost:8000
@@ -150,8 +181,9 @@ python test_medgemma.py
 ### Future Enhancements
 1. **Google Cloud integration** - Vertex AI for production MedGemma
 2. **Additional medical models** - specialized AI for different domains
-3. **Multi-language support** - international medical AI
-4. **Mobile app** - React Native companion
+3. **Enhanced RAG capabilities** - Multi-modal reference processing
+4. **Multi-language support** - international medical AI
+5. **Mobile app** - React Native companion
 
 ## 📞 Support
 

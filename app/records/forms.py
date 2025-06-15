@@ -36,6 +36,11 @@ class RecordForm(FlaskForm, SecurityValidationMixin):
         validators=[Optional(), Length(max=200)],
         render_kw={"placeholder": "Doctor's name"},
     )
+    investigations = TextAreaField(
+        "Investigations",
+        validators=[Optional(), Length(max=2000)],
+        render_kw={"rows": 3, "placeholder": "Tests, labs, imaging performed"},
+    )
     diagnosis = TextAreaField(
         "Diagnosis",
         validators=[Optional(), Length(max=2000)],
@@ -50,6 +55,11 @@ class RecordForm(FlaskForm, SecurityValidationMixin):
         "Notes",
         validators=[Optional(), Length(max=3000)],
         render_kw={"rows": 4, "placeholder": "Additional notes"},
+    )
+    review_followup = TextAreaField(
+        "Review/Follow-up",
+        validators=[Optional(), Length(max=1000)],
+        render_kw={"rows": 2, "placeholder": "Follow-up instructions or next steps"},
     )
 
     # Visit details

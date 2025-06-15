@@ -8,6 +8,7 @@ function initializeDashboard() {
     initializeRecordItems();
     initializeStatsAnimation();
     initializeLoadingStates();
+    initializeRAGFunctionality();
 }
 
 function initializeActionCards() {
@@ -148,3 +149,90 @@ window.refreshDashboardStats = function() {
         }, 500);
     });
 };
+
+function initializeRAGFunctionality() {
+    const startVectorizationBtn = document.getElementById('start-vectorization-btn');
+
+    if (startVectorizationBtn) {
+        startVectorizationBtn.addEventListener('click', function() {
+            startVectorization();
+        });
+    }
+
+    // Auto-refresh RAG status if processing
+    if (window.ragStatus && window.ragStatus.is_processing) {
+        // Check status every 30 seconds
+        setInterval(checkRAGStatus, 30000);
+    }
+}
+
+function startVectorization() {
+    const btn = document.getElementById('start-vectorization-btn');
+    if (!btn) return;
+
+    // Update button state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Starting...';
+
+    fetch('/api/rag/start-vectorization', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Replace the empty state with processing message
+            const emptyState = btn.closest('.empty-state');
+            if (emptyState) {
+                emptyState.innerHTML = `
+                    <i class="fas fa-spinner fa-spin text-primary"></i>
+                    <p><strong>Processing Reference Books</strong></p>
+                    <p class="small">This may take several minutes for large files. The page will automatically update when complete.</p>
+                `;
+            }
+
+            // Start checking status
+            setTimeout(() => {
+                checkRAGStatus();
+                setInterval(checkRAGStatus, 30000);
+            }, 5000);
+        } else {
+            // Reset button on error
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cogs me-1"></i>Start Processing Reference Books';
+            alert('Failed to start processing: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error starting vectorization:', error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-cogs me-1"></i>Start Processing Reference Books';
+        alert('Failed to start processing. Please try again.');
+    });
+}
+
+function checkRAGStatus() {
+    fetch('/api/rag/status')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.status) {
+            const status = data.status;
+
+            // If processing is complete and we have processed files, reload the page
+            if (!status.is_processing && status.processed_files_count > 0) {
+                location.reload();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error checking RAG status:', error);
+    });
+}
+
+function getCSRFToken() {
+    const token = document.querySelector('meta[name="csrf-token"]');
+    return token ? token.getAttribute('content') : '';
+}

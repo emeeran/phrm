@@ -100,19 +100,22 @@ def save_document(file, record_id: int) -> dict[str, Any]:
         # Save and validate file size
         file_size = _save_and_validate_file_size(file, file_path)
 
-        # Determine file type
-        file_type = os.path.splitext(unique_filename)[1].lower().replace(".", "")
+        # Determine file extension and MIME type
+        file_extension = os.path.splitext(unique_filename)[1].lower().replace(".", "")
+        content_type = _determine_file_mimetype(unique_filename)
 
         # Validate saved file content
         _validate_saved_file_content(file_path, unique_filename)
 
         # Extract text if PDF
-        extracted_text = _extract_text_if_pdf(file_path, file_type, unique_filename)
+        extracted_text = _extract_text_if_pdf(
+            file_path, file_extension, unique_filename
+        )
 
         return {
             "filename": unique_filename,
-            "file_path": file_path,
-            "file_type": file_type,
+            "file_path": unique_filename,  # Store only filename, not full path
+            "file_type": content_type,  # Return MIME type as file_type for compatibility
             "file_size": file_size,
             "extracted_text": extracted_text,
         }

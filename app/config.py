@@ -77,6 +77,10 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True
 
+    # Disable HTTPS forcing in development
+    SESSION_COOKIE_SECURE = False
+    WTF_CSRF_ENABLED = False
+
 
 class TestingConfig(Config):
     """Testing configuration"""

@@ -25,14 +25,20 @@ from ...utils.shared import (
     sanitize_html,
     secure_ai_response_headers,
 )
-from ..summarization import create_gpt_summary
+from ..summarization import (
+    RICHNESS_SCORE_HIGH,
+    RICHNESS_SCORE_MEDIUM,
+    create_gpt_summary,
+    format_summary_for_display,
+    get_record_summary_stats,
+)
 
 summarization_bp = Blueprint("summarization", __name__)
 
 
 @summarization_bp.route("/summarize/<int:record_id>", methods=["GET", "POST"])
 @login_required
-@limiter.limit("5 per minute")  # Rate limit AI summary generation
+@limiter.limit("10 per minute")  # Increased rate limit for better UX
 @monitor_performance
 @ai_security_required("summarize")
 @ai_audit_required(operation_type="summarize", data_classification="PHI")
@@ -73,25 +79,48 @@ def summarize_record(record_id: int):
 
         if request.method == "POST":
             try:
+                # Check if we're using a cached summary to allow more requests
+                from ..summarization import _get_cached_summary
+
+                cached_summary = _get_cached_summary(record)
+
+                if cached_summary:
+                    # For cached summaries, be more lenient with rate limiting
+                    current_app.logger.info(
+                        f"Using cached summary for record {record_id}, bypassing heavy rate limits"
+                    )
+
+                # Get record statistics for logging and user feedback
+                stats = get_record_summary_stats(record)
+                current_app.logger.info(
+                    f"Generating summary for record {record_id} with richness score: {stats['richness_score']}/100"
+                )
+
                 summary_text = create_gpt_summary(record)
 
                 if not summary_text:
                     log_security_event(
                         "ai_summary_generation_failed",
-                        {"user_id": current_user.id, "record_id": record_id},
+                        {
+                            "user_id": current_user.id,
+                            "record_id": record_id,
+                            "stats": stats,
+                        },
                     )
                     flash("Error generating summary. Please try again later.", "danger")
                     return redirect(url_for("records.view_record", record_id=record.id))
 
-                summary_text = sanitize_html(summary_text)
+                # Format and sanitize the summary for display
+                formatted_summary = format_summary_for_display(summary_text)
+                sanitized_summary = sanitize_html(formatted_summary)
 
                 if existing_summary:
-                    existing_summary.summary_text = summary_text
+                    existing_summary.summary_text = sanitized_summary
                     db.session.commit()
                 else:
                     summary = AISummary(
                         health_record_id=record.id,
-                        summary_text=summary_text,
+                        summary_text=sanitized_summary,
                         summary_type="standard",
                     )
                     db.session.add(summary)
@@ -99,9 +128,27 @@ def summarize_record(record_id: int):
 
                 log_security_event(
                     "ai_summary_generated",
-                    {"user_id": current_user.id, "record_id": record_id},
+                    {
+                        "user_id": current_user.id,
+                        "record_id": record_id,
+                        "stats": stats,
+                    },
                 )
-                flash("Summary generated successfully!", "success")
+
+                # Provide feedback based on record richness
+                if stats["richness_score"] >= RICHNESS_SCORE_HIGH:
+                    flash("Comprehensive summary generated successfully!", "success")
+                elif stats["richness_score"] >= RICHNESS_SCORE_MEDIUM:
+                    flash(
+                        "Summary generated successfully! Consider adding more details to your record for even better summaries.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "Basic summary generated. Your record has limited information - adding more details would improve future summaries.",
+                        "info",
+                    )
+
                 return redirect(
                     url_for("ai.summarization.summarize_record", record_id=record.id)
                 )
@@ -116,6 +163,7 @@ def summarize_record(record_id: int):
             title="AI Summary",
             record=record,
             existing_summary=existing_summary,
+            record_stats=get_record_summary_stats(record),
         )
 
     except Exception as e:
@@ -192,3 +240,13 @@ def view_summary(record_id: int):
         current_app.logger.error(f"Error in view_summary: {e}")
         flash("An error occurred while loading the summary.", "danger")
         return redirect(url_for("records.dashboard"))
+
+
+@summarization_bp.errorhandler(429)
+def ratelimit_handler(_e):
+    """Handle rate limiting errors with user-friendly message"""
+    flash(
+        "You're generating summaries too quickly. Please wait a moment before trying again. Recent summaries are automatically cached for instant access.",
+        "warning",
+    )
+    return redirect(request.referrer or url_for("records.dashboard"))

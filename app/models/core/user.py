@@ -10,6 +10,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .base import db, user_family
 
+# Constants
+USER_CONTEXT_PREVIEW_LENGTH = 500
+
 
 class User(UserMixin, db.Model):
     """User model for authentication and profile management"""
@@ -204,23 +207,46 @@ class FamilyMember(db.Model):
         return context
 
     def _get_health_records_context(self) -> str:
-        """Get health records context"""
+        """Get health records context including document content"""
         context = ""
 
+        # Import here to avoid circular imports
+        from .health_record import HealthRecord
+
         recent_records = (
-            self.records.order_by(db.desc(self.records.property.mapper.class_.date))
-            .limit(5)
-            .all()
+            self.records.order_by(db.desc(HealthRecord.date)).limit(5).all()
         )
 
         if recent_records:
             context += f"\nRecent Health Records ({len(recent_records)} most recent):\n"
             for record in recent_records:
-                context += f"- {record.date.strftime('%Y-%m-%d')}: {record.title or 'Health Record'}\n"
+                context += f"- {record.date.strftime('%Y-%m-%d')}: Health Record\n"
                 if record.chief_complaint:
                     context += f"  Complaint: {record.chief_complaint}\n"
                 if record.diagnosis:
                     context += f"  Diagnosis: {record.diagnosis}\n"
+                if record.prescription:
+                    context += f"  Prescription: {record.prescription}\n"
+                if record.notes:
+                    context += f"  Notes: {record.notes}\n"
+
+                # Include document content if available
+                if record.documents:
+                    docs_with_text = [
+                        doc for doc in record.documents if doc.extracted_text
+                    ]
+                    if docs_with_text:
+                        context += (
+                            f"  Related Documents ({len(docs_with_text)} files):\n"
+                        )
+                        for doc in docs_with_text:
+                            # Include first chars of extracted text
+                            text_preview = doc.extracted_text[
+                                :USER_CONTEXT_PREVIEW_LENGTH
+                            ]
+                            if len(doc.extracted_text) > USER_CONTEXT_PREVIEW_LENGTH:
+                                text_preview += "..."
+                            context += f"    - {doc.filename}: {text_preview}\n"
 
         return context
 
