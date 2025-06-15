@@ -96,13 +96,22 @@
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
                         </div>
+                    </div>
 
-                        <div class="col-md-6 mb-3">
+                    <!-- Include the structured current medications table -->
+                    {% include 'records/_current_medications_table.html' %}
+
+                    <div class="row mb-3">
+                        <div class="col-12 mb-3">
                             {{ form.current_medications.label(class="form-label") }}
                             {{ form.current_medications(class="form-control" + (" is-invalid" if form.current_medications.errors else "")) }}
                             {% for error in form.current_medications.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Use this field for additional medication notes or special instructions not covered in the table above.
+                            </div>
                         </div>
 
                         <div class="col-md-6 mb-3">

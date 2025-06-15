@@ -57,7 +57,7 @@ def analyze_condition_progression(condition_id: int) -> dict[str, Any]:
 
         # Create specialized prompt for condition analysis
         prompt = f"""
-        As a medical AI assistant, please analyze the progression of this medical condition:
+        As a medical AI assistant, please analyze the progression of this medical condition using CMDT-style formatting where appropriate:
 
         CONDITION OVERVIEW:
         {context["condition_summary"]}
@@ -68,13 +68,36 @@ def analyze_condition_progression(condition_id: int) -> dict[str, Any]:
         RELATED HEALTH RECORDS:
         {context["health_records"]}
 
-        Please provide a comprehensive analysis including:
-        1. Overall progression trend (improving/stable/worsening)
-        2. Key patterns or concerning changes
-        3. Treatment effectiveness assessment
-        4. Recommendations for monitoring or care adjustments
-        5. Prognosis outlook based on current trajectory
-        6. Red flags or warning signs to watch for
+        Please provide a comprehensive analysis using this structure:
+
+        **CONDITION PROGRESSION ANALYSIS**
+
+        **CURRENT STATUS**
+        • Overall progression trend (improving/stable/worsening)
+        • Key clinical indicators and changes
+
+        **CLINICAL FINDINGS**
+        • Recent symptom patterns
+        • Physical examination trends
+        • Laboratory or diagnostic changes
+
+        **TREATMENT RESPONSE**
+        • Current treatment effectiveness
+        • Medication adherence and response
+        • Non-pharmacological interventions
+
+        **RECOMMENDATIONS**
+        • Monitoring adjustments needed
+        • Care plan modifications
+        • Lifestyle or treatment changes to consider
+
+        **PROGNOSIS**
+        • Short-term outlook based on current trajectory
+        • Long-term considerations
+
+        **RED FLAGS**
+        • Warning signs requiring immediate attention
+        • When to seek urgent medical care
 
         Focus on providing actionable insights while being appropriately cautious about medical recommendations.
         """
@@ -153,7 +176,7 @@ def get_condition_insights(
 
         # Create comprehensive analysis prompt
         prompt = f"""
-        As a medical AI assistant, please provide comprehensive insights about these medical conditions:
+        As a medical AI assistant, please provide comprehensive insights about these medical conditions using CMDT-style formatting:
 
         PATIENT CONTEXT:
         {person_context}
@@ -161,15 +184,49 @@ def get_condition_insights(
         CURRENT MEDICAL CONDITIONS:
         {json.dumps(conditions_summary, indent=2)}
 
-        Please provide analysis including:
-        1. Overall health status assessment
-        2. Condition interactions and potential conflicts
-        3. Treatment burden and quality of life impact
-        4. Medication review and potential interactions
-        5. Preventive care recommendations
-        6. Lifestyle modifications that could help
-        7. Warning signs requiring immediate medical attention
-        8. Long-term prognosis and care planning considerations
+        Please provide analysis using this structure:
+
+        **COMPREHENSIVE HEALTH ASSESSMENT**
+
+        **OVERALL HEALTH STATUS**
+        • Current health status overview
+        • Disease burden assessment
+        • Functional status evaluation
+
+        **CONDITION INTERACTIONS**
+        • How conditions may affect each other
+        • Potential synergistic effects
+        • Competing treatment priorities
+
+        **TREATMENT BURDEN ANALYSIS**
+        • Current medication load
+        • Quality of life impact
+        • Treatment complexity assessment
+
+        **MEDICATION REVIEW**
+        • Current medications assessment
+        • Potential drug interactions
+        • Optimization opportunities
+
+        **PREVENTIVE CARE RECOMMENDATIONS**
+        • Screening tests needed
+        • Immunizations due
+        • Monitoring requirements
+
+        **LIFESTYLE MODIFICATIONS**
+        • Diet and nutrition recommendations
+        • Exercise and activity guidelines
+        • Stress management strategies
+
+        **RED FLAGS & MONITORING**
+        • Warning signs requiring immediate attention
+        • Routine monitoring schedule
+        • Emergency action plans
+
+        **LONG-TERM PLANNING**
+        • Prognosis considerations
+        • Care coordination needs
+        • Family planning considerations
 
         Focus on providing a holistic view of the person's health status and actionable recommendations.
         """

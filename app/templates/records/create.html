@@ -53,12 +53,19 @@
                         {% endfor %}
                     </div>
 
+                    <!-- Include the structured prescription table -->
+                    {% include 'records/_prescription_table.html' %}
+
                     <div class="mb-3">
                         {{ form.prescription.label(class="form-label") }}
                         {{ form.prescription(class="form-control" + (" is-invalid" if form.prescription.errors else "")) }}
                         {% for error in form.prescription.errors %}
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Use this field for additional prescription notes or special instructions not covered in the table above.
+                        </div>
                     </div>
 
                     <div class="mb-3">

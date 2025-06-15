@@ -54,6 +54,46 @@
                             {% endif %}
                         </table>
 
+                        <!-- Prescription Entries Table -->
+                        {% if record.prescription_entries %}
+                        <h6 class="mt-4 mb-3"><i class="fas fa-pills me-2"></i>Prescription Details</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Medicine</th>
+                                        <th>Strength</th>
+                                        <th>Morning</th>
+                                        <th>Noon</th>
+                                        <th>Evening</th>
+                                        <th>Bed time</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in record.prescription_entries %}
+                                    <tr>
+                                        <td><strong>{{ entry.medicine }}</strong></td>
+                                        <td>{{ entry.strength or '-' }}</td>
+                                        <td>{{ entry.morning or '-' }}</td>
+                                        <td>{{ entry.noon or '-' }}</td>
+                                        <td>{{ entry.evening or '-' }}</td>
+                                        <td>{{ entry.bedtime or '-' }}</td>
+                                        <td>{{ entry.duration or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+
+                        {% if record.prescription %}
+                        <h6 class="mt-4 mb-3">Additional Prescription Notes</h6>
+                        <div class="alert alert-light">
+                            {{ record.prescription|nl2br|safe }}
+                        </div>
+                        {% endif %}
+
                         <div class="card mb-4">
                             <div class="card-header bg-info text-white">
                                 <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI Summary</h5>

@@ -1,0 +1,119 @@
+/* Health Record Specific Styles */
+
+/* Health Record Type Badges */
+.badge-complaint { background-color: var(--danger-color); }
+.badge-doctor_visit { background-color: var(--primary-color); }
+.badge-investigation { background-color: #6f42c1; }
+.badge-prescription { background-color: var(--success-color); }
+.badge-lab_report { background-color: var(--warning-color); }
+.badge-note { background-color: var(--secondary-color); }
+
+/* Prescription Table Styles */
+.prescription-table {
+    font-size: 0.9rem;
+}
+
+.prescription-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.prescription-table td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.prescription-table td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+.prescription-row:hover {
+    background-color: #f8f9fa;
+}
+
+#prescription-empty-state {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 2rem;
+}
+
+.prescription-form input.form-control-sm {
+    font-size: 0.875rem;
+}
+
+.remove-prescription-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Current Medication Table Styles */
+.medication-table {
+    font-size: 0.9rem;
+}
+
+.medication-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.medication-table td {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.medication-table td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+.current-medication-row:hover {
+    background-color: #f8f9fa;
+}
+
+#current-medications-empty-state {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 2rem;
+}
+
+.medication-form input.form-control-sm {
+    font-size: 0.875rem;
+}
+
+.remove-current-medication-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Health Record Timeline */
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+}

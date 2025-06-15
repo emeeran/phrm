@@ -8,7 +8,9 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from wtforms import (
     DateField,
+    FieldList,
     FloatField,
+    FormField,
     SelectField,
     StringField,
     SubmitField,
@@ -17,6 +19,86 @@ from wtforms import (
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 from ..utils.form_validators import SecurityValidationMixin
+
+
+class CurrentMedicationForm(FlaskForm):
+    """Form for individual current medication entries for family members"""
+
+    medicine = StringField(
+        "Medicine",
+        validators=[DataRequired(), Length(max=200)],
+        render_kw={"placeholder": "Medicine name"},
+    )
+    strength = StringField(
+        "Strength",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "e.g., 500mg, 10ml"},
+    )
+    morning = StringField(
+        "Morning",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    noon = StringField(
+        "Noon",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    evening = StringField(
+        "Evening",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    bedtime = StringField(
+        "Bed time",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    duration = StringField(
+        "Duration/Notes",
+        validators=[Optional(), Length(max=150)],
+        render_kw={"placeholder": "e.g., Ongoing, 3 months, as needed"},
+    )
+
+
+class PrescriptionEntryForm(FlaskForm):
+    """Form for individual prescription entries"""
+
+    medicine = StringField(
+        "Medicine",
+        validators=[DataRequired(), Length(max=200)],
+        render_kw={"placeholder": "Medicine name"},
+    )
+    strength = StringField(
+        "Strength",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "e.g., 500mg, 10ml"},
+    )
+    morning = StringField(
+        "Morning",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    noon = StringField(
+        "Noon",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    evening = StringField(
+        "Evening",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    bedtime = StringField(
+        "Bed time",
+        validators=[Optional(), Length(max=50)],
+        render_kw={"placeholder": "e.g., 1 tablet"},
+    )
+    duration = StringField(
+        "Duration",
+        validators=[Optional(), Length(max=100)],
+        render_kw={"placeholder": "e.g., 7 days, 2 weeks"},
+    )
 
 
 class RecordForm(FlaskForm, SecurityValidationMixin):
@@ -46,10 +128,20 @@ class RecordForm(FlaskForm, SecurityValidationMixin):
         validators=[Optional(), Length(max=2000)],
         render_kw={"rows": 3, "placeholder": "Medical diagnosis"},
     )
+
+    # Structured prescription entries
+    prescription_entries = FieldList(
+        FormField(PrescriptionEntryForm), min_entries=0, max_entries=20
+    )
+
+    # Legacy prescription field for backward compatibility and additional notes
     prescription = TextAreaField(
-        "Prescription",
+        "Additional Prescription Notes",
         validators=[Optional(), Length(max=3000)],
-        render_kw={"rows": 4, "placeholder": "Medications with dosage"},
+        render_kw={
+            "rows": 2,
+            "placeholder": "Additional prescription notes or special instructions",
+        },
     )
     notes = TextAreaField(
         "Notes",
@@ -192,10 +284,20 @@ class FamilyMemberForm(FlaskForm, SecurityValidationMixin):
         validators=[Optional(), Length(max=2000)],
         render_kw={"rows": 3, "placeholder": "Diabetes, hypertension, asthma, etc."},
     )
+
+    # Structured current medications
+    current_medication_entries = FieldList(
+        FormField(CurrentMedicationForm), min_entries=0, max_entries=15
+    )
+
+    # Legacy field for additional medication notes
     current_medications = TextAreaField(
-        "Current Medications",
+        "Additional Medication Notes",
         validators=[Optional(), Length(max=2000)],
-        render_kw={"rows": 3, "placeholder": "Current prescriptions and dosages"},
+        render_kw={
+            "rows": 2,
+            "placeholder": "Additional medication notes or special instructions",
+        },
     )
     family_medical_history = TextAreaField(
         "Family Medical History",

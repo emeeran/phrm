@@ -19,7 +19,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from ... import limiter
-from ...models import Document, FamilyMember, HealthRecord, db
+from ...models import Document, FamilyMember, HealthRecord, PrescriptionEntry, db
 from ...utils.performance_monitor import monitor_performance
 from ...utils.security_utils import log_security_event, sanitize_html
 from ..file_utils import save_document
@@ -148,6 +148,47 @@ def create_record():
             # Save record to get an ID
             db.session.add(record)
             db.session.commit()
+
+            # Handle prescription entries
+            for entry_form in form.prescription_entries.data:
+                if entry_form and entry_form.get(
+                    "medicine"
+                ):  # Only create if medicine is specified
+                    prescription_entry = PrescriptionEntry(
+                        health_record_id=record.id,
+                        medicine=sanitize_html(entry_form["medicine"]),
+                        strength=(
+                            sanitize_html(entry_form.get("strength", ""))
+                            if entry_form.get("strength")
+                            else None
+                        ),
+                        morning=(
+                            sanitize_html(entry_form.get("morning", ""))
+                            if entry_form.get("morning")
+                            else None
+                        ),
+                        noon=(
+                            sanitize_html(entry_form.get("noon", ""))
+                            if entry_form.get("noon")
+                            else None
+                        ),
+                        evening=(
+                            sanitize_html(entry_form.get("evening", ""))
+                            if entry_form.get("evening")
+                            else None
+                        ),
+                        bedtime=(
+                            sanitize_html(entry_form.get("bedtime", ""))
+                            if entry_form.get("bedtime")
+                            else None
+                        ),
+                        duration=(
+                            sanitize_html(entry_form.get("duration", ""))
+                            if entry_form.get("duration")
+                            else None
+                        ),
+                    )
+                    db.session.add(prescription_entry)
 
             # Handle document upload if provided
             if form.file.data:
@@ -456,6 +497,51 @@ def _update_record_fields(record, form):
     )
     record.updated_at = datetime.now(timezone.utc)
 
+    # Handle prescription entries - remove existing ones and add new ones
+    # Delete existing prescription entries
+    PrescriptionEntry.query.filter_by(health_record_id=record.id).delete()
+
+    # Add new prescription entries
+    for entry_form in form.prescription_entries.data:
+        if entry_form and entry_form.get(
+            "medicine"
+        ):  # Only create if medicine is specified
+            prescription_entry = PrescriptionEntry(
+                health_record_id=record.id,
+                medicine=sanitize_html(entry_form["medicine"]),
+                strength=(
+                    sanitize_html(entry_form.get("strength", ""))
+                    if entry_form.get("strength")
+                    else None
+                ),
+                morning=(
+                    sanitize_html(entry_form.get("morning", ""))
+                    if entry_form.get("morning")
+                    else None
+                ),
+                noon=(
+                    sanitize_html(entry_form.get("noon", ""))
+                    if entry_form.get("noon")
+                    else None
+                ),
+                evening=(
+                    sanitize_html(entry_form.get("evening", ""))
+                    if entry_form.get("evening")
+                    else None
+                ),
+                bedtime=(
+                    sanitize_html(entry_form.get("bedtime", ""))
+                    if entry_form.get("bedtime")
+                    else None
+                ),
+                duration=(
+                    sanitize_html(entry_form.get("duration", ""))
+                    if entry_form.get("duration")
+                    else None
+                ),
+            )
+            db.session.add(prescription_entry)
+
 
 def _update_family_member_assignment(record, form, record_id):
     """Update family member assignment for record"""
@@ -530,6 +616,20 @@ def _populate_form_with_record_data(form, record):
         form.family_member.data = 0
     else:
         form.family_member.data = record.family_member_id
+
+    # Populate prescription entries
+    prescription_entries = record.prescription_entries
+    form.prescription_entries.entries.clear()
+
+    for entry in prescription_entries:
+        entry_form = form.prescription_entries.append_entry()
+        entry_form.medicine.data = entry.medicine
+        entry_form.strength.data = entry.strength
+        entry_form.morning.data = entry.morning
+        entry_form.noon.data = entry.noon
+        entry_form.evening.data = entry.evening
+        entry_form.bedtime.data = entry.bedtime
+        entry_form.duration.data = entry.duration
 
 
 def _parse_list_parameters():

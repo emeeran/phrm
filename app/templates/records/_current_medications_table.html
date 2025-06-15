@@ -1,0 +1,182 @@
+<!-- Current Medications Table for Family Members -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Current Medications</h5>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-current-medication-btn">
+            <i class="fas fa-plus me-1"></i>Add Medication
+        </button>
+    </div>
+
+    <div id="current-medications-table-container">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover medication-table" id="current-medications-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 20%;">Medicine</th>
+                        <th style="width: 12%;">Strength</th>
+                        <th style="width: 12%;">Morning</th>
+                        <th style="width: 12%;">Noon</th>
+                        <th style="width: 12%;">Evening</th>
+                        <th style="width: 12%;">Bed time</th>
+                        <th style="width: 15%;">Duration/Notes</th>
+                        <th style="width: 5%;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="current-medication-entries">
+                    <!-- Existing current medication entries will be populated here -->
+                    {% for entry in form.current_medication_entries %}
+                    <tr class="current-medication-row" data-index="{{ loop.index0 }}">
+                        {{ entry.hidden_tag() }}
+                        <td>
+                            {{ entry.medicine(class="form-control form-control-sm", required=True) }}
+                            {% if entry.medicine.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in entry.medicine.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ entry.strength(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.morning(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.noon(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.evening(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.bedtime(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.duration(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-current-medication-btn" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty state message -->
+        <div id="current-medications-empty-state" class="text-center py-4 text-muted" {% if form.current_medication_entries|length > 0 %}style="display: none;"{% endif %}>
+            <i class="fas fa-pills fa-2x mb-2"></i>
+            <p class="mb-0">No current medications added yet. Click "Add Medication" to start.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Template for new current medication entries (hidden) -->
+<template id="current-medication-row-template">
+    <tr class="current-medication-row">
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-medicine"
+                   placeholder="Medicine name" required>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-strength"
+                   placeholder="e.g., 500mg">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-morning"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-noon"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-evening"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-bedtime"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="current_medication_entries-{index}-duration"
+                   placeholder="e.g., Ongoing, 3 months">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-current-medication-btn" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCurrentMedicationsTable();
+});
+
+function initializeCurrentMedicationsTable() {
+    const addBtn = document.getElementById('add-current-medication-btn');
+    const tableBody = document.getElementById('current-medication-entries');
+    const emptyState = document.getElementById('current-medications-empty-state');
+    const template = document.getElementById('current-medication-row-template');
+
+    if (!addBtn || !tableBody || !emptyState || !template) {
+        return; // Elements not found, probably not on family member form page
+    }
+
+    let entryIndex = {{ form.current_medication_entries|length }};
+
+    // Add new current medication entry
+    addBtn.addEventListener('click', function() {
+        const newRow = template.content.cloneNode(true);
+        const tr = newRow.querySelector('tr');
+
+        // Replace {index} placeholders with actual index
+        tr.innerHTML = tr.innerHTML.replace(/{index}/g, entryIndex);
+        tr.setAttribute('data-index', entryIndex);
+
+        tableBody.appendChild(tr);
+        entryIndex++;
+
+        // Hide empty state
+        emptyState.style.display = 'none';
+
+        // Focus on the medicine field
+        tr.querySelector('input[name*="-medicine"]').focus();
+    });
+
+    // Remove current medication entry
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-current-medication-btn')) {
+            const row = e.target.closest('.current-medication-row');
+            row.remove();
+
+            // Show empty state if no entries
+            if (tableBody.children.length === 0) {
+                emptyState.style.display = 'block';
+            }
+
+            // Reindex remaining entries
+            reindexCurrentMedicationEntries();
+        }
+    });
+
+    function reindexCurrentMedicationEntries() {
+        const rows = tableBody.querySelectorAll('.current-medication-row');
+        rows.forEach((row, index) => {
+            row.setAttribute('data-index', index);
+            const inputs = row.querySelectorAll('input');
+            inputs.forEach(input => {
+                const name = input.getAttribute('name');
+                if (name && name.includes('current_medication_entries-')) {
+                    const newName = name.replace(/current_medication_entries-\d+-/, `current_medication_entries-${index}-`);
+                    input.setAttribute('name', newName);
+                }
+            });
+        });
+        entryIndex = rows.length;
+    }
+}
+</script>

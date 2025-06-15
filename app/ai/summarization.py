@@ -76,13 +76,13 @@ def summarize_health_records(
 
 def format_summary_for_display(summary_text: str) -> str:
     """
-    Format a summary text for display in the UI.
+    Format a summary text for professional medical display in the UI.
 
     Args:
         summary_text: Raw summary text from AI
 
     Returns:
-        Formatted summary text suitable for display
+        Formatted summary text suitable for professional display
     """
     if not summary_text:
         return "No summary available."
@@ -90,34 +90,56 @@ def format_summary_for_display(summary_text: str) -> str:
     # Basic formatting - convert markdown-like formatting to HTML
     formatted = summary_text.strip()
 
-    # Convert **bold** to <strong>
     import re
 
+    # Convert **SECTION HEADERS** to professional section headers
+    formatted = re.sub(
+        r"\*\*([A-Z][A-Z\s&]+)\*\*",
+        r'<div class="medical-section-header"><h5 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-file-medical-alt me-2"></i>\1</h5></div>',
+        formatted,
+    )
+
+    # Convert **bold text** to <strong>
     formatted = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", formatted)
 
     # Convert *italic* to <em>
     formatted = re.sub(r"\*(.*?)\*", r"<em>\1</em>", formatted)
 
-    # Convert line breaks to proper HTML breaks
-    formatted = formatted.replace("\n", "<br>")
+    # Convert bullet points to proper HTML lists
+    lines = formatted.split("\n")
+    formatted_lines = []
+    in_list = False
+
+    for original_line in lines:
+        line = original_line.strip()
+        if line.startswith("•") or line.startswith("-"):
+            if not in_list:
+                formatted_lines.append('<ul class="medical-summary-list">')
+                in_list = True
+            # Clean up the bullet point
+            clean_line = re.sub(r"^[•\-]\s*", "", line)
+            formatted_lines.append(f"<li>{clean_line}</li>")
+        else:
+            if in_list:
+                formatted_lines.append("</ul>")
+                in_list = False
+            if line:  # Only add non-empty lines
+                formatted_lines.append(f"<p>{line}</p>")
+
+    # Close any open list
+    if in_list:
+        formatted_lines.append("</ul>")
+
+    formatted = "\n".join(formatted_lines)
 
     # Convert sections separated by --- to proper divisions
-    formatted = re.sub(r"---+", '<hr class="my-3">', formatted)
+    formatted = re.sub(r"---+", '<hr class="my-4">', formatted)
 
-    # Make section headers more prominent
-    formatted = re.sub(
-        r"<strong>([^<>]*?):</strong>",
-        r'<h6 class="text-primary mt-3 mb-2">\1:</h6>',
-        formatted,
-    )
+    # Clean up empty paragraphs
+    formatted = re.sub(r"<p>\s*</p>", "", formatted)
 
-    # Ensure proper capitalization of first letter
-    if formatted and not formatted[0].isupper():
-        formatted = formatted[0].upper() + formatted[1:]
-
-    # Ensure it ends with proper punctuation
-    if formatted and formatted[-1] not in ".!?":
-        formatted += "."
+    # Add medical summary wrapper
+    formatted = f'<div class="medical-summary-content">{formatted}</div>'
 
     return formatted
 
@@ -453,17 +475,55 @@ def _try_ai_providers_for_summary(prompt):
     """Try different AI providers to generate a summary."""
 
     # Define the system message for medical summarization
-    system_message = """You are a medical AI assistant specialized in creating comprehensive health record summaries.
+    system_message = """You are a medical AI assistant specialized in creating comprehensive, professionally formatted health record summaries.
 
-    Your role is to:
-    - Analyze medical information objectively and accurately
-    - Identify key clinical findings, diagnoses, and treatment plans
-    - Highlight important test results and their clinical significance
-    - Note any red flags, complications, or areas requiring follow-up
-    - Organize information in a clear, professional medical summary format
-    - Use appropriate medical terminology while remaining accessible
+    Structure your medical summaries in the following professional format:
 
-    Always maintain patient confidentiality and provide medically sound analysis.
+    **CLINICAL SUMMARY**
+
+    **CHIEF COMPLAINT & PRESENTATION**
+    • Primary reason for visit/consultation
+    • Duration and onset of symptoms
+    • Key presenting concerns
+
+    **CLINICAL ASSESSMENT**
+    • Current diagnosis or working diagnosis
+    • Relevant clinical findings
+    • Diagnostic reasoning and differential considerations
+
+    **CURRENT MEDICATIONS & TREATMENT**
+    • Active prescriptions with dosing
+    • Treatment response and adherence
+    • Recent medication changes or adjustments
+
+    **DIAGNOSTIC STUDIES & RESULTS**
+    • Laboratory findings with clinical significance
+    • Imaging results and interpretation
+    • Other diagnostic procedures performed
+
+    **CLINICAL COURSE & RESPONSE**
+    • Disease progression or improvement
+    • Treatment effectiveness
+    • Patient functional status
+
+    **RISK FACTORS & COMORBIDITIES**
+    • Relevant medical history
+    • Risk stratification
+    • Contributing factors
+
+    **FOLLOW-UP PLAN & RECOMMENDATIONS**
+    • Monitoring requirements
+    • Next steps in care
+    • Patient education needs
+    • Specialist referrals if indicated
+
+    **CLINICAL PRIORITIES**
+    • Immediate concerns requiring attention
+    • Long-term management goals
+    • Quality of life considerations
+
+    Use professional medical terminology while maintaining clarity. Focus on clinical relevance and actionable insights.
+    Organize information logically and highlight key findings that impact patient care.
     Do not include any thinking process or internal reasoning in your response - provide only the final medical summary."""
 
     errors = []

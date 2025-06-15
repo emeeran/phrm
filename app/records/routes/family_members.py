@@ -18,7 +18,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from ... import limiter
-from ...models import Document, FamilyMember, HealthRecord, db
+from ...models import CurrentMedication, Document, FamilyMember, HealthRecord, db
 from ...utils.shared import log_security_event, monitor_performance, sanitize_html
 from ..forms import FamilyMemberForm
 
@@ -139,6 +139,50 @@ def add_family_member():
             # Add family member to current user's family
             current_user.family_members.append(family_member)
             db.session.add(family_member)
+            db.session.commit()
+
+            # Handle current medication entries
+            for entry_form in form.current_medication_entries.data:
+                if entry_form and entry_form.get(
+                    "medicine"
+                ):  # Only create if medicine is specified
+                    current_medication = CurrentMedication(
+                        family_member_id=family_member.id,
+                        medicine=sanitize_html(entry_form["medicine"]),
+                        strength=(
+                            sanitize_html(entry_form.get("strength", ""))
+                            if entry_form.get("strength")
+                            else None
+                        ),
+                        morning=(
+                            sanitize_html(entry_form.get("morning", ""))
+                            if entry_form.get("morning")
+                            else None
+                        ),
+                        noon=(
+                            sanitize_html(entry_form.get("noon", ""))
+                            if entry_form.get("noon")
+                            else None
+                        ),
+                        evening=(
+                            sanitize_html(entry_form.get("evening", ""))
+                            if entry_form.get("evening")
+                            else None
+                        ),
+                        bedtime=(
+                            sanitize_html(entry_form.get("bedtime", ""))
+                            if entry_form.get("bedtime")
+                            else None
+                        ),
+                        duration=(
+                            sanitize_html(entry_form.get("duration", ""))
+                            if entry_form.get("duration")
+                            else None
+                        ),
+                    )
+                    db.session.add(current_medication)
+
+            # Commit all changes
             db.session.commit()
 
             # Update AI context with new family member's medical history
@@ -271,6 +315,53 @@ def edit_family_member(family_member_id):
             family_member.notes = (
                 sanitize_html(form.notes.data) if form.notes.data else None
             )
+
+            # Handle current medication entries - remove existing ones and add new ones
+            # Delete existing current medication entries
+            CurrentMedication.query.filter_by(
+                family_member_id=family_member.id
+            ).delete()
+
+            # Add new current medication entries
+            for entry_form in form.current_medication_entries.data:
+                if entry_form and entry_form.get(
+                    "medicine"
+                ):  # Only create if medicine is specified
+                    current_medication = CurrentMedication(
+                        family_member_id=family_member.id,
+                        medicine=sanitize_html(entry_form["medicine"]),
+                        strength=(
+                            sanitize_html(entry_form.get("strength", ""))
+                            if entry_form.get("strength")
+                            else None
+                        ),
+                        morning=(
+                            sanitize_html(entry_form.get("morning", ""))
+                            if entry_form.get("morning")
+                            else None
+                        ),
+                        noon=(
+                            sanitize_html(entry_form.get("noon", ""))
+                            if entry_form.get("noon")
+                            else None
+                        ),
+                        evening=(
+                            sanitize_html(entry_form.get("evening", ""))
+                            if entry_form.get("evening")
+                            else None
+                        ),
+                        bedtime=(
+                            sanitize_html(entry_form.get("bedtime", ""))
+                            if entry_form.get("bedtime")
+                            else None
+                        ),
+                        duration=(
+                            sanitize_html(entry_form.get("duration", ""))
+                            if entry_form.get("duration")
+                            else None
+                        ),
+                    )
+                    db.session.add(current_medication)
 
             db.session.commit()
 
@@ -495,3 +586,17 @@ def _populate_family_member_form(form, family_member):
     form.primary_doctor.data = family_member.primary_doctor
     form.insurance_provider.data = family_member.insurance_provider
     form.notes.data = family_member.notes
+
+    # Populate current medication entries
+    current_medication_entries = family_member.current_medication_entries
+    form.current_medication_entries.entries.clear()
+
+    for entry in current_medication_entries:
+        entry_form = form.current_medication_entries.append_entry()
+        entry_form.medicine.data = entry.medicine
+        entry_form.strength.data = entry.strength
+        entry_form.morning.data = entry.morning
+        entry_form.noon.data = entry.noon
+        entry_form.evening.data = entry.evening
+        entry_form.bedtime.data = entry.bedtime
+        entry_form.duration.data = entry.duration

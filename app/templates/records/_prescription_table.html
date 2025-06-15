@@ -1,0 +1,178 @@
+<!-- Prescription Entry Table -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Prescription Details</h5>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-prescription-btn">
+            <i class="fas fa-plus me-1"></i>Add Medicine
+        </button>
+    </div>
+
+    <div id="prescription-table-container">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover prescription-table" id="prescription-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 20%;">Medicine</th>
+                        <th style="width: 12%;">Strength</th>
+                        <th style="width: 12%;">Morning</th>
+                        <th style="width: 12%;">Noon</th>
+                        <th style="width: 12%;">Evening</th>
+                        <th style="width: 12%;">Bed time</th>
+                        <th style="width: 15%;">Duration</th>
+                        <th style="width: 5%;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="prescription-entries">
+                    <!-- Existing prescription entries will be populated here -->
+                    {% for entry in form.prescription_entries %}
+                    <tr class="prescription-row" data-index="{{ loop.index0 }}">
+                        {{ entry.hidden_tag() }}
+                        <td>
+                            {{ entry.medicine(class="form-control form-control-sm", required=True) }}
+                            {% if entry.medicine.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in entry.medicine.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ entry.strength(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.morning(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.noon(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.evening(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.bedtime(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            {{ entry.duration(class="form-control form-control-sm") }}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-prescription-btn" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Empty state message -->
+        <div id="prescription-empty-state" class="text-center py-4 text-muted" {% if form.prescription_entries|length > 0 %}style="display: none;"{% endif %}>
+            <i class="fas fa-pills fa-2x mb-2"></i>
+            <p class="mb-0">No medicines added yet. Click "Add Medicine" to start.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Template for new prescription entries (hidden) -->
+<template id="prescription-row-template">
+    <tr class="prescription-row">
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-medicine"
+                   placeholder="Medicine name" required>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-strength"
+                   placeholder="e.g., 500mg">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-morning"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-noon"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-evening"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-bedtime"
+                   placeholder="e.g., 1 tablet">
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm" name="prescription_entries-{index}-duration"
+                   placeholder="e.g., 7 days">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-prescription-btn" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initializePrescriptionTable();
+});
+
+function initializePrescriptionTable() {
+    const addBtn = document.getElementById('add-prescription-btn');
+    const tableBody = document.getElementById('prescription-entries');
+    const emptyState = document.getElementById('prescription-empty-state');
+    const template = document.getElementById('prescription-row-template');
+
+    let entryIndex = {{ form.prescription_entries|length if form.prescription_entries else 0 }};
+
+    // Add new prescription entry
+    addBtn.addEventListener('click', function() {
+        const newRow = template.content.cloneNode(true);
+        const tr = newRow.querySelector('tr');
+
+        // Replace {index} placeholders with actual index
+        tr.innerHTML = tr.innerHTML.replace(/{index}/g, entryIndex);
+        tr.setAttribute('data-index', entryIndex);
+
+        tableBody.appendChild(tr);
+        entryIndex++;
+
+        // Hide empty state
+        emptyState.style.display = 'none';
+
+        // Focus on the medicine field
+        tr.querySelector('input[name*="-medicine"]').focus();
+    });
+
+    // Remove prescription entry
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-prescription-btn')) {
+            const row = e.target.closest('.prescription-row');
+            row.remove();
+
+            // Show empty state if no entries
+            if (tableBody.children.length === 0) {
+                emptyState.style.display = 'block';
+            }
+
+            // Reindex remaining entries
+            reindexPrescriptionEntries();
+        }
+    });
+
+    function reindexPrescriptionEntries() {
+        const rows = tableBody.querySelectorAll('.prescription-row');
+        rows.forEach((row, index) => {
+            row.setAttribute('data-index', index);
+            const inputs = row.querySelectorAll('input');
+            inputs.forEach(input => {
+                const name = input.getAttribute('name');
+                if (name && name.includes('prescription_entries-')) {
+                    const newName = name.replace(/prescription_entries-\d+-/, `prescription_entries-${index}-`);
+                    input.setAttribute('name', newName);
+                }
+            });
+        });
+        entryIndex = rows.length;
+    }
+}
+</script>

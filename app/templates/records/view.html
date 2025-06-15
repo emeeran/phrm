@@ -49,9 +49,45 @@
                     <dt class="col-sm-4">Diagnosis</dt>
                     <dd class="col-sm-8">{{ record.diagnosis|nl2br|safe }}</dd>
                     {% endif %}
+                </dl>
 
+                <!-- Prescription Entries Table -->
+                {% if record.prescription_entries %}
+                <hr>
+                <h5><i class="fas fa-pills me-2"></i>Prescription Details</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover prescription-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 25%;">Medicine</th>
+                                <th style="width: 15%;">Strength</th>
+                                <th style="width: 12%;">Morning</th>
+                                <th style="width: 12%;">Noon</th>
+                                <th style="width: 12%;">Evening</th>
+                                <th style="width: 12%;">Bed time</th>
+                                <th style="width: 12%;">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in record.prescription_entries %}
+                            <tr>
+                                <td><strong>{{ entry.medicine }}</strong></td>
+                                <td>{{ entry.strength or '-' }}</td>
+                                <td>{{ entry.morning or '-' }}</td>
+                                <td>{{ entry.noon or '-' }}</td>
+                                <td>{{ entry.evening or '-' }}</td>
+                                <td>{{ entry.bedtime or '-' }}</td>
+                                <td>{{ entry.duration or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <dl class="row mb-0">
                     {% if record.prescription %}
-                    <dt class="col-sm-4">Prescription</dt>
+                    <dt class="col-sm-4">Additional Prescription Notes</dt>
                     <dd class="col-sm-8">{{ record.prescription|nl2br|safe }}</dd>
                     {% endif %}
 
