@@ -8,6 +8,7 @@ from flask import Blueprint, render_template
 from flask_login import current_user, login_required
 
 from ...models import HealthRecord
+from ...utils.health_metrics import HealthScoreCalculator
 from ...utils.local_rag import get_rag_status
 from ...utils.shared import monitor_performance
 
@@ -46,6 +47,10 @@ def dashboard():
     # Get RAG system status and available references
     rag_status = get_rag_status()
 
+    # Calculate health metrics
+    health_calculator = HealthScoreCalculator()
+    health_metrics = health_calculator.calculate_health_score(current_user.id)
+
     return render_template(
         "records/dashboard.html",
         title="Dashboard",
@@ -53,4 +58,5 @@ def dashboard():
         family_records=family_records,
         family_members=family_members,
         rag_status=rag_status,
+        health_metrics=health_metrics,
     )

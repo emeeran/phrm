@@ -14,12 +14,14 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     url_for,
 )
 from flask_login import current_user, login_required
 
 from ... import limiter
 from ...models import Document, FamilyMember, HealthRecord, PrescriptionEntry, db
+from ...utils.export_utils import export_health_records_pdf, export_single_record_pdf
 from ...utils.performance_monitor import monitor_performance
 from ...utils.security_utils import log_security_event, sanitize_html
 from ..file_utils import save_document
@@ -445,6 +447,92 @@ def delete_record(record_id):
         db.session.rollback()
         current_app.logger.error(f"Error deleting record {record_id}: {e}")
         flash("An error occurred while deleting the record", "danger")
+        return redirect(url_for("records.dashboard_routes.dashboard"))
+
+
+@health_records_routes.route("/export", methods=["GET"])
+@login_required
+@monitor_performance
+def export_records():
+    """Export health records to PDF"""
+    try:
+        # Parse request parameters
+        params = _parse_list_parameters()
+
+        # Validate search input
+        validation_result = _validate_search_parameters(params)
+        if validation_result:
+            return validation_result
+
+        # Build and execute query
+        query = _build_records_query(params)
+        if query is None:  # Error in family member filter
+            return redirect(url_for("records.health_records_routes.list_records"))
+
+        # Export records to PDF
+        pdf_path = export_health_records_pdf(query.all())
+
+        # Log export event
+        log_security_event(
+            "health_records_exported",
+            {"user_id": current_user.id, "record_count": len(query.all())},
+        )
+
+        return send_file(pdf_path, as_attachment=True)
+
+    except Exception as e:
+        current_app.logger.error(f"Error exporting records: {e}")
+        flash("An error occurred while exporting records", "danger")
+        return redirect(url_for("records.dashboard_routes.dashboard"))
+
+
+@health_records_routes.route("/<int:record_id>/export", methods=["GET"])
+@login_required
+@monitor_performance
+def export_single_record(record_id):
+    """Export a single health record to PDF"""
+    try:
+        record = HealthRecord.query.get_or_404(record_id)
+
+        # Check if user has permission to view this record
+        has_permission = False
+        if record.user_id == current_user.id:
+            # This is the user's own record
+            has_permission = True
+        elif (
+            record.family_member_id
+            and record.family_member in current_user.family_members
+        ):
+            # This is a record for a family member of the user
+            has_permission = True
+
+        if not has_permission:
+            log_security_event(
+                "unauthorized_record_access_attempt",
+                {
+                    "user_id": current_user.id,
+                    "record_id": record_id,
+                    "record_owner_id": record.user_id,
+                    "record_family_member_id": record.family_member_id,
+                },
+            )
+            flash("You do not have permission to view this record", "danger")
+            return redirect(url_for("records.dashboard_routes.dashboard"))
+
+        # Export single record to PDF
+        pdf_path = export_single_record_pdf(record)
+
+        # Log export event
+        log_security_event(
+            "health_record_exported",
+            {"user_id": current_user.id, "record_id": record_id},
+        )
+
+        return send_file(pdf_path, as_attachment=True)
+
+    except Exception as e:
+        current_app.logger.error(f"Error exporting record {record_id}: {e}")
+        flash("An error occurred while exporting the record", "danger")
         return redirect(url_for("records.dashboard_routes.dashboard"))
 
 
