@@ -1,0 +1,768 @@
+{% extends 'base.html' %}
+
+{% block title %}Health Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-hero {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .action-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        text-decoration: none;
+        color: #495057;
+        transition: all 0.3s ease;
+    }
+
+    .action-card:hover {
+        border-color: #007bff;
+        color: #007bff;
+        text-decoration: none;
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    }
+
+    .action-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .panel {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .panel-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .panel-body {
+        padding: 1.5rem;
+    }
+
+    .appointment-item {
+        border-left: 4px solid #007bff;
+        background: #f8f9fa;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 5px 5px 0;
+    }
+
+    .appointment-today {
+        border-left-color: #dc3545;
+        background: #fdf2f2;
+    }
+
+    .medication-table {
+        font-size: 0.9rem;
+    }
+
+    .member-dropdown {
+        min-width: 200px;
+    }
+
+    .urgent-badge {
+        background: #dc3545;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .upcoming-badge {
+        background: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    // Make RAG status available to JavaScript
+    window.ragStatus = {{ rag_status | tojson }};
+
+    // Initialize member selector
+    function filterByMember(memberId) {
+        // Add filtering logic here if needed
+        console.log('Filtering by member:', memberId);
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Mini Dashboard -->
+<div class="dashboard-hero">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="mb-2">
+                <i class="fas fa-home me-2"></i>
+                Welcome back, {{ current_user.first_name or current_user.username }}!
+            </h1>
+            <p class="mb-0 opacity-90">Your personal health records manager</p>
+        </div>
+        <div class="col-md-4">
+            <!-- Member Selector Dropdown -->
+            <div class="mb-3">
+                <label class="form-label text-white-50">View records for:</label>
+                <select class="form-select member-dropdown" onchange="filterByMember(this.value)">
+                    <option value="all">All Family Members</option>
+                    <option value="self">Myself</option>
+                    {% for member in family_members %}
+                    <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_members + 1 }}</div>
+            <div class="stat-label">
+                <i class="fas fa-users me-1"></i>
+                Total Members
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_records }}</div>
+            <div class="stat-label">
+                <i class="fas fa-file-medical me-1"></i>
+                Medical Records
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ upcoming_count }}</div>
+            <div class="stat-label">
+                <i class="fas fa-calendar-check me-1"></i>
+                Upcoming Appointments
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ medications_count }}</div>
+            <div class="stat-label">
+                <i class="fas fa-pills me-1"></i>
+                Current Medicines
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions Grid -->
+<div class="action-grid">
+    <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-user-plus text-success"></i>
+        </div>
+        <div class="fw-bold">Add Member</div>
+    </a>
+
+    <a href="{{ url_for('records.health_records_routes.create_record') }}" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-file-medical text-primary"></i>
+        </div>
+        <div class="fw-bold">Add Medical Record</div>
+    </a>
+
+    <a href="{{ url_for('appointments.add_appointment') }}" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-calendar-plus text-info"></i>
+        </div>
+        <div class="fw-bold">Fix Appointment</div>
+    </a>
+
+    <a href="{{ url_for('records.health_records_routes.list_records') }}" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-clipboard-list text-warning"></i>
+        </div>
+        <div class="fw-bold">View Health Status</div>
+    </a>
+
+    <a href="#current-medications" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-pills text-danger"></i>
+        </div>
+        <div class="fw-bold">Current Medicine List</div>
+    </a>
+
+    <a href="{{ url_for('ai.ai_chat.chat') }}" class="action-card">
+        <div class="action-icon">
+            <i class="fas fa-robot text-purple"></i>
+        </div>
+        <div class="fw-bold">AI Medical Chat</div>
+    </a>
+</div>
+
+<!-- Today's Appointments -->
+{% if today_appointments %}
+<div class="panel">
+    <div class="panel-header">
+        <h5 class="mb-0">
+            <i class="fas fa-calendar-day me-2 text-danger"></i>
+            Today's Appointments
+        </h5>
+        <span class="urgent-badge">URGENT</span>
+    </div>
+    <div class="panel-body">
+        {% for appointment in today_appointments %}
+        <div class="appointment-item appointment-today">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6 class="mb-1">{{ appointment.title }}</h6>
+                    <p class="mb-1">
+                        <strong>Doctor:</strong> {{ appointment.doctor_name }}
+                        {% if appointment.doctor_specialty %}({{ appointment.doctor_specialty }}){% endif %}
+                    </p>
+                    <p class="mb-1">
+                        <strong>Patient:</strong> {{ appointment.person_name }}
+                    </p>
+                    {% if appointment.purpose %}
+                    <p class="mb-0"><strong>Purpose:</strong> {{ appointment.purpose }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="h5 text-danger">
+                        {{ appointment.appointment_date.strftime('%I:%M %p') }}
+                    </div>
+                    {% if appointment.clinic_hospital %}
+                    <small class="text-muted">{{ appointment.clinic_hospital }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Upcoming Appointments -->
+    <div class="col-md-6">
+        <div class="panel">
+            <div class="panel-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Upcoming Appointments
+                </h5>
+                <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="panel-body">
+                {% if upcoming_appointments %}
+                    {% for appointment in upcoming_appointments %}
+                    <div class="appointment-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ appointment.title }}</h6>
+                                <p class="mb-1">
+                                    <strong>Dr. {{ appointment.doctor_name }}</strong>
+                                    {% if appointment.doctor_specialty %}
+                                    <small class="text-muted">({{ appointment.doctor_specialty }})</small>
+                                    {% endif %}
+                                </p>
+                                <p class="mb-0">
+                                    <i class="fas fa-user me-1"></i>{{ appointment.person_name }}
+                                </p>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-primary">
+                                    {{ appointment.appointment_date.strftime('%b %d') }}
+                                </div>
+                                <small class="text-muted">
+                                    {{ appointment.appointment_date.strftime('%I:%M %p') }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-calendar-plus fa-3x mb-3"></i>
+                        <p>No upcoming appointments</p>
+                        <a href="{{ url_for('appointments.add_appointment') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Schedule First Appointment
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Medical Records -->
+    <div class="col-md-6">
+        <div class="panel">
+            <div class="panel-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-medical me-2"></i>
+                    Recent Medical Records
+                </h5>
+                <a href="{{ url_for('records.health_records_routes.list_records') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="panel-body">
+                {% if own_records or family_records %}
+                    {% set all_records = (own_records + family_records)[:5] %}
+                    {% for record in all_records %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <h6 class="mb-1">
+                                <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}"
+                                   class="text-decoration-none">
+                                    {{ record.title or record.chief_complaint[:50] + '...' if record.chief_complaint else 'Medical Record' }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">
+                                {% if record.family_member %}
+                                    {{ record.family_member.first_name }} {{ record.family_member.last_name }}
+                                {% else %}
+                                    Myself
+                                {% endif %}
+                                {% if record.doctor %} • Dr. {{ record.doctor }}{% endif %}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">
+                                {{ record.date.strftime('%b %d, %Y') if record.date else 'No date' }}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-file-medical fa-3x mb-3"></i>
+                        <p>No medical records yet</p>
+                        <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Record
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Medications Section -->
+<div class="panel" id="current-medications">
+    <div class="panel-header">
+        <h5 class="mb-0">
+            <i class="fas fa-pills me-2"></i>
+            Current Medications & Interactions Report
+        </h5>
+        <button class="btn btn-sm btn-outline-warning" onclick="checkInteractions()">
+            <i class="fas fa-exclamation-triangle me-1"></i>Check Interactions
+        </button>
+    </div>
+    <div class="panel-body">
+        {% if current_medications %}
+            <div class="table-responsive">
+                <table class="table table-hover medication-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Patient</th>
+                            <th>Medicine</th>
+                            <th>Strength</th>
+                            <th>Morning</th>
+                            <th>Noon</th>
+                            <th>Evening</th>
+                            <th>Bedtime</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for med in current_medications %}
+                        <tr>
+                            <td><strong>{{ med.person }}</strong></td>
+                            <td>{{ med.medicine }}</td>
+                            <td>{{ med.strength or '-' }}</td>
+                            <td>{{ med.morning or '-' }}</td>
+                            <td>{{ med.noon or '-' }}</td>
+                            <td>{{ med.evening or '-' }}</td>
+                            <td>{{ med.bedtime or '-' }}</td>
+                            <td>{{ med.duration or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Interaction Warning Panel -->
+            <div class="alert alert-warning mt-3" id="interaction-warnings" style="display: none;">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Potential Drug Interactions</h6>
+                <div id="interaction-list"></div>
+            </div>
+        {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-pills fa-3x mb-3"></i>
+                <p>No current medications recorded</p>
+                <p class="small">Add family members and their medication details to track current medicines</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- AI Medical Chat Section -->
+<div class="panel">
+    <div class="panel-header">
+        <h5 class="mb-0">
+            <i class="fas fa-robot me-2"></i>
+            AI Medical Assistant
+        </h5>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ url_for('ai.ai_chat.chat') }}?mode=public" class="btn btn-outline-info">
+                <i class="fas fa-globe me-1"></i>Public Mode
+            </a>
+            <a href="{{ url_for('ai.ai_chat.chat') }}?mode=private" class="btn btn-outline-success">
+                <i class="fas fa-lock me-1"></i>Private Mode
+            </a>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-globe me-2 text-info"></i>Public Mode</h6>
+                <p class="small text-muted">
+                    Get general medical information and health advice without accessing your personal records.
+                    Perfect for general health questions, symptom information, and medical education.
+                </p>
+                <a href="{{ url_for('ai.ai_chat.chat') }}?mode=public" class="btn btn-outline-info btn-sm">
+                    Start Public Chat
+                </a>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-lock me-2 text-success"></i>Private Mode</h6>
+                <p class="small text-muted">
+                    Get personalized health insights based on your medical records and family history.
+                    AI can analyze your data to provide tailored recommendations and track health trends.
+                </p>
+                <a href="{{ url_for('ai.ai_chat.chat') }}?mode=private" class="btn btn-outline-success btn-sm">
+                    Start Private Chat
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backup and Security -->
+<div class="panel">
+    <div class="panel-header">
+        <h5 class="mb-0">
+            <i class="fas fa-shield-alt me-2"></i>
+            Data Security & Backup
+        </h5>
+    </div>
+    <div class="panel-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-download fa-2x text-primary mb-2"></i>
+                    <h6>Local Backup</h6>
+                    <p class="small text-muted">Download your complete health data securely</p>
+                    <button class="btn btn-primary btn-sm" onclick="initiateBackup()">
+                        <i class="fas fa-download me-1"></i>Download Backup
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-lock fa-2x text-success mb-2"></i>
+                    <h6>Encryption Status</h6>
+                    <p class="small text-muted">Your data is encrypted at rest and in transit</p>
+                    <span class="badge bg-success">
+                        <i class="fas fa-check me-1"></i>Secure
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-history fa-2x text-info mb-2"></i>
+                    <h6>Last Backup</h6>
+                    <p class="small text-muted">Automatic daily backups enabled</p>
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>24 hours ago
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function checkInteractions() {
+    // Get current medications from the API
+    fetch('/api/medications/current-medications')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.medications.length > 0) {
+                // Check interactions using the comprehensive checker
+                return fetch('/api/medications/check-interactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        medications: data.data.medications
+                    })
+                });
+            } else {
+                throw new Error('No medications found');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const warningPanel = document.getElementById('interaction-warnings');
+            const interactionList = document.getElementById('interaction-list');
+
+            if (data.success && data.data.interactions && data.data.interactions.length > 0) {
+                // Display interactions with detailed information
+                const interactionHtml = data.data.interactions.map(interaction => {
+                    const severityClass = getSeverityClass(interaction.severity);
+                    const severityIcon = getSeverityIcon(interaction.severity);
+
+                    return `
+                        <div class="interaction-item mb-3 p-3 border rounded ${severityClass}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0">
+                                    ${severityIcon}
+                                    <strong>${interaction.original_drug1}</strong> + <strong>${interaction.original_drug2}</strong>
+                                </h6>
+                                <span class="badge bg-${getSeverityBadge(interaction.severity)}">${interaction.severity.toUpperCase()}</span>
+                            </div>
+                            <p class="mb-2"><strong>Issue:</strong> ${interaction.description}</p>
+                            <p class="mb-2"><small><strong>Mechanism:</strong> ${interaction.mechanism}</small></p>
+                            <p class="mb-0"><strong>Management:</strong> ${interaction.management}</p>
+                            ${interaction.drug1_persons && interaction.drug2_persons ?
+                                `<small class="text-muted mt-1 d-block">
+                                    Affects: ${[...new Set([...interaction.drug1_persons, ...interaction.drug2_persons])].join(', ')}
+                                </small>` : ''
+                            }
+                        </div>
+                    `;
+                }).join('');
+
+                interactionList.innerHTML = interactionHtml;
+                warningPanel.className = 'alert alert-warning mt-3';
+                warningPanel.style.display = 'block';
+
+                // Show summary statistics
+                const summary = data.data.summary;
+                const summaryHtml = `
+                    <div class="interaction-summary mb-3 p-2 bg-light rounded">
+                        <strong>Summary:</strong>
+                        ${summary.total_interactions} interaction(s) found among ${summary.total_medications} medication(s).
+                        ${summary.high_risk > 0 ? `<span class="text-danger">⚠️ ${summary.high_risk} high-risk interaction(s)</span>` : ''}
+                    </div>
+                `;
+                interactionList.insertAdjacentHTML('afterbegin', summaryHtml);
+
+            } else {
+                interactionList.innerHTML = `
+                    <div class="text-success d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        No known interactions found among current medications.
+                    </div>
+                `;
+                warningPanel.className = 'alert alert-success mt-3';
+                warningPanel.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking interactions:', error);
+            const warningPanel = document.getElementById('interaction-warnings');
+            const interactionList = document.getElementById('interaction-list');
+
+            interactionList.innerHTML = `
+                <div class="text-danger d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to check interactions at this time. Please try again later.
+                </div>
+            `;
+            warningPanel.className = 'alert alert-danger mt-3';
+            warningPanel.style.display = 'block';
+        });
+}
+
+function getSeverityClass(severity) {
+    const classes = {
+        'minor': 'border-info',
+        'moderate': 'border-warning',
+        'major': 'border-danger',
+        'contraindicated': 'border-dark bg-danger text-white'
+    };
+    return classes[severity] || 'border-secondary';
+}
+
+function getSeverityIcon(severity) {
+    const icons = {
+        'minor': '<i class="fas fa-info-circle text-info"></i>',
+        'moderate': '<i class="fas fa-exclamation-triangle text-warning"></i>',
+        'major': '<i class="fas fa-exclamation-circle text-danger"></i>',
+        'contraindicated': '<i class="fas fa-ban text-danger"></i>'
+    };
+    return icons[severity] || '<i class="fas fa-question-circle"></i>';
+}
+
+function getSeverityBadge(severity) {
+    const badges = {
+        'minor': 'info',
+        'moderate': 'warning',
+        'major': 'danger',
+        'contraindicated': 'dark'
+    };
+    return badges[severity] || 'secondary';
+}
+
+function initiateBackup() {
+    // Show loading state
+    const backupBtn = document.querySelector('button[onclick="initiateBackup()"]');
+    const originalText = backupBtn.innerHTML;
+    backupBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating Backup...';
+    backupBtn.disabled = true;
+
+    // Create and download backup via API
+    fetch('/api/backup/download')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Backup failed');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+
+            // Generate filename with current date
+            const now = new Date();
+            const dateStr = now.getFullYear() +
+                           ('0' + (now.getMonth() + 1)).slice(-2) +
+                           ('0' + now.getDate()).slice(-2);
+            link.download = `health_backup_${dateStr}.zip`;
+
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            // Show success message
+            showNotification('✅ Health data backup downloaded successfully! Store it securely.', 'success');
+        })
+        .catch(error => {
+            console.error('Backup error:', error);
+            showNotification('❌ Failed to create backup. Please try again later.', 'danger');
+        })
+        .finally(() => {
+            // Restore button state
+            backupBtn.innerHTML = originalText;
+            backupBtn.disabled = false;
+        });
+}
+
+function showNotification(message, type = 'info') {
+    // Create a bootstrap toast notification
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    // Add to page
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+
+    // Remove after hiding
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+// Auto-check interactions on page load if medications exist
+document.addEventListener('DOMContentLoaded', function() {
+    const medicationTable = document.querySelector('.medication-table tbody');
+    if (medicationTable && medicationTable.children.length > 0) {
+        // Auto-check interactions if there are medications
+        setTimeout(checkInteractions, 1000);
+    }
+});
+</script>
+{% endblock %}

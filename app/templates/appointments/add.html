@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import render_field, render_card, render_alert %}
+
+{% block title %}
+    {% if appointment %}Edit Appointment{% else %}New Appointment{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-{% if appointment %}edit{% else %}plus-circle{% endif %} me-2"></i>
+            {% if appointment %}Edit Appointment{% else %}New Appointment{% endif %}
+        </h1>
+        <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Appointments
+        </a>
+    </div>
+
+    <!-- Flash messages -->
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+        {{ render_alert(message, category) }}
+    {% endfor %}
+
+    <div class="card shadow">
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {{ form.csrf_token }}
+
+                <!-- Person selection section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Appointment For</h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ render_field(form.person_type) }}
+                        </div>
+                        <div class="col-md-6" id="familyMemberField">
+                            {{ render_field(form.family_member_id) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic appointment details section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Appointment Details</h4>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            {{ render_field(form.title) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ render_field(form.doctor_name) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ render_field(form.doctor_specialty) }}
+                        </div>
+                        <div class="col-12">
+                            {{ render_field(form.clinic_hospital) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date and time section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Date and Time</h4>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ render_field(form.appointment_date) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ render_field(form.appointment_time) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ render_field(form.duration_minutes) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status and reminders section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Status and Reminder</h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ render_field(form.status) }}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                {{ form.set_reminder(class="form-check-input") }}
+                                {{ form.set_reminder.label(class="form-check-label") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional information section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Additional Information</h4>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            {{ render_field(form.purpose) }}
+                        </div>
+                        <div class="col-12">
+                            {{ render_field(form.preparation) }}
+                        </div>
+                        <div class="col-12">
+                            {{ render_field(form.notes) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Follow-up section -->
+                <div class="form-section">
+                    <div class="form-check mb-3">
+                        {{ form.follow_up_needed(class="form-check-input") }}
+                        {{ form.follow_up_needed.label(class="form-check-label") }}
+                        <small class="form-text text-muted d-block mt-1">
+                            If checked, you'll be reminded to schedule a follow-up appointment after this one is completed.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Submit buttons -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Toggle family member selector visibility based on person type
+    document.addEventListener('DOMContentLoaded', function() {
+        const personTypeSelect = document.querySelector('#person_type');
+        const familyMemberField = document.querySelector('#familyMemberField');
+
+        function toggleFamilyMemberField() {
+            if (personTypeSelect.value === 'family') {
+                familyMemberField.style.display = 'block';
+            } else {
+                familyMemberField.style.display = 'none';
+            }
+        }
+
+        // Initial toggle
+        toggleFamilyMemberField();
+
+        // Toggle on change
+        personTypeSelect.addEventListener('change', toggleFamilyMemberField);
+    });
+</script>
+{% endblock %}

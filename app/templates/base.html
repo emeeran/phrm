@@ -53,6 +53,12 @@
                             <i class="fas fa-users me-1"></i>Family
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'appointments' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('appointments.list_appointments') }}">
+                            <i class="fas fa-calendar-check me-1"></i>Appointments
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="aiDropdown" role="button"
                             data-bs-toggle="dropdown" aria-expanded="false">

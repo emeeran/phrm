@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import render_card, render_alert %}
+
+{% block title %}Appointment Details{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas fa-calendar-check me-2"></i>Appointment Details
+        </h1>
+        <div>
+            <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
+            <a href="{{ url_for('appointments.edit_appointment', appointment_id=appointment.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Edit Appointment
+            </a>
+        </div>
+    </div>
+
+    <!-- Flash messages -->
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+        {{ render_alert(message, category) }}
+    {% endfor %}
+
+    <div class="row">
+        <!-- Left Column - Main Details -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">{{ appointment.title }}</h4>
+                    <span class="badge bg-light text-dark">{{ appointment.appointment_date.strftime('%b %d, %Y') }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Person -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Person Details</h5>
+                            <div class="mb-3">
+                                <strong>Appointment For:</strong>
+                                <div class="fs-5 mt-1">{{ appointment.person_name }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Doctor -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Doctor Details</h5>
+                            <div class="mb-3">
+                                <strong>Doctor:</strong>
+                                <div class="fs-5 mt-1">Dr. {{ appointment.doctor_name }}</div>
+                                {% if appointment.doctor_specialty %}
+                                    <div class="text-muted">{{ appointment.doctor_specialty }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Date & Time -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Date & Time</h5>
+                            <div class="mb-2">
+                                <i class="far fa-calendar-alt me-2"></i>
+                                {{ appointment.appointment_date.strftime('%A, %B %d, %Y') }}
+                            </div>
+                            <div class="mb-2">
+                                <i class="far fa-clock me-2"></i>
+                                {{ appointment.appointment_date.strftime('%I:%M %p') }}
+                            </div>
+                            {% if appointment.duration_minutes %}
+                                <div class="text-muted">
+                                    <i class="fas fa-hourglass-half me-2"></i>
+                                    Duration: {{ appointment.duration_minutes }} minutes
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Location -->
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Location</h5>
+                            {% if appointment.clinic_hospital %}
+                                <div class="mb-3">
+                                    <i class="fas fa-hospital me-2"></i>{{ appointment.clinic_hospital }}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">No location specified</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Purpose -->
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">Purpose of Visit</h5>
+                            {% if appointment.purpose %}
+                                <div class="mb-3">{{ appointment.purpose|nl2br }}</div>
+                            {% else %}
+                                <div class="text-muted">No purpose specified</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Preparation -->
+                        {% if appointment.preparation %}
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2">Preparation Instructions</h5>
+                                <div class="mb-3">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        {{ appointment.preparation|nl2br }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Notes -->
+                        {% if appointment.notes %}
+                            <div class="col-12">
+                                <h5 class="border-bottom pb-2">Additional Notes</h5>
+                                <div class="mb-3">
+                                    {{ appointment.notes|nl2br }}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Status and Actions -->
+        <div class="col-lg-4">
+            <!-- Status Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Status</h5>
+                </div>
+                <div class="card-body">
+                    {% set status_class = {
+                        'scheduled': 'primary',
+                        'completed': 'success',
+                        'cancelled': 'danger',
+                        'rescheduled': 'warning'
+                    } %}
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-{{ status_class[appointment.status] }} p-2 fs-6 me-2">
+                                {{ appointment.status|capitalize }}
+                            </span>
+                            <span class="text-muted">
+                                Last updated: {{ appointment.updated_at.strftime('%b %d, %Y %I:%M %p') }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Status Update Form -->
+                    <form method="post" action="{{ url_for('appointments.update_status', appointment_id=appointment.id) }}" class="mt-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <div class="mb-3">
+                            <label class="form-label">Update Status:</label>
+                            <select name="status" class="form-select">
+                                <option value="scheduled" {% if appointment.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                                <option value="completed" {% if appointment.status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="cancelled" {% if appointment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                <option value="rescheduled" {% if appointment.status == 'rescheduled' %}selected{% endif %}>Rescheduled</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Update Status</button>
+                    </form>
+
+                    <hr>
+
+                    <!-- Follow-up Info -->
+                    {% if appointment.follow_up_needed %}
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            This appointment requires follow-up.
+                            {% if appointment.follow_up_appointment %}
+                                <div class="mt-2">
+                                    <a href="{{ url_for('appointments.view_appointment', appointment_id=appointment.follow_up_appointment.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-calendar-check me-2"></i>View follow-up appointment
+                                    </a>
+                                </div>
+                            {% elif appointment.status == 'completed' %}
+                                <div class="mt-2">
+                                    <a href="{{ url_for('appointments.add_appointment') }}?follow_up_to={{ appointment.id }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-calendar-plus me-2"></i>Schedule follow-up
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('appointments.edit_appointment', appointment_id=appointment.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i>Edit Details
+                        </a>
+
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
+                            <i class="fas fa-trash-alt me-2"></i>Delete Appointment
+                        </button>
+
+                        {% if appointment.health_record_id %}
+                            <a href="{{ url_for('records.view_record', record_id=appointment.health_record_id) }}" class="btn btn-outline-info">
+                                <i class="fas fa-file-medical me-2"></i>View Related Health Record
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timestamps Card -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Record Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <span>Created:</span>
+                        <span>{{ appointment.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Last Updated:</span>
+                        <span>{{ appointment.updated_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this appointment?</p>
+                <p class="mb-0 text-danger"><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('appointments.delete_appointment', appointment_id=appointment.id) }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-danger">Delete Appointment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

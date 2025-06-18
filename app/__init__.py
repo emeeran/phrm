@@ -130,6 +130,10 @@ def _register_blueprints(app):
 
     app.register_blueprint(records_bp)
 
+    from .appointments import appointments_bp
+
+    app.register_blueprint(appointments_bp)
+
     from .ai import ai_bp
 
     app.register_blueprint(ai_bp)

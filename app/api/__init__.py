@@ -23,6 +23,14 @@ from ..utils.shared import (
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
+from .backup_api import backup_api_bp
+
+# Import and register sub-APIs
+from .medication_api import medication_api_bp
+
+api_bp.register_blueprint(medication_api_bp)
+api_bp.register_blueprint(backup_api_bp)
+
 # API authentication decorator is now imported from shared utilities
 
 

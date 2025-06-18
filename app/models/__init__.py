@@ -6,6 +6,7 @@ Personal Health Record Manager - Models
 from .ai_audit import AIAuditLog
 
 # Core models and database
+from .core.appointment import Appointment
 from .core.base import db, user_family
 from .core.current_medication import CurrentMedication
 from .core.health_record import AISummary, Document, HealthRecord
@@ -19,6 +20,7 @@ __all__ = [
     "AIAuditLog",
     "AISecurityEvent",
     "AISummary",
+    "Appointment",
     "ConditionProgressNote",
     "CurrentMedication",
     "Document",

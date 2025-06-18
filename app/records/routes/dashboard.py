@@ -4,10 +4,13 @@ Dashboard Routes Module
 This module contains route handlers for the dashboard functionality.
 """
 
+from datetime import datetime, timedelta
+
 from flask import Blueprint, render_template
 from flask_login import current_user, login_required
+from sqlalchemy import and_
 
-from ...models import HealthRecord
+from ...models import Appointment, HealthRecord
 from ...utils.local_rag import get_rag_status
 from ...utils.shared import monitor_performance
 
@@ -18,7 +21,7 @@ dashboard_routes = Blueprint("dashboard_routes", __name__)
 @login_required
 @monitor_performance
 def dashboard():
-    """Main dashboard showing recent records and stats"""
+    """Enhanced dashboard showing comprehensive health overview"""
     # Get latest records
     own_records = (
         HealthRecord.query.filter_by(user_id=current_user.id)
@@ -43,14 +46,97 @@ def dashboard():
             .all()
         )
 
+    # Get upcoming appointments (next 30 days)
+    today = datetime.utcnow()
+    upcoming_appointments = (
+        Appointment.query.filter(
+            and_(
+                Appointment.appointment_date >= today,
+                Appointment.appointment_date <= today + timedelta(days=30),
+                Appointment.status == "scheduled",
+            )
+        )
+        .filter(
+            (Appointment.user_id == current_user.id)
+            | (
+                Appointment.family_member_id.in_([fm.id for fm in family_members])
+                if family_members
+                else False
+            )
+        )
+        .order_by(Appointment.appointment_date.asc())
+        .limit(10)
+        .all()
+    )
+
+    # Get today's appointments
+    today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    today_appointments = (
+        Appointment.query.filter(
+            and_(
+                Appointment.appointment_date >= today_start,
+                Appointment.appointment_date < today_end,
+                Appointment.status == "scheduled",
+            )
+        )
+        .filter(
+            (Appointment.user_id == current_user.id)
+            | (
+                Appointment.family_member_id.in_([fm.id for fm in family_members])
+                if family_members
+                else False
+            )
+        )
+        .all()
+    )
+
+    # Get current medications for user and family
+    current_medications = []
+
+    # User's current medications
+    for member in [current_user] + list(family_members):
+        if hasattr(member, "current_medication_entries"):
+            for med in member.current_medication_entries:
+                current_medications.append(
+                    {
+                        "person": (
+                            f"{member.first_name} {member.last_name}"
+                            if hasattr(member, "last_name")
+                            else member.username
+                        ),
+                        "medicine": med.medicine,
+                        "strength": med.strength,
+                        "morning": med.morning,
+                        "noon": med.noon,
+                        "evening": med.evening,
+                        "bedtime": med.bedtime,
+                        "duration": med.duration,
+                    }
+                )
+
+    # Calculate dashboard statistics
+    total_records = len(own_records) + len(family_records)
+    total_members = len(family_members)
+    upcoming_count = len(upcoming_appointments)
+    medications_count = len(current_medications)
+
     # Get RAG system status and available references
     rag_status = get_rag_status()
 
     return render_template(
-        "records/dashboard.html",
-        title="Dashboard",
+        "records/enhanced_dashboard.html",
+        title="Health Dashboard",
         own_records=own_records,
         family_records=family_records,
         family_members=family_members,
+        upcoming_appointments=upcoming_appointments,
+        today_appointments=today_appointments,
+        current_medications=current_medications,
+        # Statistics
+        total_records=total_records,
+        total_members=total_members,
+        upcoming_count=upcoming_count,
+        medications_count=medications_count,
         rag_status=rag_status,
     )
