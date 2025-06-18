@@ -15,7 +15,30 @@ PHRM is a Flask-based web application for managing personal health records, feat
 - **Fallbacks:** GROQ, DEEPSEEK
 - **Enhanced with:** Local RAG from medical reference books
 
-## Setup
+## Quick Start
+
+### Option 1: Using Makefile (Recommended)
+```bash
+make setup    # Setup database and sample data
+make run      # Start the application
+```
+
+### Option 2: Manual Setup
+1. **Setup Database and Sample Data:**
+   ```bash
+   python setup.py
+   ```
+
+2. **Run the Application:**
+   ```bash
+   python run_family_health.py
+   ```
+
+3. **Access the Application:**
+   - Open: http://localhost:5000
+   - Demo Login: `demo@example.com` / `demo123`
+
+## Detailed Setup
 1. Clone the repo and install dependencies:
    ```sh
    uv sync
@@ -43,6 +66,22 @@ Redis improves performance by providing:
 - **Check Status**: `redis-cli ping` (should return "PONG")
 
 The application automatically detects Redis availability and falls back to in-memory storage if Redis is not running.
+
+## Development
+
+### Available Commands
+```bash
+make help     # Show all available commands
+make setup    # Initialize database and sample data
+make run      # Start the application
+make dev      # Start with debug mode and auto-reload
+make test     # Run test suite
+make clean    # Clean cache and temporary files
+make install  # Install dependencies
+```
+
+### Project Structure
+See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
 
 ## Local RAG Setup (Optional)
 To enable enhanced AI responses with medical reference books:
