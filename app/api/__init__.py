@@ -1,16 +1,10 @@
-import functools
-import re
-import time
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_login import current_user, login_required
-from werkzeug.security import check_password_hash
 
 from .. import limiter
-from ..models import AISummary, Document, FamilyMember, HealthRecord, User, db
+from ..models import AISummary, FamilyMember, HealthRecord
 from ..utils.shared import (
-    AISecurityManager,
     ai_audit_required,
     ai_security_required,
     api_login_required,
@@ -20,13 +14,12 @@ from ..utils.shared import (
     sanitize_html,
     secure_ai_response_headers,
 )
+from .backup_api import backup_api_bp
+from .medication_api import medication_api_bp
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
-from .backup_api import backup_api_bp
-
 # Import and register sub-APIs
-from .medication_api import medication_api_bp
 
 api_bp.register_blueprint(medication_api_bp)
 api_bp.register_blueprint(backup_api_bp)

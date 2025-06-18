@@ -2,22 +2,17 @@
 Main blueprint for the application home page and dashboard.
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Optional
 
 from flask import (
     Blueprint,
     abort,
-    current_app,
-    flash,
-    redirect,
     render_template,
     request,
-    url_for,
 )
-from flask_login import current_user, login_required
+from flask_login import current_user
 
-from ..models import db
 from ..models.core.appointment import Appointment
 from ..models.core.current_medication import CurrentMedication
 from ..models.core.family_member import FamilyMember
@@ -124,7 +119,7 @@ def index():
     )
 
 
-def _get_dashboard_stats(selected_member: Optional[FamilyMember] = None) -> Dict:
+def _get_dashboard_stats(selected_member: Optional[FamilyMember] = None) -> dict:
     """
     Generate statistics for the dashboard
 

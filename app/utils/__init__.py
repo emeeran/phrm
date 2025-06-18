@@ -2,9 +2,6 @@ import hashlib
 import mimetypes
 import os
 import uuid
-from datetime import datetime
-
-from flask import current_app
 
 # Constants for magic values
 HTTP_SUCCESS = 200

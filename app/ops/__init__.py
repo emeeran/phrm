@@ -4,9 +4,7 @@ Production Operations Dashboard
 Unified dashboard for monitoring PHRM production deployment
 """
 
-import json
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_required
@@ -324,9 +322,7 @@ def system_info():
 def restart_application():
     """Restart the application (graceful shutdown signal)"""
     try:
-        import os
-        import signal
-
+        # Placeholder for restart functionality
         log_security_event(
             "application_restart_requested", {"user_id": current_user.id}
         )

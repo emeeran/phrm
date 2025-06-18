@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse
 
 from flask import (
     Blueprint,
@@ -25,7 +24,7 @@ from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationE
 
 from .. import limiter
 from ..models import User, db
-from ..utils.form_validators import PasswordValidationMixin, SecurityValidationMixin
+from ..utils.form_validators import SecurityValidationMixin
 from ..utils.shared import (
     detect_suspicious_patterns,
     log_security_event,
@@ -449,7 +448,7 @@ def delete_account():
         user_email = current_user.email
 
         # Delete related records first (cascade should handle this, but being explicit)
-        from ..models import FamilyMember, HealthRecord
+        from ..models import HealthRecord
 
         HealthRecord.query.filter_by(user_id=user_id).delete()
 

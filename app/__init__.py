@@ -2,7 +2,7 @@ import os
 import time
 
 import click
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, jsonify, render_template
 from flask_caching import Cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address

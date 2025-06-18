@@ -3,7 +3,6 @@ Medical chat blueprint for public and private mode chat functionality.
 """
 
 import uuid
-from datetime import datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required

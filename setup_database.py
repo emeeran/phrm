@@ -256,7 +256,7 @@ def main():
     """Main function to setup the database and create sample data."""
     print("🏥 PHRM Database Setup")
     print("=" * 50)
-    
+
     try:
         init_and_seed_database()
         print("\n🎉 Setup completed successfully!")
@@ -267,6 +267,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Setup failed: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)
 
