@@ -59,9 +59,9 @@ def verify_installation():
 
         print("\n🎉 All verification tests passed!")
         print("\n📋 Next Steps:")
-        print("   1. Run: python run_family_health.py")
+        print("   1. Run: python start_phrm.py")
         print("   2. Open: http://localhost:5000")
-        print("   3. Login: demo@example.com / demo123")
+        print("   3. Login: demo@example.com / [check DEMO_PASSWORD env var or use 'development_password']")
 
         return True
 

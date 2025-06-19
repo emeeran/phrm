@@ -2,7 +2,7 @@
 
 ## Core Files
 - `setup.py` - Database setup and sample data generation
-- `run_family_health.py` - Main application server
+- `start_phrm.py` - Main application server
 - `pyproject.toml` - Project dependencies and configuration
 - `README.md` - Main project documentation
 
@@ -21,7 +21,7 @@
 
 ## Key Scripts
 - `setup.py` - Initialize database and create sample data
-- `run_family_health.py` - Start the web application
+- `start_phrm.py` - Start the web application
 - `scripts/quick_start.py` - Auto-setup and run
 - `scripts/run_tests.py` - Run test suite
 

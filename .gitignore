@@ -85,3 +85,30 @@ reference_books/
 
 # Desktop shortcut (if not needed in repo)
 usr/share/applications/phrm.desktop
+
+# Security and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.*
+config/secrets.*
+.secrets/
+secret_*
+*_secret.*
+*.env.*
+.env.local
+.env.development
+.env.test
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Backup files that might contain sensitive data
+*.backup
+*.bak
+*.sql
+*.dump
+
+# GitGuardian cache
+.cache_ggshield

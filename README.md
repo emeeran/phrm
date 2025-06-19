@@ -31,7 +31,7 @@ make run      # Start the application
 
 2. **Run the Application:**
    ```bash
-   python run_family_health.py
+   python start_phrm.py
    ```
 
 3. **Access the Application:**

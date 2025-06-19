@@ -6,6 +6,7 @@ This script initializes the Personal Health Records Manager database
 and creates sample data for demonstration purposes.
 """
 
+import os
 from datetime import date, datetime, timedelta
 
 from app import create_app
@@ -38,7 +39,9 @@ def init_and_seed_database():
             date_of_birth=date(1980, 5, 15),
             is_active=True,
         )
-        user.set_password("demo123")
+        # Set password from environment or use default for development
+        demo_password = os.environ.get("DEMO_PASSWORD", "development_password")
+        user.set_password(demo_password)
         db.session.add(user)
         db.session.commit()
 
@@ -249,7 +252,7 @@ def init_and_seed_database():
         print("\n🎉 Database initialized and sample data created successfully!")
         print("Demo login credentials:")
         print("  Email: demo@example.com")
-        print("  Password: demo123")
+        print(f"  Password: {os.environ.get('DEMO_PASSWORD', 'development_password')}")
 
 
 def main():
@@ -261,9 +264,9 @@ def main():
         init_and_seed_database()
         print("\n🎉 Setup completed successfully!")
         print("\nNext steps:")
-        print("1. Run: python run_family_health.py")
+        print("1. Run: python start_phrm.py")
         print("2. Open: http://localhost:5000")
-        print("3. Login: demo@example.com / demo123")
+        print(f"3. Login: demo@example.com / {os.environ.get('DEMO_PASSWORD', 'development_password')}")
     except Exception as e:
         print(f"\n❌ Setup failed: {e}")
         import traceback

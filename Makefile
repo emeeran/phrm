@@ -16,7 +16,7 @@ setup:
 
 run:
 	@echo "Starting PHRM application..."
-	python run_family_health.py
+	python start_phrm.py
 
 clean:
 	@echo "Cleaning up cache and temporary files..."
@@ -35,4 +35,4 @@ install:
 
 dev:
 	@echo "Starting development server with auto-reload..."
-	FLASK_DEBUG=true python run_family_health.py
+	FLASK_DEBUG=true python start_phrm.py

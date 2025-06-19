@@ -2,12 +2,13 @@
 Backup API endpoints for secure data export
 """
 
+import json
 from datetime import datetime
 
 from flask import Blueprint, jsonify, send_file
 from flask_login import current_user, login_required
 
-from ..utils.backup import create_user_backup, create_user_backup_file
+from ..utils.backup_manager import BackupManager
 from ..utils.shared import log_security_event, monitor_performance
 
 backup_api_bp = Blueprint("backup_api", __name__, url_prefix="/api/backup")
@@ -27,8 +28,13 @@ def create_backup():
             {"user_id": current_user.id, "timestamp": datetime.utcnow().isoformat()},
         )
 
-        # Create backup data
-        backup_data = create_user_backup(current_user)
+        # Create backup manager and backup data
+        backup_manager = BackupManager()
+        backup_path = backup_manager.create_backup(current_user.id, include_files=False)
+        
+        # Read the backup data
+        with open(backup_path, 'r') as f:
+            backup_data = json.load(f)
 
         # Log successful backup creation
         log_security_event(
@@ -75,8 +81,9 @@ def download_backup():
             {"user_id": current_user.id, "timestamp": datetime.utcnow().isoformat()},
         )
 
-        # Create backup file
-        backup_file = create_user_backup_file(current_user)
+        # Create backup manager and backup file
+        backup_manager = BackupManager()
+        backup_file = backup_manager.create_backup(current_user.id, include_files=True)
 
         # Generate filename with timestamp
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
