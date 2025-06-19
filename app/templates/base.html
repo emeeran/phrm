@@ -50,7 +50,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if 'appointments' in request.endpoint %}active{% endif %}"
+                        <a class="nav-link {% if request.endpoint and 'appointments' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('appointments.list_appointments') }}">
                             <i class="fas fa-calendar-check me-1"></i>Appointments
                         </a>

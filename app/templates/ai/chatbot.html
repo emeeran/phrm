@@ -2,6 +2,10 @@
 
 {% block title %}Health Assistant{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-chat.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-1">
     <div class="row g-1">
@@ -21,7 +25,7 @@
                         </div>
 
                         <!-- Patient Selector (only shown in private mode) -->
-                        <div id="patient-selector-container" class="d-flex align-items-center">
+                        <div id="patient-selector-container" class="d-flex align-items-center" style="display: none;">
                             <label for="patient-selector" class="form-label text-white me-2 mb-0">Patient:</label>
                             <select id="patient-selector" class="form-select form-select-sm" style="width: 150px;">
                                 <option value="self" selected>Myself</option>
@@ -48,38 +52,38 @@
                     </div>
                 </div>
             <div class="card-body chat-app-body p-0">
-                <!-- Sidebar for quick questions -->
+                <!-- Sidebar for quick questions (hidden in public mode) -->
                 <div class="row g-0">
-                    <div class="col-md-2 col-lg-1 chat-sidebar border-end">
+                    <div id="chat-sidebar" class="col-md-2 col-lg-1 chat-sidebar border-end">
                         <div class="p-2 border-bottom text-center">
                             <i class="fas fa-lightbulb text-primary" title="Quick Questions"></i>
                         </div>
                         <div class="p-1">
                             <div class="quick-questions d-flex flex-column align-items-center">
-                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="List my medications">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="List my medications" data-message="Can you provide a summary of all my current medications, including dosages and any important notes?">
                                     <i class="fas fa-pills"></i>
                                     <span class="btn-label">Medications</span>
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Recent lab results">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Recent lab results" data-message="What are my most recent lab results and what do they indicate about my health?">
                                     <i class="fas fa-flask"></i>
                                     <span class="btn-label">Lab results</span>
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Next appointment">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Next appointment" data-message="When is my next appointment and what should I prepare for it?">
                                     <i class="fas fa-calendar-check"></i>
                                     <span class="btn-label">Appointments</span>
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Heart health tips">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Heart health tips" data-message="Can you provide personalized heart health recommendations based on my medical history?">
                                     <i class="fas fa-heartbeat"></i>
                                     <span class="btn-label">Heart health</span>
                                 </button>
-                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Stress management">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Stress management" data-message="What are some effective stress management techniques I can use, considering my current health situation?">
                                     <i class="fas fa-brain"></i>
                                     <span class="btn-label">Stress help</span>
                                 </button>
                             </div>
 
                             <div class="text-center mt-2">
-                                <button class="btn btn-outline-primary btn-sm icon-btn suggestion-btn" title="Symptom Checker" data-message="I'd like to check some symptoms I'm experiencing. Can you help me understand what might be causing them?">
+                                <button class="btn btn-outline-primary btn-sm icon-btn suggestion-btn" title="Symptom Checker" data-message="I'd like to check some symptoms I'm experiencing. Can you help me understand what might be causing them and provide guidance on next steps?">
                                     <i class="fas fa-stethoscope"></i>
                                     <span class="btn-label">Symptoms</span>
                                 </button>
@@ -88,12 +92,19 @@
                     </div>
 
                     <!-- Main chat area -->
-                    <div class="col-md-10 col-lg-11 d-flex flex-column h-100">
+                    <div id="chat-main-area" class="col-md-10 col-lg-11 d-flex flex-column h-100">
                         <div id="chat-messages" class="chat-messages flex-grow-1">
                             <div class="welcome-message text-center text-muted py-4">
                                 <i class="fas fa-comment-medical fa-3x mb-3"></i>
-                                <h5>Welcome to your Health Assistant</h5>
-                                <p>Ask me anything about your health, medications, or use the quick questions on the left.</p>
+                                <h5 id="welcome-title">Welcome to your Health Assistant</h5>
+                                <p id="welcome-text">Ask me anything about your health, medications, or use the quick questions on the left.</p>
+                                
+                                <!-- Public mode disclaimer -->
+                                <div id="public-disclaimer" class="mt-3 p-3 bg-info bg-opacity-10 border border-info rounded">
+                                    <i class="fas fa-info-circle text-info me-2"></i>
+                                    <strong>Public Mode:</strong> Responses are based on general medical knowledge. 
+                                    For personalized advice, switch to Private mode or consult your healthcare provider.
+                                </div>
                             </div>
                         </div>
 
@@ -109,6 +120,14 @@
                                     <button class="btn btn-primary" type="submit" title="Send message">
                                         <i class="fas fa-paper-plane"></i>
                                     </button>
+                                </div>
+                                
+                                <!-- Typing indicator -->
+                                <div id="typing-indicator" class="typing-indicator mt-2" style="display: none;">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span class="ms-2 text-muted">Health Assistant is typing...</span>
                                 </div>
                             </form>
                         </div>
