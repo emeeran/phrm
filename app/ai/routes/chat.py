@@ -295,6 +295,12 @@ def call_ai_with_fallback(
     system_message, user_message, temperature=0.3, max_tokens=2000
 ):
     """Call AI providers with fallback logic - prioritizing MedGemma for medical queries"""
+    
+    # Reset API availability flags occasionally to allow retrying
+    import random
+    if random.random() < 0.1:  # 10% chance to reset flags
+        from ...utils.ai_helpers import reset_api_availability_flags
+        reset_api_availability_flags()
 
     # Try MedGemma first (Google's specialized medical AI)
     try:
@@ -305,6 +311,8 @@ def call_ai_with_fallback(
         if response:
             logger.info("MedGemma API call successful")
             return response, "MedGemma"
+        else:
+            logger.info("MedGemma API returned None - trying next provider")
     except Exception as e:
         logger.warning(f"MedGemma API failed: {e}")
 
@@ -315,6 +323,8 @@ def call_ai_with_fallback(
         if response:
             logger.info("GROQ API call successful")
             return response, "GROQ"
+        else:
+            logger.info("GROQ API returned None - trying next provider")
     except Exception as e:
         logger.warning(f"GROQ API failed: {e}")
 
@@ -327,6 +337,8 @@ def call_ai_with_fallback(
         if response:
             logger.info("HuggingFace API call successful")
             return response, "HuggingFace"
+        else:
+            logger.info("HuggingFace API returned None - trying next provider")
     except Exception as e:
         logger.warning(f"HuggingFace API failed: {e}")
 
@@ -339,10 +351,198 @@ def call_ai_with_fallback(
         if response:
             logger.info("DeepSeek API call successful")
             return response, "DeepSeek"
+        else:
+            logger.info("DeepSeek API returned None - using demo response")
     except Exception as e:
         logger.warning(f"DeepSeek API failed: {e}")
 
-    return None, None
+    # If all AI providers fail, generate a demo response
+    logger.warning("All AI providers failed or returned None, using demo response")
+    demo_response = generate_demo_medical_response(user_message)
+    return demo_response, "Demo Mode"
+
+
+def generate_demo_medical_response(user_message):
+    """Generate a demo medical response when all AI providers are unavailable"""
+    
+    # Common medical keywords and their responses
+    demo_responses = {
+        "headache": """**HEADACHE - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Recurrent or persistent head pain
+• May be accompanied by nausea, sensitivity to light
+• Can range from mild tension-type to severe migraine
+
+**GENERAL CONSIDERATIONS**
+Headaches are among the most common medical complaints. Most are benign but proper evaluation is important to rule out serious underlying conditions.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Location, quality, and duration of pain
+• Associated symptoms (nausea, visual changes)
+• Triggers and relieving factors
+
+**DIFFERENTIAL DIAGNOSIS**
+• Tension headache
+• Migraine
+• Cluster headache
+• Secondary headaches (infection, medication overuse)
+
+**Note**: This is a demo response. Please consult with a healthcare provider for proper medical evaluation.""",
+
+        "fever": """**FEVER - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Body temperature >100.4°F (38°C)
+• May be accompanied by chills, sweating
+• Often indicates infection or inflammatory process
+
+**GENERAL CONSIDERATIONS**
+Fever is a common symptom representing the body's response to infection or other stimuli. Most fevers are self-limiting but warrant evaluation.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Elevated temperature
+• Associated symptoms vary by cause
+• May include fatigue, body aches
+
+**DIFFERENTIAL DIAGNOSIS**
+• Viral infections
+• Bacterial infections
+• Inflammatory conditions
+• Medication reactions
+
+**Note**: This is a demo response. Please consult with a healthcare provider for proper medical evaluation.""",
+
+        "cough": """**COUGH - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Acute or chronic respiratory symptom
+• May be dry or productive
+• Can indicate various respiratory conditions
+
+**GENERAL CONSIDERATIONS**
+Cough is a protective reflex that helps clear airways. Acute cough is often due to viral infections, while chronic cough may indicate underlying conditions.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Duration and characteristics of cough
+• Presence of sputum production
+• Associated respiratory symptoms
+
+**DIFFERENTIAL DIAGNOSIS**
+• Upper respiratory infection
+• Bronchitis
+• Pneumonia
+• Asthma
+• Gastroesophageal reflux
+
+**Note**: This is a demo response. Please consult with a healthcare provider for proper medical evaluation.""",
+        
+        "chest pain": """**CHEST PAIN - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Discomfort or pain in the chest region
+• May radiate to arms, neck, jaw, or back
+• Can range from mild to severe
+
+**GENERAL CONSIDERATIONS**
+Chest pain requires careful evaluation to distinguish between cardiac, pulmonary, gastrointestinal, and musculoskeletal causes.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Character, location, and radiation of pain
+• Relationship to exertion or rest
+• Associated symptoms (shortness of breath, sweating)
+
+**DIFFERENTIAL DIAGNOSIS**
+• Cardiac: MI, angina, pericarditis
+• Pulmonary: PE, pneumonia, pneumothorax
+• GI: GERD, esophageal spasm
+• Musculoskeletal: costochondritis
+
+**Note**: This is a demo response. Chest pain requires immediate medical evaluation.""",
+
+        "diabetes": """**DIABETES MELLITUS - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Fasting glucose ≥126 mg/dL or HbA1c ≥6.5%
+• Classic symptoms: polyuria, polydipsia, weight loss
+• Random glucose ≥200 mg/dL with symptoms
+
+**GENERAL CONSIDERATIONS**
+Diabetes is a chronic metabolic disorder requiring ongoing management to prevent complications.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Increased urination and thirst
+• Unexplained weight loss
+• Fatigue and blurred vision
+
+**TREATMENT**
+• Lifestyle modifications (diet, exercise)
+• Glucose monitoring
+• Medications as appropriate
+• Regular follow-up
+
+**Note**: This is a demo response. Please consult with a healthcare provider for proper diabetes management.""",
+
+        "hypertension": """**HYPERTENSION - Demo Response**
+
+**ESSENTIALS OF DIAGNOSIS**
+• Blood pressure ≥130/80 mmHg on repeated measurements
+• Often asymptomatic ("silent killer")
+• May present with headache or visual changes
+
+**GENERAL CONSIDERATIONS**
+Hypertension is a major risk factor for cardiovascular disease and stroke. Early detection and management are crucial.
+
+**CLINICAL FINDINGS**
+A. Symptoms and Signs
+• Usually asymptomatic
+• May have headaches or dizziness
+• End-organ damage in severe cases
+
+**TREATMENT**
+• Lifestyle modifications
+• Antihypertensive medications
+• Regular monitoring
+• Cardiovascular risk assessment
+
+**Note**: This is a demo response. Please consult with a healthcare provider for proper hypertension management."""
+    }
+    
+    # Check for keywords in the user message
+    message_lower = user_message.lower()
+    
+    for keyword, response in demo_responses.items():
+        if keyword in message_lower:
+            return response
+    
+    # Generic response if no specific keyword matches
+    return """**MEDICAL INFORMATION - Demo Response**
+
+I understand you're seeking medical information. This system is currently operating in demo mode as external AI services are temporarily unavailable.
+
+**IMPORTANT NOTICE**
+• This is a demonstration response only
+• For actual medical concerns, please consult with a qualified healthcare provider
+• Emergency situations require immediate medical attention (call 911)
+
+**GENERAL HEALTH GUIDANCE**
+• Maintain regular check-ups with your healthcare provider
+• Follow prescribed medications as directed
+• Maintain healthy lifestyle habits
+• Seek professional medical advice for health concerns
+
+**AVAILABLE FEATURES**
+• Document storage and organization
+• Appointment scheduling
+• Medication tracking
+• Health record management
+
+**Note**: This system will return to full functionality once AI provider access is restored. For urgent medical questions, please contact your healthcare provider directly."""
 
 
 @ai_chat_bp.route("/chat", methods=["GET", "POST"])
@@ -402,35 +602,32 @@ def _handle_chat_json_request():
         # Combine all citations
         all_citations = base_citations + search_citations
 
-        # Stage 4: Generate AI response
+        # Stage 4: Generate AI response (now always returns a response due to demo fallback)
         ai_response, model_used = _get_ai_response(final_system_message, user_message)
 
-        if ai_response:
-            # Process the AI response to fold thinking and format citations
-            processed_response = _process_chat_response(ai_response, all_citations)
+        # Process the AI response to fold thinking and format citations
+        processed_response = _process_chat_response(ai_response, all_citations)
 
-            response_data = {
-                "response": processed_response,
-                "mode": mode,
-                "patient": patient_id,
-                "model": model_used or "Unknown",
-                "search_info": {
-                    "local_results": len(
-                        [
-                            c
-                            for c in search_citations
-                            if c.get("type") == "Medical Reference"
-                        ]
-                    ),
-                    "web_results": len(
-                        [c for c in search_citations if c.get("type") == "Web Search"]
-                    ),
-                    "total_citations": len(all_citations),
-                },
-            }
-            return jsonify(response_data)
-        else:
-            return jsonify({"error": "AI service unavailable"}), 503
+        response_data = {
+            "response": processed_response,
+            "mode": mode,
+            "patient": patient_id,
+            "model": model_used or "Demo Mode",
+            "search_info": {
+                "local_results": len(
+                    [
+                        c
+                        for c in search_citations
+                        if c.get("type") == "Medical Reference"
+                    ]
+                ),
+                "web_results": len(
+                    [c for c in search_citations if c.get("type") == "Web Search"]
+                ),
+                "total_citations": len(all_citations),
+            },
+        }
+        return jsonify(response_data)
 
     except Exception as e:
         current_app.logger.error(f"Chat error: {e}")

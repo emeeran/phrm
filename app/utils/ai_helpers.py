@@ -20,6 +20,11 @@ HTTP_OK = 200
 HTTP_UNAUTHORIZED = 401
 HTTP_PAYMENT_REQUIRED = 402
 
+# Global flags to avoid repeated failed attempts
+_huggingface_credits_exhausted = False
+_groq_unavailable = False
+_deepseek_unavailable = False
+
 
 def get_groq_api_key():
     """Get GROQ API key from Flask config or environment"""
@@ -134,22 +139,30 @@ def call_medgemma_api(
     Returns:
         str: Generated response from MedGemma or medical alternative
     """
+    global _huggingface_credits_exhausted
+    
     try:
+        # Skip if we already know credits are exhausted
+        if _huggingface_credits_exhausted:
+            logger.info("HuggingFace API credits exhausted - skipping further attempts")
+            return None
+            
         api_key = get_huggingface_api_key()
 
         if not api_key:
-            logger.warning(
-                "HuggingFace API key not configured - MedGemma requires access token"
-            )
+            logger.debug("HUGGINGFACE_ACCESS_TOKEN not found in Flask config, trying environment")
             return None
 
         # Check MedGemma access status
         access_status = check_medgemma_access(api_key)
 
         if not access_status["has_access"]:
-            logger.warning(f"MedGemma access issue: {access_status['message']}")
-            if access_status.get("guidance"):
-                logger.info(f"Guidance: {access_status['guidance']}")
+            if access_status.get("reason") == "credits_exhausted":
+                _huggingface_credits_exhausted = True
+                logger.warning("HuggingFace API credits exhausted - marking for future skips")
+            else:
+                logger.debug(f"MedGemma access issue: {access_status['message']}")
+            return None
 
         # Try MedGemma models if we have access
         if access_status["has_access"]:
@@ -168,31 +181,11 @@ def call_medgemma_api(
                 logger.info("Successfully used MedGemma via Inference API")
                 return response
 
-            # Try via Hugging Face Spaces
-            logger.info("Inference API failed, trying MedGemma via Spaces")
-            response = try_medgemma_via_spaces(
-                system_message, prompt, temperature, max_tokens, api_key
-            )
-            if response:
-                return response
+            # If inference API fails with 402, mark credits as exhausted
+            logger.warning("MedGemma Inference API failed - likely due to credit limits")
+            _huggingface_credits_exhausted = True
 
-            # Try via third-party providers
-            logger.info("Spaces failed, trying third-party providers")
-            response = try_medgemma_via_third_party_providers(
-                system_message, prompt, temperature, max_tokens
-            )
-            if response:
-                return response
-
-            logger.warning(
-                "All MedGemma access methods failed, falling back to alternatives"
-            )
-
-        # Fallback: Use medical-focused alternative models
-        logger.info("Using medical-focused alternative models")
-        return _call_medical_text_alternative(
-            system_message, prompt, temperature, max_tokens, api_key
-        )
+        return None
 
     except Exception as e:
         logger.error(f"MedGemma API call failed: {e}")
@@ -309,12 +302,19 @@ def call_groq_api(system_message, prompt, temperature=0.7, max_tokens=4000):
     """
     Call GROQ API for AI responses
     """
+    global _groq_unavailable
+    
+    if _groq_unavailable:
+        logger.debug("GROQ API previously unavailable - skipping")
+        return None
+        
     try:
         import requests
 
         api_key = get_groq_api_key()
         if not api_key:
-            logger.error("GROQ API key not found")
+            logger.debug("GROQ API key not found")
+            _groq_unavailable = True
             return None
 
         model = os.environ.get("GROQ_MODEL", "deepseek-r1-distill-llama-70b")
@@ -360,12 +360,19 @@ def call_deepseek_api(system_message, prompt, temperature=0.7, max_tokens=4000):
     """
     Call DEEPSEEK API for AI responses
     """
+    global _deepseek_unavailable
+    
+    if _deepseek_unavailable:
+        logger.debug("DEEPSEEK API previously unavailable - skipping")
+        return None
+        
     try:
         import requests
 
         api_key = get_deepseek_api_key()
         if not api_key:
-            logger.error("DEEPSEEK API key not found")
+            logger.debug("DEEPSEEK API key not found")
+            _deepseek_unavailable = True
             return None
 
         model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
@@ -602,3 +609,12 @@ def try_medgemma_via_third_party_providers(
     except Exception as e:
         logger.error(f"Error trying third-party providers: {e}")
         return None
+
+
+def reset_api_availability_flags():
+    """Reset API availability flags to allow retrying failed providers"""
+    global _huggingface_credits_exhausted, _groq_unavailable, _deepseek_unavailable
+    _huggingface_credits_exhausted = False
+    _groq_unavailable = False
+    _deepseek_unavailable = False
+    logger.info("Reset API availability flags - will retry all providers")

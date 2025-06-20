@@ -1,13 +1,15 @@
 """
 Web Search Utilities for PHRM
 
-Provides functionality to search the web for medical information to supplement local knowledge.
+Provides functionality to search the web for medical information using Google Search via Serper API.
 """
 
 import logging
+import os
 from typing import Any
 
 import requests
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +25,29 @@ MEDICAL_DOMAINS = [
     "who.int",
     "cdc.gov",
     "nih.gov",
+    "healthline.com",
+    "medicalnewstoday.com",
+    "patient.info",
 ]
+
+
+def get_serper_api_key():
+    """Get Serper API key from Flask config or environment"""
+    try:
+        if current_app:
+            key = current_app.config.get("SERPER_API_KEY")
+            if key:
+                return key
+    except RuntimeError:
+        pass
+    return os.environ.get("SERPER_API_KEY")
 
 
 def search_web_for_medical_info(
     query: str, max_results: int = MAX_WEB_RESULTS
 ) -> list[dict[str, Any]]:
     """
-    Search the web for medical information using multiple search approaches.
+    Search the web for medical information using Google Search via Serper API.
 
     Args:
         query: Medical query to search for
@@ -40,13 +57,13 @@ def search_web_for_medical_info(
         List of search results with title, url, snippet, and source info
     """
     try:
-        # Try DuckDuckGo first (privacy-focused, no API key needed)
-        results = _search_duckduckgo(query, max_results)
+        # Try Google Search via Serper API first
+        results = _search_google_serper(query, max_results)
         if results:
             return results
 
         # Fallback to other search methods if needed
-        logger.warning("DuckDuckGo search failed, trying alternative methods")
+        logger.warning("Google/Serper search failed, trying alternative methods")
         return _search_fallback(query, max_results)
 
     except Exception as e:
@@ -54,64 +71,117 @@ def search_web_for_medical_info(
         return []
 
 
-def _search_duckduckgo(query: str, max_results: int) -> list[dict[str, Any]]:
+def _search_google_serper(query: str, max_results: int) -> list[dict[str, Any]]:
     """
-    Search using DuckDuckGo Instant Answer API
+    Search using Google Search via Serper API
     """
     try:
+        api_key = get_serper_api_key()
+        if not api_key:
+            logger.warning("Serper API key not configured")
+            return []
+
         # Add medical terms to improve relevance
         medical_query = f"{query} medical health information"
 
-        # Use DuckDuckGo's instant answer API
-        url = "https://api.duckduckgo.com/"
-        params = {
+        # Use Serper API for Google Search
+        url = "https://google.serper.dev/search"
+        headers = {
+            "X-API-KEY": api_key,
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
             "q": medical_query,
-            "format": "json",
-            "no_html": "1",
-            "skip_disambig": "1",
+            "num": max_results * 2,  # Get extra results to filter better
+            "gl": "us",  # Geographic location
+            "hl": "en"   # Language
         }
 
-        response = requests.get(url, params=params, timeout=WEB_SEARCH_TIMEOUT)
+        response = requests.post(url, headers=headers, json=payload, timeout=WEB_SEARCH_TIMEOUT)
         response.raise_for_status()
         data = response.json()
 
         results = []
 
-        # Get instant answer if available
-        if data.get("Answer"):
-            results.append(
-                {
-                    "title": "DuckDuckGo Medical Answer",
-                    "url": data.get("AnswerURL", ""),
-                    "snippet": data.get("Answer", ""),
-                    "source": "DuckDuckGo",
-                    "type": "instant_answer",
-                    "relevance_score": 0.9,
-                }
-            )
+        # Process organic results
+        for result in data.get("organic", [])[:max_results]:
+            snippet = result.get("snippet", "")
+            if len(snippet) > MAX_SNIPPET_LENGTH:
+                snippet = snippet[:MAX_SNIPPET_LENGTH] + "..."
+                
+            results.append({
+                "title": result.get("title", ""),
+                "url": result.get("link", ""),
+                "snippet": snippet,
+                "source": "Google Search",
+                "type": "organic",
+                "relevance_score": _calculate_medical_relevance(result.get("title", "") + " " + snippet),
+            })
 
-        # Get related topics
-        for topic in data.get("RelatedTopics", [])[: max_results - 1]:
-            if isinstance(topic, dict) and topic.get("Text"):
-                results.append(
-                    {
-                        "title": topic.get("FirstURL", "")
-                        .split("/")[-1]
-                        .replace("_", " "),
-                        "url": topic.get("FirstURL", ""),
-                        "snippet": topic.get("Text", ""),
-                        "source": "DuckDuckGo",
-                        "type": "related_topic",
-                        "relevance_score": 0.7,
-                    }
-                )
+        # Add knowledge graph if available
+        if data.get("knowledgeGraph"):
+            kg = data["knowledgeGraph"]
+            description = kg.get("description", "")
+            if len(description) > MAX_SNIPPET_LENGTH:
+                description = description[:MAX_SNIPPET_LENGTH] + "..."
+                
+            results.insert(0, {
+                "title": kg.get("title", "Medical Information"),
+                "url": kg.get("descriptionLink", ""),
+                "snippet": description,
+                "source": "Google Knowledge Graph",
+                "type": "knowledge_graph",
+                "relevance_score": 0.95,
+            })
 
-        # Filter for medical relevance
-        return _filter_medical_results(results)[:max_results]
+        # Add featured snippet if available
+        if data.get("answerBox"):
+            answer = data["answerBox"]
+            snippet = answer.get("snippet", answer.get("answer", ""))
+            if len(snippet) > MAX_SNIPPET_LENGTH:
+                snippet = snippet[:MAX_SNIPPET_LENGTH] + "..."
+                
+            results.insert(0, {
+                "title": answer.get("title", "Featured Answer"),
+                "url": answer.get("link", ""),
+                "snippet": snippet,
+                "source": "Google Featured Snippet",
+                "type": "featured_snippet",
+                "relevance_score": 0.9,
+            })
+
+        # Filter and rank results
+        filtered_results = _filter_medical_results(results)
+        return sorted(filtered_results, key=lambda x: x.get("relevance_score", 0), reverse=True)[:max_results]
 
     except Exception as e:
-        logger.error(f"DuckDuckGo search error: {e}")
+        logger.error(f"Google/Serper search error: {e}")
         return []
+
+
+def _calculate_medical_relevance(text: str) -> float:
+    """Calculate relevance score based on medical keywords"""
+    medical_keywords = [
+        "medical", "health", "disease", "symptoms", "treatment", "diagnosis", 
+        "condition", "medicine", "doctor", "patient", "clinical", "therapeutic",
+        "healthcare", "medication", "syndrome", "disorder", "pathology"
+    ]
+    
+    text_lower = text.lower()
+    score = 0.5  # Base score
+    
+    for keyword in medical_keywords:
+        if keyword in text_lower:
+            score += 0.1
+    
+    # Boost score for medical domains
+    for domain in MEDICAL_DOMAINS:
+        if domain in text_lower:
+            score += 0.2
+            break
+    
+    return min(score, 1.0)  # Cap at 1.0
 
 
 def _search_fallback(query: str, _max_results: int) -> list[dict[str, Any]]:

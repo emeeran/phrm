@@ -10,6 +10,13 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_talisman import Talisman
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, environment should be set externally
+
 from .models import User, db
 from .utils.config_manager import get_config
 from .utils.redis_cache import cache as redis_cache

@@ -470,41 +470,4 @@ def delete_account():
     )
 
 
-@auth_bp.route("/dev/reset-links")
-def dev_reset_links():
-    """Development only: Show recent password reset links"""
-    # Only show in development mode
-    if not current_app.config.get("DEBUG", False):
-        flash("This page is only available in development mode.", "error")
-        return redirect(url_for("auth.login"))
 
-    # Get users with active reset tokens
-    from datetime import datetime, timezone
-
-    now = datetime.now(timezone.utc)
-
-    users_with_tokens = User.query.filter(
-        User.reset_token.isnot(None), User.reset_token_expiry.isnot(None)
-    ).all()
-
-    reset_tokens = []
-    for user in users_with_tokens:
-        reset_tokens.append(
-            {
-                "email": user.email,
-                "token": user.reset_token,
-                "created_at": user.reset_token_expiry
-                - timedelta(hours=1),  # Approximate creation time
-                "expires_at": user.reset_token_expiry,
-            }
-        )
-
-    # Sort by creation time (descending)
-    reset_tokens.sort(key=lambda x: x["created_at"], reverse=True)
-
-    return render_template(
-        "auth/dev_reset_links.html",
-        title="Password Reset Links",
-        reset_tokens=reset_tokens,
-        now=now,
-    )
