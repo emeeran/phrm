@@ -4,6 +4,12 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-chat.css') }}">
+<style>
+    /* Ensure patient selector is hidden in public mode */
+    #patient-selector-container.hidden-public {
+        display: none !important;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -25,7 +31,7 @@
                         </div>
 
                         <!-- Patient Selector (only shown in private mode) -->
-                        <div id="patient-selector-container" class="d-flex align-items-center" style="display: none;">
+                        <div id="patient-selector-container" class="d-flex align-items-center hidden-public" style="display: none !important;">
                             <label for="patient-selector" class="form-label text-white me-2 mb-0">Patient:</label>
                             <select id="patient-selector" class="form-select form-select-sm" style="width: 150px;">
                                 <option value="self" selected>Myself</option>
@@ -141,6 +147,35 @@
 
 {% block extra_js %}
 <script>
-    // Page-specific JavaScript will be added by the main.js file
+    // Ensure patient selector is hidden on page load (fallback)
+    document.addEventListener('DOMContentLoaded', function() {
+        const patientSelectorContainer = document.getElementById('patient-selector-container');
+        const modeSelector = document.getElementById('mode-selector');
+        
+        // Force hide patient selector initially
+        if (patientSelectorContainer) {
+            patientSelectorContainer.style.display = 'none';
+        }
+        
+        // Setup mode change handler as fallback
+        if (modeSelector && patientSelectorContainer) {
+            function togglePatientSelector() {
+                const mode = modeSelector.value;
+                if (mode === 'public') {
+                    patientSelectorContainer.style.display = 'none';
+                    patientSelectorContainer.classList.add('hidden-public');
+                } else {
+                    patientSelectorContainer.style.display = 'flex';
+                    patientSelectorContainer.classList.remove('hidden-public');
+                }
+            }
+            
+            // Set initial state
+            togglePatientSelector();
+            
+            // Add event listener
+            modeSelector.addEventListener('change', togglePatientSelector);
+        }
+    });
 </script>
 {% endblock %}

@@ -11,7 +11,6 @@ from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from ...models import HealthRecord
-from ...utils.query_processor import process_medical_query
 
 # Import modular components
 from ..chat_handlers import (
@@ -87,13 +86,20 @@ def ask_ai():
         # Build chat context
         chat_context = build_chat_context(user_records, conversation_context)
 
-        # Process the medical query with enhanced context
+        # Process the medical query with enhanced context from web search only
         try:
-            enhanced_context, search_citations = process_medical_query(
-                user_query, chat_context
-            )
+            from ...utils.web_search import search_web_for_medical_info, format_web_results_for_context, get_web_citations
+            
+            web_results = search_web_for_medical_info(user_query, max_results=3)
+            enhanced_context = chat_context
+            if web_results:
+                web_context = format_web_results_for_context(web_results)
+                enhanced_context += f"\n\nAdditional Context:\n{web_context}"
+                search_citations = get_web_citations(web_results)
+            else:
+                search_citations = []
         except Exception as e:
-            logger.warning(f"Query processing failed, using basic context: {e}")
+            logger.warning(f"Web search failed, using basic context: {e}")
             enhanced_context = chat_context
             search_citations = []
 

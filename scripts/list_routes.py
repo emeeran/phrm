@@ -6,11 +6,11 @@ List all routes in the PHRM application.
 import sys
 from pathlib import Path
 
-from app import create_app
-
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+from app import create_app
 
 
 def list_routes():

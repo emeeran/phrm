@@ -59,6 +59,10 @@ class Config:
     DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
     DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
+    # Serper API Configuration (Google Search)
+    SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
+    SERPER_API_URL = "https://google.serper.dev/search"
+
     # Default AI Model Settings
     DEFAULT_AI_MODEL = "google/medgemma-4b-it"
     DEFAULT_AI_PROVIDER = "huggingface"

@@ -12,7 +12,7 @@ help:
 
 setup:
 	@echo "Setting up PHRM database and sample data..."
-	python setup.py
+	python setup_database.py
 
 run:
 	@echo "Starting PHRM application..."
@@ -27,7 +27,7 @@ clean:
 
 test:
 	@echo "Running test suite..."
-	python scripts/run_tests.py
+	pytest
 
 install:
 	@echo "Installing dependencies..."

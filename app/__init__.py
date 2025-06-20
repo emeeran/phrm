@@ -10,6 +10,13 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_talisman import Talisman
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, environment should be set externally
+
 from .models import User, db
 from .utils.config_manager import get_config
 from .utils.redis_cache import cache as redis_cache
@@ -137,11 +144,6 @@ def _register_blueprints(app):
     from .ai import ai_bp
 
     app.register_blueprint(ai_bp)
-
-    # Register RAG blueprint
-    from .ai.routes.rag import rag_bp
-
-    app.register_blueprint(rag_bp)
 
     from .api import api_bp
 

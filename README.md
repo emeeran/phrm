@@ -1,19 +1,22 @@
-# Personal Health Record Manager (PHRM)
+# Personal Health Record Manager (PHRM) v2.0
 
 ## Overview
-PHRM is a Flask-based web application for managing personal health records, featuring AI-powered chat, symptom checker, document summarization, and Local RAG (Retrieval-Augmented Generation) with medical reference books. The default AI provider is MedGemma (via Hugging Face Inference API only), with GROQ and DEEPSEEK as fallbacks.
+PHRM is a Flask-based web application for managing personal health records, featuring AI-powered chat, symptom checking, document summarization, and web-enhanced AI responses. The system supports multiple AI providers with intelligent fallback logic and robust error handling.
 
 ## Key Features
 - **Personal Health Records**: Secure storage and management of medical data
-- **AI-Powered Chat**: Medical question answering with MedGemma
-- **Local RAG**: Vectorized medical reference books for enhanced AI responses
-- **Document Processing**: PDF upload and AI summarization
+- **AI-Powered Chat**: Medical question answering with multiple AI providers
+- **Web-Enhanced AI**: Real-time web search integration via Google Search API (Serper)
+- **Document Processing**: PDF upload and AI summarization with OCR
 - **Family Records**: Multi-user health record management
+- **Public Mode**: Anonymous access with hidden patient selector
+- **Demo Mode**: Fallback system when APIs are unavailable
 
-## AI Provider Fallback Logic
-- **Primary:** MedGemma 27B (Hugging Face Inference API - remote only, no local models)
-- **Fallbacks:** GROQ, DEEPSEEK
-- **Enhanced with:** Local RAG from medical reference books
+## AI Provider System
+- **Primary Providers:** GROQ, DeepSeek
+- **Fallback Providers:** OpenAI, Claude (optional)
+- **Enhanced with:** Google Search via Serper API for real-time medical information
+- **Demo Mode:** Simulated responses when all providers are unavailable
 
 ## Quick Start
 
@@ -26,7 +29,7 @@ make run      # Start the application
 ### Option 2: Manual Setup
 1. **Setup Database and Sample Data:**
    ```bash
-   python setup.py
+   python setup_database.py
    ```
 
 2. **Run the Application:**
@@ -38,22 +41,57 @@ make run      # Start the application
    - Open: http://localhost:5000
    - Demo Login: `demo@example.com` / `demo123`
 
-## Detailed Setup
-1. Clone the repo and install dependencies:
-   ```sh
-   uv sync
-   ```
-2. Configure `.env` with your API keys (see example in repo).
-3. (Optional) Start Redis for improved performance:
-   ```sh
-   ./scripts/start-redis.sh
-   ```
-   > **Note**: Redis is optional. The app will work without it but will use in-memory caching.
-4. Run the app:
-   ```sh
-   python run.py
-   ```
+## Installation and Setup
 
+### Prerequisites
+- Python 3.10 or higher
+- UV package manager (recommended) or pip
+
+### 1. Install Dependencies
+```bash
+# Using UV (recommended)
+uv sync
+
+# Or using pip
+pip install -e .
+```
+
+### 2. Environment Configuration
+Create a `.env` file with your API keys:
+
+```env
+# Primary AI Providers
+GROQ_API_KEY=gsk_...
+DEEPSEEK_API_KEY=sk-...
+
+# Web Search Enhancement
+SERPER_API_KEY=your_serper_api_key
+
+# Optional AI Providers
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-...
+
+# Flask Configuration
+SECRET_KEY=your-secret-key-here
+FLASK_ENV=development
+```
+
+### 3. Database Setup
+```bash
+python setup_database.py
+```
+
+### 4. Start the Application
+```bash
+# Development mode
+python start_phrm.py
+
+# Or with debug mode
+FLASK_ENV=development python start_phrm.py
+
+# Production mode with Gunicorn
+gunicorn -w 4 -b 0.0.0.0:8000 "app:create_app()"
+```
 ## Redis Setup (Optional)
 Redis improves performance by providing:
 - **Rate limiting storage**: Better than in-memory for production
@@ -81,99 +119,180 @@ make install  # Install dependencies
 ```
 
 ### Project Structure
-See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
+```
+phrm/
+├── app/                    # Main application package
+│   ├── ai/                # AI chat and summarization
+│   ├── api/               # API endpoints
+│   ├── appointments/      # Appointment management
+│   ├── auth/              # Authentication system
+│   ├── models/            # Database models
+│   ├── records/           # Health records management
+│   ├── static/            # CSS, JS, images
+│   ├── templates/         # Jinja2 templates
+│   └── utils/             # Utility modules
+├── docs/                  # Documentation
+├── scripts/               # Utility scripts
+├── migrations/            # Database migrations
+└── instance/              # Database and uploads
+```
 
-## Local RAG Setup (Optional)
-To enable enhanced AI responses with medical reference books:
+## Core Features
 
-1. Place PDF medical reference books in the `reference_books/` directory
-2. Process the reference books using the standalone vectorization script:
-   ```sh
-   ./scripts/run_vectorization.sh
-   ```
-3. Choose option 2 to vectorize the books
-4. The AI will now use these references for enhanced medical insights
+### 🤖 AI Chat System
+- **Multi-Provider Support**: GROQ, DeepSeek, OpenAI, Claude
+- **Intelligent Fallback**: Automatic provider switching on failures
+- **Web Enhancement**: Real-time Google Search integration
+- **Demo Mode**: Graceful degradation when APIs unavailable
+- **Context Awareness**: Patient-specific medical context
 
-### RAG Management
-- **Check Status**: `./scripts/run_vectorization.sh` → option 1
-- **Add New Books**: Place PDFs in `reference_books/` and re-run vectorization
-- **Advanced Management**: Use `python scripts/rag_manager.py --help`
+### 📋 Health Records
+- **Comprehensive Records**: Demographics, medications, allergies, conditions
+- **Document Management**: PDF upload with OCR text extraction
+- **AI Summarization**: Automated record analysis and insights
+- **Family Support**: Multi-user records with relationship management
+- **Secure Access**: Role-based permissions and audit logging
+
+### 🔍 Document Processing
+- **PDF OCR**: Automatic text extraction from uploaded documents
+- **AI Analysis**: Intelligent document summarization
+- **Caching**: Smart cache system for instant retrieval
+- **Security**: Secure file upload and storage
+
+### 🌐 Public Access
+- **Anonymous Mode**: Public access without patient data
+- **Hidden Controls**: Patient selector automatically hidden
+- **General Medical Chat**: AI assistance without personal context
+
+## API Integration
+
+### AI Providers
+Configure multiple AI providers for redundancy:
+
+```python
+# Primary providers
+GROQ_API_KEY=gsk_...        # Fast inference, good quality
+DEEPSEEK_API_KEY=sk-...     # High quality reasoning
+
+# Optional providers
+OPENAI_API_KEY=sk-...       # GPT models
+ANTHROPIC_API_KEY=sk-...    # Claude models
+```
+
+### Web Search
+Enhance AI responses with real-time web data:
+
+```python
+SERPER_API_KEY=your_key     # Google Search via Serper API
+```
 
 ## Testing
-- Use the built-in health check endpoint: `curl http://localhost:5000/health`
-- Run `python scripts/rag_manager.py test` to test RAG search functionality.
-- View system status in the application dashboard after login.
-
-## Production Cleanup
-- All test, debug, and temporary scripts are removed or ignored via `.gitignore` for production deployments.
-- For best performance, ensure no `__pycache__` or `.pyc` files remain in the codebase.
-- Vector databases are automatically excluded from version control.
-
-## Maintenance
-- Keep dependencies up to date with `uv sync`.
-- Review `.env` for only necessary secrets and keys.
-- For reference book updates, use the standalone vectorization scripts in `scripts/`.
-- Project has been streamlined: temporary/test files removed, code quality improved with ruff.
-
-## Notes
-- MedGemma models require gated access on Hugging Face.
-- Project uses modern Python packaging with `pyproject.toml` and `uv` for dependency management.
-- All temporary test files and redundant documentation have been removed for production readiness.
-
-## Environment Variables
-
-Your `.env` file should look like:
-
-```
-HUGGINGFACE_ACCESS_TOKEN=hf_...
-HUGGINGFACE_MODEL=google/medgemma-4b-it
-GROQ_API_KEY=...
-GROQ_MODEL=deepseek-r1-distill-llama-70b
-DEEPSEEK_API_KEY=...
-DEEPSEEK_MODEL=deepseek-chat
-```
-
-- Ensure your Hugging Face token has access to MedGemma models (gated repo).
-- Only production keys should be present in `.env`.
+- **Health Check**: `curl http://localhost:5000/health`
+- **System Status**: Available in dashboard after login
+- **Test Scripts**: Run specific feature tests in `scripts/`
 
 ## Production Deployment
 
-1. **Install dependencies using uv:**
-   ```zsh
-   uv sync
-   ```
-2. **Copy and edit the production .env:**
-   ```zsh
-   cp .env.production.example .env
-   # Edit .env with your production secrets and keys
-   ```
-3. **Run with Gunicorn (recommended for production):**
-   ```zsh
-   ./run_gunicorn.sh
-   # App will be available at http://localhost:8000
-   ```
+### 1. Environment Setup
+```bash
+# Production dependencies
+uv sync --no-dev
 
-- For systemd or advanced deployment, create a service file pointing to `run_gunicorn.sh`.
-- Use a real database (e.g., PostgreSQL) for production, not SQLite.
-- Set up HTTPS and a reverse proxy (e.g., Nginx) for secure public access.
+# Copy production environment
+cp .env.example .env
+# Edit .env with production keys
+```
 
-## System Status & Features
+### 2. Database Configuration
+```bash
+# Use PostgreSQL for production
+pip install psycopg2-binary
 
-### ✅ AI Summary System
-- **Comprehensive Analysis**: Extracts all health record fields + document content via OCR
-- **Smart Caching**: 1-hour cache for instant summary retrieval (0.00s vs 4-5s)
-- **Multi-Provider Fallback**: GROQ → DeepSeek → HuggingFace with intelligent error handling
-- **Professional Formatting**: HTML output with medical styling and content richness scoring
-- **RAG Integration**: Enhanced responses using vectorized medical reference books
+# Update database URL in .env
+DATABASE_URL=postgresql://user:pass@localhost/phrm
+```
 
-### ✅ Performance Optimizations
-- **Rate Limiting**: 10 requests/minute with cache-aware processing
-- **Error Handling**: Graceful degradation with user-friendly messages
-- **Document Processing**: Optimized OCR extraction with smart content limits
-- **Database Caching**: Intelligent summary storage and retrieval
+### 3. Web Server
+```bash
+# Using Gunicorn (recommended)
+gunicorn -w 4 -b 0.0.0.0:8000 "app:create_app()"
 
-### ✅ Production Ready Features
-- **Redis Integration**: Optional Redis for enhanced performance and rate limiting
-- **Security**: Comprehensive audit logging and access controls
-- **Family Records**: Multi-user health record management with proper relationship handling
-- **File Management**: Secure upload, OCR processing, and document serving
+# With process management
+./start_with_env.sh
+```
+
+### 4. Reverse Proxy
+Configure Nginx or Apache for:
+- HTTPS termination
+- Static file serving
+- Load balancing
+- Security headers
+
+## Security Features
+- **Authentication**: Flask-Login with secure sessions
+- **Authorization**: Role-based access control
+- **CSRF Protection**: Flask-WTF CSRF tokens
+- **Rate Limiting**: Configurable API rate limits
+- **Audit Logging**: Comprehensive activity tracking
+- **File Security**: Safe upload handling and validation
+
+## Performance Optimizations
+- **Caching**: Redis or in-memory caching
+- **Rate Limiting**: Intelligent request throttling
+- **Database**: Optimized queries and indexing
+- **Static Files**: Efficient serving and compression
+- **AI Responses**: Smart caching and fallback logic
+
+## Maintenance
+
+### Dependency Updates
+```bash
+# Update all dependencies
+uv sync --upgrade
+
+# Check for security issues
+uv audit
+```
+
+### Database Maintenance
+```bash
+# Run migrations
+flask db upgrade
+
+# Create new migration
+flask db migrate -m "Description"
+```
+
+### Health Monitoring
+- Monitor `/health` endpoint
+- Check logs for AI provider failures
+- Monitor Redis performance (if used)
+- Review rate limiting metrics
+
+## Troubleshooting
+
+### Common Issues
+1. **AI Provider Errors**: Check API keys and quotas
+2. **Database Errors**: Verify connection and migrations
+3. **Upload Failures**: Check file permissions and disk space
+4. **Redis Connection**: Verify Redis service status
+
+### Debugging
+```bash
+# Enable debug mode
+export FLASK_ENV=development
+
+# Check logs
+tail -f logs/phrm.log
+
+# Test AI providers
+python scripts/test_ai_providers.py
+```
+
+## License
+MIT License - see LICENSE file for details.
+
+## Support
+- Documentation: `/docs` directory
+- Health Check: `/health` endpoint
+- System Status: Available in application dashboard
