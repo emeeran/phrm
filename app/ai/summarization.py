@@ -4,9 +4,12 @@ Summarization Logic for AI Module
 Contains functions for generating AI-powered summaries of health records, including prompt construction and provider fallback logic.
 """
 
+import logging
 from typing import Any, Optional
 
 from flask import current_app
+
+logger = logging.getLogger(__name__)
 
 from .. import db
 from ..utils.ai_helpers import (
@@ -14,9 +17,6 @@ from ..utils.ai_helpers import (
     call_groq_api,
     call_huggingface_api,
 )
-
-# Import RAG functionality
-from ..utils.local_rag import get_rag_status, search_medical_references
 
 # Constants for medical context validation
 MIN_MEANINGFUL_CONTEXT_LENGTH = 100
@@ -36,22 +36,6 @@ RICHNESS_SCORE_MEDIUM = 50
 MIN_CITATION_CONFIDENCE = 0.3  # Minimum confidence for including citations
 HIGH_CONFIDENCE_THRESHOLD = 0.8  # Threshold for displaying confidence percentage
 MIN_SEARCH_QUERY_LENGTH = 20  # Minimum query length before using fallback
-
-try:
-    from langchain.chains import RetrievalQA
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain_community.document_loaders import PyPDFLoader, TextLoader
-    from langchain_community.embeddings import OpenAIEmbeddings
-    from langchain_community.llms import OpenAI
-    from langchain_community.vectorstores import Chroma
-except ImportError:
-    Chroma = None
-    OpenAIEmbeddings = None
-    RecursiveCharacterTextSplitter = None
-    RetrievalQA = None
-    PyPDFLoader = None
-    TextLoader = None
-    OpenAI = None
 
 
 def summarize_health_records(
@@ -159,12 +143,17 @@ def create_gpt_summary(record: Any, _summary_type: str = "standard") -> Optional
         # Extract key medical terms for enhanced search
         search_query = _extract_search_terms_from_record(record)
 
-        # Use comprehensive query processing for enhanced context
-        from ..utils.query_processor import process_medical_query
-
-        enhanced_context, search_citations = process_medical_query(
-            search_query, base_prompt
-        )
+        # Use web search for enhanced context
+        try:
+            from ..utils.web_search import search_web_for_medical_info, format_web_results_for_context, get_web_citations
+            
+            web_results = search_web_for_medical_info(search_query, max_results=3)
+            enhanced_context = format_web_results_for_context(web_results) if web_results else ""
+            search_citations = get_web_citations(web_results) if web_results else []
+        except Exception as e:
+            logger.warning(f"Web search failed in summary generation: {e}")
+            enhanced_context = ""
+            search_citations = []
 
         # Build final enhanced prompt
         enhanced_prompt = f"""{base_prompt}
@@ -195,8 +184,7 @@ Use this additional context to provide the most comprehensive and medically accu
         # Fallback to original method if enhanced processing fails
         try:
             prompt = _build_comprehensive_record_prompt(record)
-            enhanced_prompt = _enhance_prompt_with_rag(prompt)
-            return _try_ai_providers_for_summary(enhanced_prompt)
+            return _try_ai_providers_for_summary(prompt)
         except Exception as fallback_error:
             current_app.logger.error(f"Fallback summary also failed: {fallback_error}")
             return None
@@ -615,62 +603,6 @@ def _clean_ai_response(response: str) -> str:
     return response
 
 
-def _enhance_prompt_with_rag(
-    base_prompt: str, query_terms: Optional[str] = None
-) -> str:
-    """
-    Enhance a prompt with relevant medical reference context from RAG.
-
-    Args:
-        base_prompt: The original prompt
-        query_terms: Optional specific terms to search for. If None, extracts from prompt.
-
-    Returns:
-        Enhanced prompt with RAG context
-    """
-    try:
-        # Check if RAG is available and enabled
-        rag_status = get_rag_status()
-        if not rag_status.get("available", False):
-            current_app.logger.debug(
-                f"RAG not available: {rag_status.get('reason', 'Unknown reason')}"
-            )
-            return base_prompt
-
-        # Extract query terms from the prompt if not provided
-        if not query_terms:
-            # Extract medical terms from the prompt
-            query_terms = _extract_medical_terms_from_prompt(base_prompt)
-
-        # Search for relevant medical references
-        rag_results = search_medical_references(query_terms, n_results=3)
-
-        if not rag_results:
-            current_app.logger.debug("No RAG results found, using original prompt")
-            return base_prompt
-
-        # Build enhanced prompt with reference context
-        enhanced_prompt = base_prompt + "\n\n--- Medical Reference Context ---\n"
-
-        for i, result in enumerate(rag_results, 1):
-            enhanced_prompt += (
-                f"\nReference {i} (from {result['source']}, page {result['page']}):\n"
-            )
-            enhanced_prompt += f"{result['text'][:500]}...\n"
-
-        enhanced_prompt += "\n--- End Reference Context ---\n"
-        enhanced_prompt += "\nPlease use the above medical reference information to provide a more accurate and comprehensive response."
-
-        current_app.logger.info(
-            f"Enhanced prompt with {len(rag_results)} RAG references"
-        )
-        return enhanced_prompt
-
-    except Exception as e:
-        current_app.logger.error(f"Error enhancing prompt with RAG: {e}")
-        return base_prompt
-
-
 def summarize_with_medical_context(
     record: Any, medical_query: str, _summary_type: str = "standard"
 ) -> Optional[str]:
@@ -695,8 +627,19 @@ Health Record: {getattr(record, "chief_complaint", "Medical record")}
 Please provide insights and recommendations based on current medical knowledge.
 """
 
-        # Enhance with RAG context
-        enhanced_prompt = _enhance_prompt_with_rag(base_prompt, medical_query)
+        # Generate summary using web search for enhanced context
+        try:
+            from ..utils.web_search import search_web_for_medical_info, format_web_results_for_context
+            
+            web_results = search_web_for_medical_info(medical_query, max_results=3)
+            if web_results:
+                web_context = format_web_results_for_context(web_results)
+                enhanced_prompt = base_prompt + f"\n\nAdditional Medical Knowledge:\n{web_context}"
+            else:
+                enhanced_prompt = base_prompt
+        except Exception as e:
+            logger.warning(f"Web search failed in medical context summary: {e}")
+            enhanced_prompt = base_prompt
 
         # Generate summary
         return _try_ai_providers_for_summary(enhanced_prompt)
@@ -704,12 +647,6 @@ Please provide insights and recommendations based on current medical knowledge.
     except Exception as e:
         current_app.logger.error(f"Error creating summary with medical context: {e}")
         return None
-
-
-def create_rag_for_documents(documents: list[Any]) -> Optional[Any]:
-    """Create a RAG (Retrieval-Augmented Generation) model for the given documents."""
-    # Implementation remains the same as in the original file
-    ...
 
 
 def update_family_context(

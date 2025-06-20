@@ -138,11 +138,6 @@ def _register_blueprints(app):
 
     app.register_blueprint(ai_bp)
 
-    # Register RAG blueprint
-    from .ai.routes.rag import rag_bp
-
-    app.register_blueprint(rag_bp)
-
     from .api import api_bp
 
     app.register_blueprint(api_bp, url_prefix="/api")

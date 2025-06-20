@@ -11,7 +11,6 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_
 
 from ...models import Appointment, HealthRecord
-from ...utils.local_rag import get_rag_status
 from ...utils.shared import monitor_performance
 
 dashboard_routes = Blueprint("dashboard_routes", __name__)
@@ -121,8 +120,13 @@ def dashboard():
     upcoming_count = len(upcoming_appointments)
     medications_count = len(current_medications)
 
-    # Get RAG system status and available references
-    rag_status = get_rag_status()
+    # RAG system has been removed - provide empty status
+    rag_status = {
+        "available": False,
+        "chromadb_available": False,
+        "processed_files_count": 0,
+        "reason": "RAG system removed"
+    }
 
     return render_template(
         "records/enhanced_dashboard.html",

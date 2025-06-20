@@ -30,36 +30,16 @@ def main():
     except Exception as e:
         print(f"⚠️  Redis server: Not available ({e})")
 
-    # Check RAG system status
-    try:
-        from app.utils.local_rag import get_rag_status
-
-        rag_status = get_rag_status()
-        if (
-            rag_status.get("chromadb_available")
-            and rag_status.get("processed_files_count", 0) > 0
-        ):
-            print("✅ RAG system: Fully operational with vectorized medical references")
-            print(f"   - Books processed: {rag_status.get('processed_files_count', 0)}")
-            print(
-                f"   - Medical references: {', '.join(rag_status.get('processed_files', [])[:2])} + {max(0, rag_status.get('processed_files_count', 0) - 2)} more"
-            )
-        else:
-            print("⚠️  RAG system: Available but not fully initialized")
-            print("   Citations will use web search and patient records only")
-    except Exception as e:
-        print(f"⚠️  RAG system: Error checking status ({e})")
-        print("   Citations will use web search and patient records only")
+    # RAG system has been removed
+    print("ℹ️  RAG system: Removed - using web search for AI enhancement")
+    print("   - Local medical references no longer supported")
+    print("   - AI still enhanced with real-time web search")
 
     # Citation system status
     print("✅ Enhanced Citation System: Active")
-    print("   - High-quality medical reference citations")
-    print(
-        "   - Book titles and page numbers (e.g., 'Current Medical Diagnosis & Treatment p-1183')"
-    )
-    print("   - Confidence scores (e.g., '92% match')")
-    print("   - Source attribution (e.g., 'Local Medical Library')")
-    print("   - Automatic filtering of low-quality citations")
+    print("   - High-quality medical reference citations from web search")
+    print("   - Source attribution and confidence scores")
+    print("   - Real-time medical information")
 
     # Check database initialization
     db_path = os.path.join(os.getcwd(), "instance", "phrm.db")

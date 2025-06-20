@@ -132,8 +132,10 @@ export class ChatManager {
         const mode = this.modeSelector.value;
         if (mode === 'public') {
             this.patientSelectorContainer.style.display = 'none';
+            this.patientSelectorContainer.classList.add('hidden-public');
         } else {
             this.patientSelectorContainer.style.display = 'flex';
+            this.patientSelectorContainer.classList.remove('hidden-public');
         }
     }
 

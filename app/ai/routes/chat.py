@@ -11,7 +11,6 @@ from ...utils.ai_helpers import (
     call_huggingface_api,
     call_medgemma_api,
 )
-from ...utils.query_processor import process_medical_query
 
 logger = logging.getLogger(__name__)
 
@@ -388,10 +387,12 @@ def _handle_chat_json_request():
             context_start = system_message.find("Medical History Context:")
             user_context = system_message[context_start:]
 
-        # Get enhanced context and additional citations from local RAG + web search
-        enhanced_context, search_citations = process_medical_query(
-            user_message, user_context
-        )
+        # Get enhanced context and additional citations from web search only
+        from ...utils.web_search import search_web_for_medical_info, format_web_results_for_context, get_web_citations
+        
+        web_results = search_web_for_medical_info(user_message, max_results=3)
+        enhanced_context = format_web_results_for_context(web_results) if web_results else ""
+        search_citations = get_web_citations(web_results) if web_results else []
 
         # Stage 3: Build final system message with all context
         final_system_message = _build_enhanced_system_message(

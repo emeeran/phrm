@@ -83,25 +83,8 @@ make install  # Install dependencies
 ### Project Structure
 See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
 
-## Local RAG Setup (Optional)
-To enable enhanced AI responses with medical reference books:
-
-1. Place PDF medical reference books in the `reference_books/` directory
-2. Process the reference books using the standalone vectorization script:
-   ```sh
-   ./scripts/run_vectorization.sh
-   ```
-3. Choose option 2 to vectorize the books
-4. The AI will now use these references for enhanced medical insights
-
-### RAG Management
-- **Check Status**: `./scripts/run_vectorization.sh` → option 1
-- **Add New Books**: Place PDFs in `reference_books/` and re-run vectorization
-- **Advanced Management**: Use `python scripts/rag_manager.py --help`
-
 ## Testing
 - Use the built-in health check endpoint: `curl http://localhost:5000/health`
-- Run `python scripts/rag_manager.py test` to test RAG search functionality.
 - View system status in the application dashboard after login.
 
 ## Production Cleanup
