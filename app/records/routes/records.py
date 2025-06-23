@@ -423,6 +423,11 @@ def delete_record(record_id):
             except (FileNotFoundError, PermissionError) as e:
                 current_app.logger.error(f"Error deleting file {doc.file_path}: {e}")
 
+        # Delete any associated AI summaries first to avoid foreign key constraint issues
+        from ...models.core.health_record import AISummary
+
+        AISummary.query.filter_by(health_record_id=record.id).delete()
+
         # Delete record (cascade will delete associated documents)
         db.session.delete(record)
         db.session.commit()

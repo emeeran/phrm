@@ -149,6 +149,10 @@ def _register_blueprints(app):
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    from .api.backup_api import backup_api_bp
+    
+    app.register_blueprint(backup_api_bp)
+
     from .ops import ops_bp
 
     app.register_blueprint(ops_bp)

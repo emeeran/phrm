@@ -45,6 +45,11 @@
                     <dd class="col-sm-8">{{ record.doctor }}</dd>
                     {% endif %}
 
+                    {% if record.investigations %}
+                    <dt class="col-sm-4">Investigations</dt>
+                    <dd class="col-sm-8">{{ record.investigations|nl2br|safe }}</dd>
+                    {% endif %}
+
                     {% if record.diagnosis %}
                     <dt class="col-sm-4">Diagnosis</dt>
                     <dd class="col-sm-8">{{ record.diagnosis|nl2br|safe }}</dd>

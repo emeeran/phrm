@@ -22,7 +22,6 @@ api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 # Import and register sub-APIs
 
 api_bp.register_blueprint(medication_api_bp)
-api_bp.register_blueprint(backup_api_bp)
 
 # API authentication decorator is now imported from shared utilities
 

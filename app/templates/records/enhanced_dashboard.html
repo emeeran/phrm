@@ -517,17 +517,27 @@
     </div>
     <div class="panel-body">
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="text-center">
                     <i class="fas fa-download fa-2x text-primary mb-2"></i>
-                    <h6>Local Backup</h6>
+                    <h6>Download Backup</h6>
                     <p class="small text-muted">Download your complete health data securely</p>
                     <button class="btn btn-primary btn-sm" onclick="initiateBackup()">
                         <i class="fas fa-download me-1"></i>Download Backup
                     </button>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <i class="fas fa-upload fa-2x text-warning mb-2"></i>
+                    <h6>Restore Backup</h6>
+                    <p class="small text-muted">Upload and restore from a backup file</p>
+                    <button class="btn btn-warning btn-sm" onclick="showRestoreModal()">
+                        <i class="fas fa-upload me-1"></i>Restore Data
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="text-center">
                     <i class="fas fa-lock fa-2x text-success mb-2"></i>
                     <h6>Encryption Status</h6>
@@ -537,13 +547,13 @@
                     </span>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="text-center">
                     <i class="fas fa-history fa-2x text-info mb-2"></i>
                     <h6>Last Backup</h6>
-                    <p class="small text-muted">Automatic daily backups enabled</p>
+                    <p class="small text-muted">Keep your data safe with regular backups</p>
                     <small class="text-muted">
-                        <i class="fas fa-clock me-1"></i>24 hours ago
+                        <i class="fas fa-info-circle me-1"></i>Download recommended
                     </small>
                 </div>
             </div>
@@ -764,5 +774,198 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(checkInteractions, 1000);
     }
 });
+
+// Restore functionality
+function showRestoreModal() {
+    const modal = new bootstrap.Modal(document.getElementById('restoreModal'));
+    modal.show();
+}
+
+function uploadBackup() {
+    const fileInput = document.getElementById('backupFileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('❌ Please select a backup file to upload.', 'danger');
+        return;
+    }
+    
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+        showNotification('❌ Please select a valid ZIP backup file.', 'danger');
+        return;
+    }
+    
+    const uploadBtn = document.getElementById('uploadBtn');
+    const originalText = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Uploading...';
+    uploadBtn.disabled = true;
+    
+    const formData = new FormData();
+    formData.append('backup_file', file);
+    
+    fetch('/api/backup/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Backup uploaded successfully! You can now restore it.', 'success');
+            
+            // Update restore options
+            updateRestoreOptions();
+            
+            // Show restore section
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('restoreSection').style.display = 'block';
+            document.getElementById('restoreInfo').innerHTML = `
+                <strong>Backup Info:</strong><br>
+                Original Date: ${data.backup_info.original_timestamp}<br>
+                Backup ID: ${data.backup_info.backup_id}
+            `;
+            
+            // Store backup path for restoration
+            window.currentBackupPath = data.backup_info.path;
+        } else {
+            showNotification('❌ Upload failed: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showNotification('❌ Upload failed. Please try again.', 'danger');
+    })
+    .finally(() => {
+        uploadBtn.innerHTML = originalText;
+        uploadBtn.disabled = false;
+    });
+}
+
+function confirmRestore() {
+    if (!window.currentBackupPath) {
+        showNotification('❌ No backup selected for restoration.', 'danger');
+        return;
+    }
+    
+    if (!confirm('⚠️ This will restore data from the backup. This action cannot be undone. Continue?')) {
+        return;
+    }
+    
+    const restoreBtn = document.getElementById('restoreBtn');
+    const originalText = restoreBtn.innerHTML;
+    restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Restoring...';
+    restoreBtn.disabled = true;
+    
+    fetch('/api/backup/restore', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            backup_path: window.currentBackupPath
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Backup restored successfully! Please refresh the page to see updated data.', 'success');
+            
+            // Close modal and suggest page refresh
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('restoreModal')).hide();
+                if (confirm('Data restored successfully! Would you like to refresh the page to see the changes?')) {
+                    location.reload();
+                }
+            }, 2000);
+        } else {
+            showNotification('❌ Restore failed: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Restore error:', error);
+        showNotification('❌ Restore failed. Please try again.', 'danger');
+    })
+    .finally(() => {
+        restoreBtn.innerHTML = originalText;
+        restoreBtn.disabled = false;
+    });
+}
+
+function updateRestoreOptions() {
+    // This function can be enhanced to show available backups
+    // For now, we'll use the uploaded backup
+}
+
+function resetRestoreModal() {
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('restoreSection').style.display = 'none';
+    document.getElementById('backupFileInput').value = '';
+    window.currentBackupPath = null;
+}
 </script>
+
+<!-- Restore Backup Modal -->
+<div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="restoreModalLabel">
+                    <i class="fas fa-upload me-2"></i>Restore Health Data from Backup
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="resetRestoreModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> Restoring from a backup will merge the backup data with your current data. 
+                    This process cannot be undone. Please ensure you have a current backup before proceeding.
+                </div>
+                
+                <!-- Upload Section -->
+                <div id="uploadSection">
+                    <h6><i class="fas fa-file-upload me-2"></i>Upload Backup File</h6>
+                    <p class="text-muted">Select a ZIP backup file downloaded from PHRM to restore your health data.</p>
+                    
+                    <div class="mb-3">
+                        <label for="backupFileInput" class="form-label">Select Backup File (.zip)</label>
+                        <input type="file" class="form-control" id="backupFileInput" accept=".zip" required>
+                        <div class="form-text">
+                            Only ZIP files exported from PHRM are supported.
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadBackup()">
+                        <i class="fas fa-upload me-1"></i>Upload Backup
+                    </button>
+                </div>
+                
+                <!-- Restore Section -->
+                <div id="restoreSection" style="display: none;">
+                    <h6><i class="fas fa-check-circle me-2 text-success"></i>Backup Ready for Restoration</h6>
+                    
+                    <div id="restoreInfo" class="alert alert-info">
+                        <!-- Backup info will be populated here -->
+                    </div>
+                    
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Final Warning:</strong> This will restore data from the backup. 
+                        Duplicate records will be handled carefully, but this action cannot be undone.
+                    </div>
+                    
+                    <button type="button" class="btn btn-warning" id="restoreBtn" onclick="confirmRestore()">
+                        <i class="fas fa-database me-1"></i>Restore Data
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" onclick="resetRestoreModal()">
+                        <i class="fas fa-arrow-left me-1"></i>Choose Different File
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="resetRestoreModal()">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

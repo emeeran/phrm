@@ -246,7 +246,7 @@ def edit_family_member(family_member_id):
             },
         )
         flash("You do not have permission to edit this family member", "danger")
-        return redirect(url_for("records.list_family"))
+        return redirect(url_for("records.family_member_routes.list_family"))
 
     form = FamilyMemberForm()
 
@@ -428,7 +428,7 @@ def delete_family_member(family_member_id):
                 },
             )
             flash("You do not have permission to delete this family member", "danger")
-            return redirect(url_for("records.list_family"))
+            return redirect(url_for("records.family_member_routes.list_family"))
 
         # Get family member name for flash message
         member_name = f"{family_member.first_name} {family_member.last_name}"
@@ -456,6 +456,26 @@ def delete_family_member(family_member_id):
                         f"Error deleting file {doc.file_path}: {e}"
                     )
 
+            # Clean up any AI summaries for this health record
+            try:
+                from ...models.core.health_record import AISummary
+                AISummary.query.filter_by(health_record_id=record.id).delete()
+            except ImportError:
+                current_app.logger.warning("Could not import AISummary model")
+            except Exception as e:
+                current_app.logger.error(f"Error cleaning up AI summaries: {e}")
+
+        # Clean up any AI audit logs referencing this family member
+        try:
+            from ...models.ai_audit.audit_log import AIAuditLog
+            AIAuditLog.query.filter_by(family_member_id=family_member.id).update(
+                {"family_member_id": None}
+            )
+        except ImportError:
+            current_app.logger.warning("Could not import AIAuditLog model")
+        except Exception as e:
+            current_app.logger.error(f"Error cleaning up AI audit logs: {e}")
+
         # Delete family member (cascade will delete associated records and documents)
         db.session.delete(family_member)
         db.session.commit()
@@ -476,7 +496,7 @@ def delete_family_member(family_member_id):
             f"Family member {member_name} and all associated records have been deleted successfully",
             "success",
         )
-        return redirect(url_for("records.list_family"))
+        return redirect(url_for("records.family_member_routes.list_family"))
 
     except Exception as e:
         db.session.rollback()
@@ -484,7 +504,7 @@ def delete_family_member(family_member_id):
             f"Error deleting family member {family_member_id}: {e}"
         )
         flash("An error occurred while deleting the family member", "danger")
-        return redirect(url_for("records.list_family"))
+        return redirect(url_for("records.family_member_routes.list_family"))
 
 
 @family_member_routes.route("/family/<int:family_member_id>")
@@ -504,7 +524,7 @@ def view_family_member(family_member_id):
             },
         )
         flash("You do not have permission to view this family member", "danger")
-        return redirect(url_for("records.list_family"))
+        return redirect(url_for("records.family_member_routes.list_family"))
 
     # Get recent health records for this family member
     recent_records = (
