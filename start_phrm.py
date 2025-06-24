@@ -56,6 +56,15 @@ def main():
 
     # Import and create app
     try:
+        # Clear any cached modules to ensure fresh state
+        import sys
+        import importlib
+        
+        # Clear any cached modules that might cause stale code issues
+        for module_name in list(sys.modules.keys()):
+            if module_name.startswith('app.'):
+                del sys.modules[module_name]
+                
         from app import create_app
 
         app = create_app()
@@ -69,12 +78,14 @@ def main():
         print("   - Secure user authentication")
         print("   - Real-time medical reference lookup")
 
-        print("\n🚀 Starting server on http://localhost:5000")
+        # Use port 5010 instead of 5000 to avoid conflicts
+        port = 5010
+        print(f"\n🚀 Starting server on http://localhost:{port}")
         print("   Press Ctrl+C to stop")
         print("=" * 60)
 
         # Start the development server
-        app.run(host="0.0.0.0", port=5000, debug=False)
+        app.run(host="0.0.0.0", port=port, debug=True)
 
     except KeyboardInterrupt:
         print("\n\n👋 Server stopped by user")

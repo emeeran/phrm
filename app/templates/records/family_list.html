@@ -5,61 +5,139 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-md-10 mx-auto">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="mb-0"><i class="fas fa-users me-2"></i>Family Members</h2>
-            <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="btn btn-primary">
-                <i class="fas fa-user-plus me-1"></i>Add Family Member
-            </a>
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                <li class="breadcrumb-item active">Family Members</li>
+            </ol>
+        </nav>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0 fs-4"><i class="fas fa-users me-2"></i>Family Members</h2>
+                    <a href="{{ url_for('records.family_member_routes.add_family_member') }}" class="btn btn-light">
+                        <i class="fas fa-user-plus me-1"></i>Add Family Member
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Search and Filter Options -->
+                {% if family_members %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="familySearchInput" class="form-control" placeholder="Search by name or relationship...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-md-end">
+                            <select id="familySortOption" class="form-select form-select-sm me-2" style="max-width: 180px;">
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                                <option value="relationship">Relationship</option>
+                                <option value="records-desc">Most Records</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if family_members %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="familyMembersTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Relationship</th>
+                                <th>Date of Birth</th>
+                                <th>Records</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in family_members %}
+                            <tr data-name="{{ member.first_name }} {{ member.last_name }}" 
+                                data-relationship="{{ member.relationship }}" 
+                                data-records="{{ member.records.count() }}">
+                                <td>
+                                    <a href="{{ url_for('records.family_member_routes.view_family_member', family_member_id=member.id) }}" class="text-decoration-none fw-bold text-primary">
+                                        {{ member.first_name }} {{ member.last_name }}
+                                    </a>
+                                </td>
+                                <td>{{ member.relationship|title if member.relationship else '-' }}</td>
+                                <td>{{ member.date_of_birth|format_date if member.date_of_birth else '-' }}</td>
+                                <td>{{ member.records.count() }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('records.family_member_routes.view_family_member', family_member_id=member.id) }}"
+                                           class="btn btn-outline-secondary" title="View Profile">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('records.family_member_routes.edit_family_member', family_member_id=member.id) }}"
+                                           class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('records.health_records_routes.list_records', family_member=member.id) }}"
+                                           class="btn btn-outline-info" title="View Records">
+                                            <i class="fas fa-file-medical"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary quick-view-btn" 
+                                                title="Quick View" data-id="{{ member.id }}">
+                                            <i class="fas fa-id-card"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" title="Delete"
+                                                data-bs-toggle="modal" data-bs-target="#deleteModal{{ member.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination controls - shown only when more than 10 members -->
+                <div id="paginationControls" class="d-flex justify-content-between align-items-center mt-3" style="display: none !important;">
+                    <div class="small text-muted">
+                        Showing <span id="currentRange">1-{{ family_members|length }}</span> of <span id="totalItems">{{ family_members|length }}</span> members
+                    </div>
+                    <nav aria-label="Family members pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item disabled" id="prevPageBtn">
+                                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                            </li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item" id="nextPageBtn">
+                                <a class="page-link" href="#">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+
+                <div id="noResultsMessage" class="alert alert-info text-center my-3" style="display: none;">
+                    <i class="fas fa-search me-2"></i>No family members match your search.
+                </div>
+                
+                {% else %}
+                <div class="alert alert-info text-center my-5">
+                    <div>
+                        <i class="fas fa-users fa-3x mb-3 text-info opacity-50"></i>
+                        <p>No family members found.</p>
+                        <p>Add your first family member to start managing their health records.</p>
+                        <a href="{{ url_for('records.family_member_routes.add_family_member') }}" 
+                           class="btn btn-primary">
+                           <i class="fas fa-user-plus me-1"></i>Add Family Member
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        {% if family_members %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Relationship</th>
-                        <th>Date of Birth</th>
-                        <th>Records</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for member in family_members %}
-                    <tr>
-                        <td>{{ member.first_name }} {{ member.last_name }}</td>
-                        <td>{{ member.relationship or '-' }}</td>
-                        <td>{{ member.date_of_birth|format_date if member.date_of_birth else '-' }}</td>
-                        <td>{{ member.records.count() }}</td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ url_for('records.family_member_routes.view_family_member', family_member_id=member.id) }}"
-                                   class="btn btn-outline-secondary" title="View Profile">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('records.family_member_routes.edit_family_member', family_member_id=member.id) }}"
-                                   class="btn btn-outline-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{{ url_for('records.health_records_routes.list_records', family_member=member.id) }}"
-                                   class="btn btn-outline-info" title="View Records">
-                                    <i class="fas fa-file-medical"></i>
-                                </a>
-                                <button type="button" class="btn btn-outline-danger" title="Delete"
-                                        data-bs-toggle="modal" data-bs-target="#deleteModal{{ member.id }}">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="alert alert-info text-center my-5">
-            <i class="fas fa-info-circle me-2"></i>No family members found.
-        </div>
-        {% endif %}
     </div>
 </div>
 
@@ -99,4 +177,423 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Quick View Modal -->
+<div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickViewModalLabel">Family Member Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading profile information...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="viewFullProfileBtn">View Full Profile</a>
+                <a href="#" class="btn btn-outline-primary" id="editProfileBtn">Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for search, sort, pagination and quick view functionality -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.getElementById('familySearchInput');
+    const sortSelect = document.getElementById('familySortOption');
+    const table = document.getElementById('familyMembersTable');
+    const noResultsMsg = document.getElementById('noResultsMessage');
+    
+    if (searchInput && table) {
+        searchInput.addEventListener('keyup', function() {
+            filterTable();
+        });
+    }
+    
+    if (sortSelect && table) {
+        sortSelect.addEventListener('change', function() {
+            sortTable();
+        });
+    }
+    
+    // Call filterTable and sortTable on initial load to set up the correct state
+    if (table && table.rows.length > 1) {
+        initializeTable();
+    }
+    
+    // Quick view functionality
+    const quickViewBtns = document.querySelectorAll('.quick-view-btn');
+    const quickViewModal = document.getElementById('quickViewModal');
+    
+    if (quickViewBtns.length && quickViewModal) {
+        quickViewBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const memberId = this.getAttribute('data-id');
+                const modalTitle = quickViewModal.querySelector('.modal-title');
+                const modalBody = quickViewModal.querySelector('.modal-body');
+                const viewFullBtn = document.getElementById('viewFullProfileBtn');
+                const editProfileBtn = document.getElementById('editProfileBtn');
+                
+                // Update action buttons
+                viewFullBtn.href = `/records/family/${memberId}`;
+                editProfileBtn.href = `/records/family/${memberId}/edit`;
+                
+                // Show loading state
+                modalBody.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading profile information...</p>
+                    </div>
+                `;
+                
+                // Open the modal
+                const bsModal = new bootstrap.Modal(quickViewModal);
+                bsModal.show();
+                
+                // Fetch member data
+                fetch(`/records/family/${memberId}?format=json`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Update modal with member data
+                        const member = data.family_member;
+                        modalTitle.textContent = `${member.first_name} ${member.last_name}`;
+                        
+                        // Format the quick view content
+                        modalBody.innerHTML = createQuickViewContent(member, data.recent_records);
+                    })
+                    .catch(error => {
+                        modalBody.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                Error loading profile information. Please try again later.
+                            </div>
+                        `;
+                        console.error('Error fetching family member data:', error);
+                    });
+            });
+        });
+    }
+    
+    function createQuickViewContent(member, recentRecords) {
+        // Create a summary view of the member's profile
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-5">Relationship:</dt>
+                        <dd class="col-sm-7">${member.relationship || '-'}</dd>
+                        
+                        <dt class="col-sm-5">Date of Birth:</dt>
+                        <dd class="col-sm-7">${member.date_of_birth || '-'}</dd>
+                        
+                        <dt class="col-sm-5">Gender:</dt>
+                        <dd class="col-sm-7">${member.gender || '-'}</dd>
+                        
+                        <dt class="col-sm-5">Blood Type:</dt>
+                        <dd class="col-sm-7">${member.blood_type || '-'}</dd>
+                    </dl>
+                </div>
+                
+                <div class="col-md-6">
+                    <h6 class="border-bottom pb-2 mb-3">Medical Information</h6>
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-5">Allergies:</dt>
+                        <dd class="col-sm-7">${member.allergies ? 'Yes' : 'None recorded'}</dd>
+                        
+                        <dt class="col-sm-5">Chronic Conditions:</dt>
+                        <dd class="col-sm-7">${member.chronic_conditions ? 'Yes' : 'None recorded'}</dd>
+                        
+                        <dt class="col-sm-5">Current Medications:</dt>
+                        <dd class="col-sm-7">${member.has_medications ? 'Yes' : 'None recorded'}</dd>
+                        
+                        <dt class="col-sm-5">Primary Doctor:</dt>
+                        <dd class="col-sm-7">${member.primary_doctor || '-'}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <h6 class="border-bottom pb-2 mb-2 mt-3">Recent Health Records</h6>
+        `;
+        
+        // Add recent records if available
+        if (recentRecords && recentRecords.length > 0) {
+            html += `
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Complaint</th>
+                                <th>Doctor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            recentRecords.slice(0, 3).forEach(record => {
+                html += `
+                    <tr>
+                        <td>${record.date || '-'}</td>
+                        <td><a href="/records/view/${record.id}">${record.chief_complaint || 'Medical Record'}</a></td>
+                        <td>${record.doctor || '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Add view all records link if there are more than 3 records
+            if (recentRecords.length > 3) {
+                html += `
+                    <div class="text-center mt-2">
+                        <a href="/records/list?family_member=${member.id}" class="btn btn-sm btn-outline-primary">
+                            View All Records (${recentRecords.length})
+                        </a>
+                    </div>
+                `;
+            }
+        } else {
+            html += `
+                <div class="alert alert-info small">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No health records found for this family member.
+                </div>
+            `;
+        }
+        
+        return html;
+    }
+    
+    // Initialize the table setup and pagination
+    function initializeTable() {
+        sortTable();
+        setupPagination();
+    }
+    
+    // Filter the table based on search input
+    function filterTable() {
+        const searchText = searchInput.value.toLowerCase();
+        const tbody = table.querySelector('tbody');
+        const rows = tbody.querySelectorAll('tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name').toLowerCase();
+            const relationship = row.getAttribute('data-relationship').toLowerCase();
+            const shouldShow = name.includes(searchText) || relationship.includes(searchText);
+            
+            row.style.display = shouldShow ? '' : 'none';
+            if (shouldShow) {
+                visibleCount++;
+            }
+        });
+        
+        // Show/hide no results message
+        noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        
+        // Re-setup pagination after filtering
+        setupPagination();
+    }
+    
+    // Sort the table based on selected option
+    function sortTable() {
+        const sortOption = sortSelect.value;
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // Sort the rows
+        rows.sort((a, b) => {
+            switch(sortOption) {
+                case 'name-asc':
+                    return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+                case 'name-desc':
+                    return b.getAttribute('data-name').localeCompare(a.getAttribute('data-name'));
+                case 'relationship':
+                    return a.getAttribute('data-relationship').localeCompare(b.getAttribute('data-relationship'));
+                case 'records-desc':
+                    return parseInt(b.getAttribute('data-records')) - parseInt(a.getAttribute('data-records'));
+                default:
+                    return 0;
+            }
+        });
+        
+        // Remove all existing rows
+        while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+        }
+        
+        // Append the sorted rows
+        rows.forEach(row => {
+            tbody.appendChild(row);
+        });
+        
+        // Re-setup pagination after sorting
+        setupPagination();
+    }
+    
+    // Setup pagination for the table
+    function setupPagination() {
+        const paginationControls = document.getElementById('paginationControls');
+        if (!paginationControls) return;
+        
+        const itemsPerPage = 10;
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
+        const totalItems = rows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        // Only show pagination if we have more items than per page limit
+        if (totalItems > itemsPerPage) {
+            paginationControls.style.display = 'flex';
+            
+            // Generate pagination buttons
+            const paginationList = paginationControls.querySelector('ul.pagination');
+            paginationList.innerHTML = ''; // Clear existing buttons
+            
+            // Previous button
+            const prevBtn = document.createElement('li');
+            prevBtn.className = 'page-item disabled';
+            prevBtn.id = 'prevPageBtn';
+            prevBtn.innerHTML = '<a class="page-link" href="#">Previous</a>';
+            paginationList.appendChild(prevBtn);
+            
+            // Page number buttons (up to 5)
+            for (let i = 1; i <= Math.min(5, totalPages); i++) {
+                const pageBtn = document.createElement('li');
+                pageBtn.className = i === 1 ? 'page-item active' : 'page-item';
+                pageBtn.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+                paginationList.appendChild(pageBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('li');
+            nextBtn.className = 'page-item';
+            nextBtn.id = 'nextPageBtn';
+            nextBtn.innerHTML = '<a class="page-link" href="#">Next</a>';
+            paginationList.appendChild(nextBtn);
+            
+            // Update current range display
+            document.getElementById('currentRange').textContent = `1-${Math.min(itemsPerPage, totalItems)}`;
+            document.getElementById('totalItems').textContent = totalItems;
+            
+            // Add event listeners to pagination buttons
+            setupPaginationEvents(itemsPerPage, totalPages);
+            
+            // Show first page
+            showPage(1, itemsPerPage, rows);
+        } else {
+            // Hide pagination if not needed
+            paginationControls.style.display = 'none';
+            
+            // Show all rows
+            rows.forEach(row => row.style.display = '');
+        }
+    }
+    
+    // Setup pagination event listeners
+    function setupPaginationEvents(itemsPerPage, totalPages) {
+        const paginationControls = document.getElementById('paginationControls');
+        const pageLinks = paginationControls.querySelectorAll('.page-link');
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
+        
+        // Add click event to page number links
+        pageLinks.forEach(link => {
+            const page = link.getAttribute('data-page');
+            if (page) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const currentPage = parseInt(page);
+                    showPage(currentPage, itemsPerPage, rows);
+                    
+                    // Update active button
+                    paginationControls.querySelectorAll('.page-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    this.parentNode.classList.add('active');
+                    
+                    // Update prev/next buttons
+                    prevBtn.classList.toggle('disabled', currentPage === 1);
+                    nextBtn.classList.toggle('disabled', currentPage === totalPages);
+                    
+                    // Update current range display
+                    const start = (currentPage - 1) * itemsPerPage + 1;
+                    const end = Math.min(currentPage * itemsPerPage, rows.length);
+                    document.getElementById('currentRange').textContent = `${start}-${end}`;
+                });
+            }
+        });
+        
+        // Previous button
+        prevBtn.querySelector('a').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (this.parentNode.classList.contains('disabled')) return;
+            
+            const activeBtn = paginationControls.querySelector('.page-item.active a');
+            const currentPage = parseInt(activeBtn.getAttribute('data-page'));
+            const newPage = currentPage - 1;
+            
+            if (newPage >= 1) {
+                const pageToActivate = paginationControls.querySelector(`.page-link[data-page="${newPage}"]`);
+                if (pageToActivate) {
+                    pageToActivate.click();
+                }
+            }
+        });
+        
+        // Next button
+        nextBtn.querySelector('a').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (this.parentNode.classList.contains('disabled')) return;
+            
+            const activeBtn = paginationControls.querySelector('.page-item.active a');
+            const currentPage = parseInt(activeBtn.getAttribute('data-page'));
+            const newPage = currentPage + 1;
+            
+            if (newPage <= totalPages) {
+                const pageToActivate = paginationControls.querySelector(`.page-link[data-page="${newPage}"]`);
+                if (pageToActivate) {
+                    pageToActivate.click();
+                }
+            }
+        });
+    }
+    
+    // Show the specified page
+    function showPage(pageNumber, itemsPerPage, rows) {
+        const startIndex = (pageNumber - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        
+        // Hide all rows
+        rows.forEach(row => row.style.display = 'none');
+        
+        // Show only rows for the current page
+        for (let i = startIndex; i < Math.min(endIndex, rows.length); i++) {
+            rows[i].style.display = '';
+        }
+    }
+});
+</script>
 {% endblock %}

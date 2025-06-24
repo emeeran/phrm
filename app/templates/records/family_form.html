@@ -13,7 +13,7 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" id="familyMemberForm">
                     {{ form.hidden_tag() }}
 
                     <!-- Basic Information -->
@@ -26,7 +26,7 @@
 
                         <div class="col-md-6 mb-3">
                             {{ form.first_name.label(class="form-label") }}
-                            {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
+                            {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else ""), data_validate="required", data_validate_msg="First name is required") }}
                             {% for error in form.first_name.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
@@ -34,7 +34,7 @@
 
                         <div class="col-md-6 mb-3">
                             {{ form.last_name.label(class="form-label") }}
-                            {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
+                            {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else ""), data_validate="required", data_validate_msg="Last name is required") }}
                             {% for error in form.last_name.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
@@ -42,7 +42,7 @@
 
                         <div class="col-md-4 mb-3">
                             {{ form.relationship.label(class="form-label") }}
-                            {{ form.relationship(class="form-control" + (" is-invalid" if form.relationship.errors else "")) }}
+                            {{ form.relationship(class="form-control" + (" is-invalid" if form.relationship.errors else ""), data_validate="required", data_validate_msg="Please select a relationship") }}
                             {% for error in form.relationship.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
@@ -205,9 +205,12 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-outline-secondary me-md-2">
+                                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-outline-secondary me-md-2" id="cancelBtn">
                                     <i class="fas fa-arrow-left me-1"></i>Cancel
                                 </a>
+                                <button type="button" class="btn btn-outline-warning me-md-2" id="resetFormBtn">
+                                    <i class="fas fa-undo me-1"></i>Reset Form
+                                </button>
                                 {{ form.submit(class="btn btn-primary") }}
                             </div>
                         </div>
@@ -217,4 +220,332 @@
         </div>
     </div>
 </div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal fade" id="resetConfirmModal" tabindex="-1" aria-labelledby="resetConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resetConfirmModalLabel"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Reset Form?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reset the form? All unsaved changes will be lost.</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmResetBtn">
+                    <i class="fas fa-undo me-1"></i>Reset Form
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div class="modal fade" id="cancelConfirmModal" tabindex="-1" aria-labelledby="cancelConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelConfirmModalLabel"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Discard Changes?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to leave this page? All unsaved changes will be lost.</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Stay on Page</button>
+                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-warning">
+                    <i class="fas fa-times me-1"></i>Discard Changes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize form validation
+    initializeFormValidation();
+    
+    // Add auto-save functionality
+    setupFormAutoSave();
+    
+    // Show validation status on form submission
+    const form = document.getElementById('familyMemberForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                showValidationSummary();
+            }
+        });
+    }
+    
+    // Handle form reset button
+    const resetFormBtn = document.getElementById('resetFormBtn');
+    if (resetFormBtn) {
+        resetFormBtn.addEventListener('click', function() {
+            const resetModal = new bootstrap.Modal(document.getElementById('resetConfirmModal'));
+            resetModal.show();
+        });
+    }
+    
+    // Handle reset confirmation
+    const confirmResetBtn = document.getElementById('confirmResetBtn');
+    if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', function() {
+            const form = document.getElementById('familyMemberForm');
+            form.reset();
+            
+            // Clear any validation errors
+            const invalidFields = form.querySelectorAll('.is-invalid');
+            invalidFields.forEach(field => {
+                field.classList.remove('is-invalid');
+                const feedback = field.parentNode.querySelector('.invalid-feedback');
+                if (feedback) feedback.remove();
+            });
+            
+            // Clear validation summary
+            const summary = form.querySelector('.validation-summary');
+            if (summary) summary.remove();
+            
+            // Hide the modal
+            const resetModal = bootstrap.Modal.getInstance(document.getElementById('resetConfirmModal'));
+            resetModal.hide();
+            
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Form reset!</strong> All fields have been cleared.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            form.insertAdjacentElement('afterbegin', alertDiv);
+        });
+    }
+    
+    // Handle cancel button
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function(e) {
+            // Check if form has been modified
+            if (isFormDirty()) {
+                e.preventDefault();
+                const cancelModal = new bootstrap.Modal(document.getElementById('cancelConfirmModal'));
+                cancelModal.show();
+            }
+        });
+    }
+    
+    // Check if form has been modified
+    function isFormDirty() {
+        // Get form storage key
+        const formId = window.location.pathname;
+        const storageKey = `phrm_autosave_${formId}`;
+        
+        // Check if we have saved form data
+        return localStorage.getItem(storageKey) !== null;
+    }
+});
+
+// Initialize form validation
+function initializeFormValidation() {
+    const form = document.getElementById('familyMemberForm');
+    if (!form) return;
+    
+    // Add real-time validation for required fields
+    const requiredFields = form.querySelectorAll('input[data-validate="required"], select[data-validate="required"]');
+    
+    requiredFields.forEach(field => {
+        field.addEventListener('blur', function() {
+            validateField(this);
+        });
+        
+        field.addEventListener('input', function() {
+            clearFieldError(this);
+        });
+    });
+}
+
+// Validate individual field
+function validateField(field) {
+    const value = field.value.trim();
+    const isRequired = field.getAttribute('data-validate') === 'required';
+    const errorMsg = field.getAttribute('data-validate-msg') || 'This field is required';
+    
+    if (isRequired && !value) {
+        showFieldError(field, errorMsg);
+        return false;
+    }
+    
+    clearFieldError(field);
+    return true;
+}
+
+// Show field error
+function showFieldError(field, message) {
+    field.classList.add('is-invalid');
+    
+    // Remove existing error message
+    const existingError = field.parentNode.querySelector('.invalid-feedback.dynamic');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Add new error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'invalid-feedback dynamic';
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+}
+
+// Clear field error
+function clearFieldError(field) {
+    field.classList.remove('is-invalid');
+    const errorDiv = field.parentNode.querySelector('.invalid-feedback.dynamic');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
+}
+
+// Validate the entire form
+function validateForm() {
+    const form = document.getElementById('familyMemberForm');
+    if (!form) return true;
+    
+    const requiredFields = form.querySelectorAll('input[data-validate="required"], select[data-validate="required"]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!validateField(field)) {
+            isValid = false;
+        }
+    });
+    
+    return isValid;
+}
+
+// Show a summary of validation errors at the top of the form
+function showValidationSummary() {
+    const form = document.getElementById('familyMemberForm');
+    const invalidFields = form.querySelectorAll('.is-invalid');
+    
+    if (invalidFields.length === 0) return;
+    
+    // Remove existing summary
+    const existingSummary = form.querySelector('.validation-summary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+    
+    // Create validation summary
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'alert alert-danger validation-summary';
+    summaryDiv.innerHTML = `
+        <h6><i class="fas fa-exclamation-circle me-2"></i>Please correct the following errors:</h6>
+        <ul class="mb-0">
+            ${Array.from(invalidFields).map(field => {
+                const label = form.querySelector(`label[for="${field.id}"]`)?.textContent || 'Field';
+                return `<li>${label} is required</li>`;
+            }).join('')}
+        </ul>
+    `;
+    
+    form.insertAdjacentElement('afterbegin', summaryDiv);
+    
+    // Scroll to the summary
+    summaryDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Setup form auto-save functionality
+function setupFormAutoSave() {
+    const form = document.getElementById('familyMemberForm');
+    if (!form) return;
+    
+    const formId = window.location.pathname;
+    const storageKey = `phrm_autosave_${formId}`;
+    
+    // Load saved data on page load
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+        try {
+            const data = JSON.parse(savedData);
+            loadFormData(data);
+            
+            // Show restoration notice
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-info alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Form restored!</strong> Your previous changes have been automatically restored.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            form.insertAdjacentElement('afterbegin', alertDiv);
+        } catch (e) {
+            console.error('Error loading saved form data:', e);
+            localStorage.removeItem(storageKey);
+        }
+    }
+    
+    // Save form data on input
+    const formElements = form.querySelectorAll('input, select, textarea');
+    formElements.forEach(element => {
+        element.addEventListener('input', debounce(() => {
+            saveFormData(storageKey);
+        }, 1000));
+    });
+    
+    // Clear saved data on successful submit
+    form.addEventListener('submit', function(e) {
+        if (validateForm()) {
+            localStorage.removeItem(storageKey);
+        }
+    });
+}
+
+// Save form data to localStorage
+function saveFormData(storageKey) {
+    const form = document.getElementById('familyMemberForm');
+    const formData = new FormData(form);
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    localStorage.setItem(storageKey, JSON.stringify(data));
+}
+
+// Load form data from object
+function loadFormData(data) {
+    const form = document.getElementById('familyMemberForm');
+    
+    Object.keys(data).forEach(key => {
+        const element = form.querySelector(`[name="${key}"]`);
+        if (element) {
+            element.value = data[key];
+        }
+    });
+}
+
+// Debounce function for auto-save
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+</script>
+
 {% endblock %}
