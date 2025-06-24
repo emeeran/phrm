@@ -463,7 +463,7 @@ def delete_account():
         logout_user()
 
         flash(f"Account {user_email} has been permanently deleted.", "info")
-        return redirect(url_for("main.index"))
+        return redirect(url_for("index"))
 
     return render_template(
         "auth/delete_account.html", title="Delete Account", form=form

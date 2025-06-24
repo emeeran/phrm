@@ -190,12 +190,12 @@ def _add_main_routes(app):
 
     @app.route("/")
     def index():
-        from flask import redirect, url_for
+        from flask import redirect, url_for, render_template
         from flask_login import current_user
-
+        
         if not current_user.is_authenticated:
-            return redirect(url_for("auth.login"))
-        return render_template("index.html")
+            return render_template("index.html")
+        return redirect(url_for("records.dashboard_routes.dashboard"))
 
 
 def _configure_database_optimization(app):

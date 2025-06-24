@@ -4,6 +4,53 @@
 
 {% block content %}
 <div class="container py-5">
+    <!-- Dedication Section -->
+    <div class="row justify-content-center align-items-center mb-5">
+        <div class="col-lg-9 mx-auto">
+            <div class="text-center mb-3">
+                <span class="dedication-badge px-4 py-2 rounded-pill" style="background: linear-gradient(120deg, rgba(13,110,253,0.1) 0%, rgba(13,202,240,0.1) 100%); color: #0d6efd; font-size: 1rem; display: inline-block; box-shadow: 0 2px 8px rgba(13,110,253,0.08); border: 2px solid rgba(13,110,253,0.3);">
+                    <i class="fas fa-heart me-2 pulse-gently" style="color: #0d6efd;"></i> ❤️ In Loving Memory ❤️
+                </span>
+            </div>
+            <div class="modern-dedication-box p-4 p-md-5 rounded-4 shadow-sm position-relative overflow-hidden" 
+                 style="background: linear-gradient(120deg, #e3f6fd 60%, #f8fafc 100%); min-height: 200px;">
+                
+                <!-- Decorative elements -->
+                <div class="position-absolute" style="top: 0; left: 0; width: 100%; height: 5px; background: linear-gradient(90deg, #0dcaf0, #0d6efd);"></div>
+                <div class="position-absolute" style="top: 10px; right: 10px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(13,202,240,0.03) 0%, rgba(13,110,253,0.01) 70%);"></div>
+                
+                <div class="d-flex flex-column flex-md-row align-items-center">
+                    <div class="flex-grow-1 text-center text-md-start mb-4 mb-md-0 ps-md-3">
+                        <div class="dedication-label text-uppercase text-secondary mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dedicated to my beloved son</div>
+                        <div class="dedication-name fw-bold mb-1" style="font-size: 2.2rem; letter-spacing: 1px; color: #0d6efd; text-shadow: 0 1px 1px rgba(0,0,0,0.05);">Tariq Al Fayad</div>
+                        <div class="dedication-dates mt-2" style="font-size: 1.05rem; color: #6c757d; font-weight: 300; letter-spacing: 0.5px;">Oct-03 1997 - Mar-18 2020</div>
+                        <div class="mt-3 d-none d-md-block" style="width: 60px; height: 2px; background: linear-gradient(90deg, #0dcaf0, rgba(13,110,253,0.2));"></div>
+                    </div>
+                    <div class="ms-md-auto flex-shrink-0 dedication-photo-wrapper text-end pe-md-3" style="width: 25%; min-width: 135px; max-width: 180px;">
+                        <div class="modern-photo-frame position-relative d-inline-block" style="background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); padding: 8px; border-radius: 26px 8px 26px 8px; box-shadow: 0 6px 20px rgba(13,202,240,0.18);">
+                            <img src="{{ url_for('static', filename='img/tariq/Tariq Portrait Fav 02 A4 250120.jpg') }}" alt="Tariq Al Fayad portrait" class="img-fluid rounded-4" style="width: 100%; aspect-ratio: 3/4; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 12px rgba(13,110,253,0.15);">
+                            <div class="artful-accent position-absolute" style="bottom: -12px; right: -12px; width: 32px; height: 32px; background: rgba(13,202,240,0.13); border-radius: 50%; box-shadow: 0 1px 4px rgba(13,202,240,0.10);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Dedication Section -->
+    
+    <style>
+    @keyframes gentle-pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+    }
+    .pulse-gently {
+        animation: gentle-pulse 2s infinite ease-in-out;
+        display: inline-block;
+    }
+    /* Added timestamp: {{ now }} */
+    </style>
+
     <div class="row align-items-center">
         <div class="col-md-6">
             <h1 class="display-4 fw-bold mb-4">Your Health Records in One Place</h1>

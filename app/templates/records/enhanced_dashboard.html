@@ -14,61 +14,66 @@
 
     .stat-card {
         background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
+        border-radius: 8px;
+        padding: 0.75rem 0.75rem 0.5rem 0.75rem;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.3s ease;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+        transition: transform 0.2s;
         height: 100%;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-    }
-
-    .stat-number {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #007bff;
+        min-width: 0;
         margin-bottom: 0.5rem;
     }
 
-    .stat-label {
+    .stat-card .stat-number {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #007bff;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-card .stat-label {
         color: #6c757d;
-        font-size: 0.9rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-weight: 500;
     }
 
     .action-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 1rem;
     }
 
     .action-card {
         background: white;
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        padding: 1.5rem;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem 0.5rem;
         text-align: center;
         text-decoration: none;
         color: #495057;
-        transition: all 0.3s ease;
+        transition: all 0.2s;
+        min-height: 70px;
+        font-size: 0.95rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .action-card .action-icon {
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
     }
 
     .action-card:hover {
         border-color: #007bff;
         color: #007bff;
         text-decoration: none;
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0,123,255,0.3);
-    }
-
-    .action-icon {
-        font-size: 2rem;
-        margin-bottom: 1rem;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,123,255,0.12);
     }
 
     .panel {
@@ -110,7 +115,14 @@
     }
 
     .member-dropdown {
-        min-width: 200px;
+        min-width: 100px;
+        max-width: 200px;
+    }
+    
+    .dedication-container {
+        border-left: 3px solid rgba(255,255,255,0.3);
+        padding-left: 15px;
+        margin-top: 15px;
     }
 
     .urgent-badge {
@@ -144,6 +156,25 @@
         // Add filtering logic here if needed
         console.log('Filtering by member:', memberId);
     }
+    
+    // Initialize dedication collapse
+    document.addEventListener('DOMContentLoaded', function() {
+        const dedicationBadge = document.querySelector('.dedication-badge');
+        const dedicationCollapse = document.getElementById('dedicationCollapse');
+        
+        if (dedicationBadge && dedicationCollapse) {
+            // Set initial state (show on load)
+            localStorage.getItem('dedicationCollapsed') === 'true' ? 
+                dedicationCollapse.classList.remove('show') : 
+                dedicationCollapse.classList.add('show');
+                
+            // Toggle dedication and save state
+            dedicationBadge.addEventListener('click', function() {
+                const isCurrentlyCollapsed = !dedicationCollapse.classList.contains('show');
+                localStorage.setItem('dedicationCollapsed', !isCurrentlyCollapsed);
+            });
+        }
+    });
 </script>
 {% endblock %}
 
@@ -151,24 +182,63 @@
 <!-- Hero Section with Mini Dashboard -->
 <div class="dashboard-hero">
     <div class="row align-items-center">
-        <div class="col-md-8">
-            <h1 class="mb-2">
-                <i class="fas fa-home me-2"></i>
-                Welcome back, {{ current_user.first_name or current_user.username }}!
-            </h1>
-            <p class="mb-0 opacity-90">Your personal health records manager</p>
-        </div>
-        <div class="col-md-4">
-            <!-- Member Selector Dropdown -->
-            <div class="mb-3">
-                <label class="form-label text-white-50">View records for:</label>
-                <select class="form-select member-dropdown" onchange="filterByMember(this.value)">
-                    <option value="all">All Family Members</option>
-                    <option value="self">Myself</option>
-                    {% for member in family_members %}
-                    <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
-                    {% endfor %}
-                </select>
+        <div class="row">
+            <!-- Left side: Welcome and Dropdown -->
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-home me-2"></i>
+                    Welcome back, {{ current_user.first_name or current_user.username }}!
+                </h1>
+                <p class="mb-0 opacity-90">Your personal health records manager</p>
+                
+                <div class="mt-3">
+                    <!-- Member Selector Dropdown -->
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <label class="form-label text-white-50 mb-0">View records for:</label>
+                        </div>
+                        <div class="col-md-2">
+                            <!-- Quarter width search bar -->
+                            <select class="form-select form-select-sm member-dropdown" onchange="filterByMember(this.value)" style="background-color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.2);">
+                                <option value="all">All Family Members</option>
+                                <option value="self">Myself</option>
+                                {% for member in family_members %}
+                                <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col"></div> <!-- Empty column to take up remaining space -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right side: Dedication -->
+            <div class="col-md-4 d-flex flex-column justify-content-center align-items-end">
+                <!-- Dedication badge and collapsible section -->
+                <div class="dedication-wrapper w-100">
+                    <div class="d-flex justify-content-end mb-2">
+                        <div class="dedication-badge" style="background: rgba(255,255,255,0.15); border-radius: 50px; padding: 4px 12px; font-size: 0.85rem; color: white; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#dedicationCollapse" aria-expanded="false" aria-controls="dedicationCollapse">
+                            <i class="fas fa-heart text-white-50 me-1"></i> In Memory
+                        </div>
+                    </div>
+                    
+                    <div class="collapse show" id="dedicationCollapse">
+                        <div class="dedication-container p-2 w-100" style="background: rgba(255,255,255,0.1); border-radius: 8px;">
+                            <div class="d-flex align-items-center">
+                                <div class="dedication-photo-wrapper me-2" style="width: 65px; flex-shrink: 0;">
+                                    <div class="position-relative d-inline-block" style="padding: 3px; border-radius: 12px 3px 12px 3px; background: rgba(255,255,255,0.1);">
+                                        <img src="{{ url_for('static', filename='img/tariq/Tariq Portrait Fav 02 A4 250120.jpg') }}" alt="Tariq Al Fayad portrait" class="img-fluid rounded-2" style="width: 100%; aspect-ratio: 3/4; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);">
+                                    </div>
+                                </div>
+                                <div class="dedication-text-wrapper">
+                                    <div class="dedication-label text-white-50" style="font-size: 0.7rem; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dedicated to my beloved son</div>
+                                    <div class="dedication-name text-white fw-bold" style="font-size: 1.1rem; letter-spacing: 0.5px;">Tariq Al Fayad</div>
+                                    <div class="dedication-dates text-white-50" style="font-size: 0.8rem;">Oct-03 1997 - Mar-18 2020</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
