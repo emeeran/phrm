@@ -12,6 +12,7 @@ __pycache__/
 .Python
 .env.production
 .env.Production
+trash2review/
 
 # Flask/instance/data
 instance/
