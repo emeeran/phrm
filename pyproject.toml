@@ -1,16 +1,16 @@
 [project]
 name = "phrm"
-version = "2.0.0"
-description = "Personal Health Record Manager - AI-Enhanced Medical Records Management System"
+version = "2.1.0"
+description = "Personal Health Record Manager - AI-Enhanced Medical Records Management System with Systematic Optimizations"
 authors = [
     {name = "PHRM Development Team", email = "dev@phrm.example.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-keywords = ["healthcare", "medical", "records", "ai", "flask"]
+keywords = ["healthcare", "medical", "records", "ai", "flask", "optimized", "performance"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment", 
     "Framework :: Flask",
     "Intended Audience :: Healthcare Industry",
@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 
 dependencies = [

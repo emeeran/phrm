@@ -19,7 +19,7 @@ except ImportError:
 
 from .models import User, db
 from .utils.config_manager import get_config
-from .utils.redis_cache import cache as redis_cache
+from .utils.unified_cache import cache_manager
 
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
@@ -27,7 +27,6 @@ login_manager.login_message = "Please log in to access this page."
 login_manager.login_message_category = "info"
 
 migrate = Migrate()
-
 
 def get_limiter_key():
     """Get key for rate limiting - user ID if authenticated, otherwise IP"""
@@ -91,12 +90,13 @@ def _initialize_extensions(app):
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
-    # Initialize Redis cache
-    redis_cache.init_app(app)
+    # Initialize unified cache manager
+    cache_manager.init_app(app)
 
     # Initialize security extensions
     limiter.init_app(app)
-    cache.init_app(app)
+    # Note: Using unified cache manager instead of Flask-Caching
+    # cache.init_app(app)
 
     # Initialize RAG service for medical reference books (temporarily disabled for troubleshooting)
     # with app.app_context():
@@ -159,17 +159,9 @@ def _register_blueprints(app):
 
 
 def _configure_templates(app):
-    """Configure template utilities and filters"""
-    from .utils.template_utils import get_template_filters, get_template_utilities
-
-    @app.context_processor
-    def inject_utilities():
-        return get_template_utilities()
-
-    # Register custom Jinja2 filters
-    template_filters = get_template_filters()
-    for filter_name, filter_func in template_filters.items():
-        app.jinja_env.filters[filter_name] = filter_func
+    """Configure optimized template system"""
+    from .utils.optimized_templates import init_template_system
+    init_template_system(app)
 
 
 def _register_error_handlers(app):
@@ -213,8 +205,8 @@ def _configure_database_optimization(app):
 
 
 def _register_cli_commands(app):
-    """Register CLI commands for admin management"""
-
+    """Register CLI commands for admin management and performance monitoring"""
+    # Admin commands
     @app.cli.command()
     @click.option("--email", prompt=True, help="Admin user email address")
     @click.option("--username", prompt=True, help="Admin username")
@@ -234,6 +226,10 @@ def _register_cli_commands(app):
     def list_admins():
         """List all admin users"""
         _list_admin_users()
+    
+    # Initialize performance monitoring CLI
+    from .utils.performance_cli import init_performance_cli
+    init_performance_cli(app)
 
 
 def _create_admin_user(email, username, first_name, last_name):

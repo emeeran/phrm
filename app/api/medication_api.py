@@ -49,28 +49,7 @@ def get_current_medications():
         # Collect current medications
         current_medications = []
 
-        # User's medications (if they have current_medication_entries)
-        if hasattr(current_user, "current_medication_entries"):
-            for med in current_user.current_medication_entries:
-                current_medications.append(
-                    {
-                        "person": (
-                            f"{current_user.first_name} {current_user.last_name}"
-                            if current_user.first_name
-                            else current_user.username
-                        ),
-                        "person_id": f"user_{current_user.id}",
-                        "medicine": med.medicine,
-                        "strength": med.strength,
-                        "morning": med.morning,
-                        "noon": med.noon,
-                        "evening": med.evening,
-                        "bedtime": med.bedtime,
-                        "duration": med.duration,
-                    }
-                )
-
-        # Family members' medications
+        # Only family members have current medications (not the user directly)
         for member in family_members:
             if hasattr(member, "current_medication_entries"):
                 for med in member.current_medication_entries:

@@ -561,7 +561,7 @@ def chat():
 def _handle_chat_get_request():
     """Handle GET request for chat interface"""
     family_members = current_user.family_members
-    return render_template("ai/chatbot.html", family_members=family_members)
+    return render_template("ai/chat/chatbot.html", family_members=family_members)
 
 
 def _handle_chat_json_request():

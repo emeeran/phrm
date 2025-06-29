@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}All Medications - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">All System Medications</h1>
+                <div>
+                    <a href="{{ url_for('auth.admin_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Admin Dashboard
+                    </a>
+                </div>
+            </div>
+
+            {% if medications %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-pills"></i> All Medications ({{ medications|length }} total)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Caregiver</th>
+                                    <th>Medication</th>
+                                    <th>Strength</th>
+                                    <th>Schedule</th>
+                                    <th>Duration</th>
+                                    <th>Notes</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medication, family_member, user in medications %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ family_member.first_name }} {{ family_member.last_name }}</strong>
+                                        {% if family_member.relationship %}
+                                        <br><small class="text-muted">{{ family_member.relationship }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ user.first_name }} {{ user.last_name }}
+                                        <br><small class="text-muted">{{ user.username }}</small>
+                                    </td>
+                                    <td><strong>{{ medication.medicine }}</strong></td>
+                                    <td>
+                                        {% if medication.strength %}
+                                        {{ medication.strength }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if medication.morning %}
+                                            <strong>Morning:</strong> {{ medication.morning }}<br>
+                                            {% endif %}
+                                            {% if medication.noon %}
+                                            <strong>Noon:</strong> {{ medication.noon }}<br>
+                                            {% endif %}
+                                            {% if medication.evening %}
+                                            <strong>Evening:</strong> {{ medication.evening }}<br>
+                                            {% endif %}
+                                            {% if medication.bedtime %}
+                                            <strong>Bedtime:</strong> {{ medication.bedtime }}
+                                            {% endif %}
+                                            {% if not (medication.morning or medication.noon or medication.evening or medication.bedtime) %}
+                                            <span class="text-muted">No schedule specified</span>
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if medication.duration %}
+                                        {{ medication.duration }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if medication.notes %}
+                                        <small>{{ medication.notes[:100] }}{% if medication.notes|length > 100 %}...{% endif %}</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ medication.created_at.strftime('%Y-%m-%d') }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h4><i class="fas fa-info-circle"></i> No Medications</h4>
+                <p class="mb-0">No medications have been recorded in the system yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,11 @@
 // PHRM - Optimized Modern JavaScript
+import { notifications, debounce, throttle, apiRequest, storage } from './core-utils.js';
+import UIManager from './ui-manager.js';
 
 class PHRMApp {
     constructor() {
+        this.uiManager = UIManager;
+        this.notifications = notifications;
         this.init();
     }
 
@@ -15,12 +19,14 @@ class PHRMApp {
     }
 
     setup() {
-        this.initBootstrap();
-        this.initAlerts();
-        this.initForms();
-        this.initTooltips();
-        this.initAnimations();
-        this.initPerformanceOptimizations();
+        // UI Manager handles most initialization now
+        this.setupAppSpecificFeatures();
+    }
+
+    setupAppSpecificFeatures() {
+        this.initAPIHelpers();
+        this.initErrorHandling();
+        this.setupGlobalEventListeners();
     }
 
     // Bootstrap component initialization

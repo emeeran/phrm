@@ -1,0 +1,549 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-section {
+    background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    margin-bottom: 2rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(74, 144, 226, 0.3);
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.welcome-section {
+    padding-right: 2rem;
+}
+
+.welcome-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.welcome-title i {
+    font-size: 2.5rem;
+    margin-right: 1rem;
+    opacity: 0.9;
+}
+
+.welcome-title h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.welcome-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+    font-weight: 300;
+}
+
+.filter-section {
+    display: flex;
+    align-items: center;
+    margin-top: 1.5rem;
+}
+
+.filter-label {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-right: 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.filter-dropdown {
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 15px;
+    color: white;
+    padding: 0.8rem 1.2rem;
+    backdrop-filter: blur(10px);
+    min-width: 250px;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.filter-dropdown:focus {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.6);
+    color: white;
+    box-shadow: 0 0 0 0.3rem rgba(255,255,255,0.25);
+    outline: none;
+}
+
+.filter-dropdown option {
+    background: #357ABD;
+    color: white;
+    padding: 0.5rem;
+}
+
+.profile-card {
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 2rem;
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(255,255,255,0.2);
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.profile-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.4);
+    margin: 0 auto 1.5rem;
+    object-fit: cover;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.profile-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.profile-details {
+    font-size: 1rem;
+    opacity: 0.85;
+    margin-bottom: 0.5rem;
+    font-weight: 400;
+}
+
+.profile-subtitle {
+    font-size: 0.9rem;
+    opacity: 0.7;
+    font-style: italic;
+    margin-bottom: 1.5rem;
+}
+
+.stats-container {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-top: 0.25rem;
+    font-weight: 400;
+}
+
+.quick-actions-bar {
+    margin-top: 2rem;
+}
+
+.action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #333;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    text-decoration: none;
+    color: #333;
+}
+
+.action-card i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.action-card span {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.records-panel {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.panel-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.panel-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.view-all-link {
+    color: #4A90E2;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.view-all-link:hover {
+    text-decoration: underline;
+}
+
+.panel-body {
+    padding: 1.5rem;
+}
+
+.record-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.record-item:last-child {
+    border-bottom: none;
+}
+
+.record-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 120px;
+}
+
+.record-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.record-date {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.record-content {
+    flex: 1;
+    margin-right: 1rem;
+}
+
+.record-title {
+    color: #333;
+    text-decoration: none;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.record-title:hover {
+    color: #4A90E2;
+    text-decoration: none;
+}
+
+.record-detail {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .welcome-title h1 {
+        font-size: 2rem;
+    }
+    
+    .filter-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .filter-dropdown {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .hero-section {
+        padding: 2rem 1rem;
+    }
+    
+    .welcome-section {
+        padding-right: 0;
+        margin-bottom: 2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterByMember() {
+    const memberSelect = document.getElementById('memberFilter');
+    const memberId = memberSelect.value;
+    
+    if (memberId === 'all') {
+        window.location.href = '{{ url_for("records.dashboard_routes.dashboard") }}';
+    } else {
+        window.location.href = '{{ url_for("records.dashboard_routes.dashboard") }}?member=' + memberId;
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="hero-content">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="welcome-section">
+                    <div class="welcome-title">
+                        <i class="fas fa-home"></i>
+                        <h1>Welcome back, {{ current_user.first_name or current_user.username }}!</h1>
+                    </div>
+                    <p class="welcome-subtitle">Your personal health records manager</p>
+                    
+                    <div class="filter-section">
+                        <label for="memberFilter" class="filter-label">View records for:</label>
+                        <select id="memberFilter" class="form-select filter-dropdown" onchange="filterByMember()">
+                            <option value="all" {% if not selected_member %}selected{% endif %}>All Family Members</option>
+                            <option value="self">Just Me</option>
+                            {% for member in family_members %}
+                            <option value="{{ member.id }}" {% if selected_member and selected_member.id == member.id %}selected{% endif %}>
+                                {{ member.first_name }} {{ member.last_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="profile-card">
+                    {% if selected_member %}
+                    <div class="profile-image">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-name">{{ selected_member.first_name }} {{ selected_member.last_name }}</div>
+                    <div class="profile-details">
+                        {% if selected_member.date_of_birth %}
+                        {{ selected_member.date_of_birth.strftime('%b-%d %Y') }}
+                        {% endif %}
+                        {% if selected_member.relationship %}
+                        {% if selected_member.date_of_birth %} - {% endif %}{{ selected_member.relationship|title }}
+                        {% endif %}
+                    </div>
+                    <div class="profile-subtitle">{{ selected_member.relationship or "Family member" }} of {{ current_user.username }}</div>
+                    {% else %}
+                    <div class="profile-image">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="profile-name">All Family Data</div>
+                    <div class="profile-details">Consolidated view of all family members</div>
+                    <div class="profile-subtitle">Complete health overview for {{ current_user.username }}'s family</div>
+                    {% endif %}
+                    
+                    <div class="stats-container">
+                        <div class="stat-item">
+                            <span class="stat-number">{{ total_records or 0 }}</span>
+                            <div class="stat-label">Records</div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">{{ total_medications or 0 }}</span>
+                            <div class="stat-label">Medications</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions-bar">
+    <div class="row g-2">
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.health_records_routes.create_record') }}" class="action-card">
+                <i class="fas fa-plus-circle text-primary"></i>
+                <span>Add Record</span>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.family_member_routes.list_family') }}" class="action-card">
+                <i class="fas fa-users text-success"></i>
+                <span>Family</span>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('ai.ai_chat.chat') }}" class="action-card">
+                <i class="fas fa-brain text-info"></i>
+                <span>AI Assistant</span>
+            </a>
+        </div>
+        <div class="col-md-3 col-6">
+            <a href="{{ url_for('records.health_records_routes.list_records') }}" class="action-card">
+                <i class="fas fa-list text-secondary"></i>
+                <span>All Records</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Records Overview -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="records-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-file-medical me-2"></i>Recent Records</h5>
+                <a href="{{ url_for('records.health_records_routes.list_records') }}" class="view-all-link">View All</a>
+            </div>
+            <div class="panel-body">
+                {% if consolidated_records %}
+                    {% for record in consolidated_records[:5] %}
+                    <div class="record-item">
+                        <div class="record-content">
+                            <a href="{{ url_for('records.health_records_routes.view_record', record_id=record.id) }}" class="record-title">
+                                {{ record.title if record.title else (record.chief_complaint[:50] + '...' if record.chief_complaint and record.chief_complaint|length > 50 else record.chief_complaint or 'Medical Record') }}
+                            </a>
+                            <div class="record-detail">
+                                {% if record.family_member %}
+                                {{ record.family_member.first_name }} {{ record.family_member.last_name }}
+                                {% else %}
+                                {{ current_user.first_name or current_user.username }}
+                                {% endif %}
+                                {% if record.doctor %} - Dr. {{ record.doctor }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="record-meta">
+                            <span class="record-badge bg-primary text-white">
+                                {{ record.record_type|replace('_', ' ')|title if record.record_type else 'Record' }}
+                            </span>
+                            <span class="record-date">{{ record.date.strftime('%b %d') if record.date else 'No date' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-file-medical-alt"></i>
+                        <p><strong>No health records yet</strong></p>
+                        <p class="small">Start building your health history by adding your first medical record</p>
+                        <a href="{{ url_for('records.health_records_routes.create_record') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add First Record
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="records-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-pills me-2"></i>Current Medications</h5>
+                <a href="{{ url_for('records.family_member_routes.list_family') }}" class="view-all-link">Manage</a>
+            </div>
+            <div class="panel-body">
+                {% if consolidated_medications %}
+                    {% for medication in consolidated_medications[:5] %}
+                    <div class="record-item">
+                        <div class="record-content">
+                            <div class="record-title">{{ medication.medicine }}</div>
+                            <div class="record-detail">
+                                {{ medication.person }}
+                                {% if medication.strength %} - {{ medication.strength }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="record-meta">
+                            <span class="record-badge bg-success text-white">Active</span>
+                            <span class="record-date">
+                                {% if medication.duration %}{{ medication.duration }}{% else %}Ongoing{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-pills"></i>
+                        <p><strong>No medications recorded</strong></p>
+                        <p class="small">Add current medications for family members to track their treatments</p>
+                        <a href="{{ url_for('records.family_member_routes.list_family') }}" class="btn btn-sm btn-success">
+                            <i class="fas fa-plus me-1"></i>Add Medications
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

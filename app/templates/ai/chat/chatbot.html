@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Health Assistant{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-chat.css') }}">
+<style>
+    /* Ensure patient selector is hidden in public mode */
+    #patient-selector-container.hidden-public {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-1">
+    <div class="row g-1">
+        <div class="col-12">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <h4 class="mb-0"><i class="fas fa-comment-medical me-2"></i>Health Assistant</h4>
+
+                        <!-- Mode Selector -->
+                        <div class="d-flex align-items-center">
+                            <label for="mode-selector" class="form-label text-white me-2 mb-0">Mode:</label>
+                            <select id="mode-selector" class="form-select form-select-sm" style="width: 100px;">
+                                <option value="public" selected>Public</option>
+                                <option value="private">Private</option>
+                            </select>
+                        </div>
+
+                        <!-- Patient Selector (only shown in private mode) -->
+                        <div id="patient-selector-container" class="d-flex align-items-center hidden-public" style="display: none !important;">
+                            <label for="patient-selector" class="form-label text-white me-2 mb-0">Patient:</label>
+                            <select id="patient-selector" class="form-select form-select-sm" style="width: 150px;">
+                                <option value="self" selected>Myself</option>
+                                {% for member in family_members %}
+                                <option value="{{ member.id }}">{{ member.first_name }} {{ member.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-1">
+                        <button id="new-chat" class="btn btn-sm btn-outline-light" title="Start new conversation">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button id="copy-chat" class="btn btn-sm btn-outline-light" title="Copy conversation">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button id="export-md" class="btn btn-sm btn-outline-light" title="Export to Markdown">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button id="clear-chat" class="btn btn-sm btn-outline-light" title="Clear conversation">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            <div class="card-body chat-app-body p-0">
+                <!-- Sidebar for quick questions (hidden in public mode) -->
+                <div class="row g-0">
+                    <div id="chat-sidebar" class="col-md-2 col-lg-1 chat-sidebar border-end">
+                        <div class="p-2 border-bottom text-center">
+                            <i class="fas fa-lightbulb text-primary" title="Quick Questions"></i>
+                        </div>
+                        <div class="p-1">
+                            <div class="quick-questions d-flex flex-column align-items-center">
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="List my medications" data-message="Can you provide a summary of all my current medications, including dosages and any important notes?">
+                                    <i class="fas fa-pills"></i>
+                                    <span class="btn-label">Medications</span>
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Recent lab results" data-message="What are my most recent lab results and what do they indicate about my health?">
+                                    <i class="fas fa-flask"></i>
+                                    <span class="btn-label">Lab results</span>
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Next appointment" data-message="When is my next appointment and what should I prepare for it?">
+                                    <i class="fas fa-calendar-check"></i>
+                                    <span class="btn-label">Appointments</span>
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Heart health tips" data-message="Can you provide personalized heart health recommendations based on my medical history?">
+                                    <i class="fas fa-heartbeat"></i>
+                                    <span class="btn-label">Heart health</span>
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm mb-2 icon-btn suggestion-btn" title="Stress management" data-message="What are some effective stress management techniques I can use, considering my current health situation?">
+                                    <i class="fas fa-brain"></i>
+                                    <span class="btn-label">Stress help</span>
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-2">
+                                <button class="btn btn-outline-primary btn-sm icon-btn suggestion-btn" title="Symptom Checker" data-message="I'd like to check some symptoms I'm experiencing. Can you help me understand what might be causing them and provide guidance on next steps?">
+                                    <i class="fas fa-stethoscope"></i>
+                                    <span class="btn-label">Symptoms</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main chat area -->
+                    <div id="chat-main-area" class="col-md-10 col-lg-11 d-flex flex-column h-100">
+                        <div id="chat-messages" class="chat-messages flex-grow-1">
+                            <div class="welcome-message text-center text-muted py-4">
+                                <i class="fas fa-comment-medical fa-3x mb-3"></i>
+                                <h5 id="welcome-title">Welcome to your Health Assistant</h5>
+                                <p id="welcome-text">Ask me anything about your health, medications, or use the quick questions on the left.</p>
+                                
+                                <!-- Public mode disclaimer -->
+                                <div id="public-disclaimer" class="mt-3 p-3 bg-info bg-opacity-10 border border-info rounded">
+                                    <i class="fas fa-info-circle text-info me-2"></i>
+                                    <strong>Public Mode:</strong> Responses are based on general medical knowledge. 
+                                    For personalized advice, switch to Private mode or consult your healthcare provider.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-container border-top">
+                            <form id="chat-form" class="mb-0">
+                                <div class="input-group">
+                                    <input type="text" id="chat-input" class="form-control"
+                                        placeholder="Ask about your health, medications, symptoms..." required autocomplete="off">
+                                    <button id="voice-input-btn" type="button" class="btn btn-outline-secondary"
+                                        title="Voice input">
+                                        <i class="fas fa-microphone"></i>
+                                    </button>
+                                    <button class="btn btn-primary" type="submit" title="Send message">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Typing indicator -->
+                                <div id="typing-indicator" class="typing-indicator mt-2" style="display: none;">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                    <span class="ms-2 text-muted">Health Assistant is typing...</span>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Ensure patient selector is hidden on page load (fallback)
+    document.addEventListener('DOMContentLoaded', function() {
+        const patientSelectorContainer = document.getElementById('patient-selector-container');
+        const modeSelector = document.getElementById('mode-selector');
+        
+        // Force hide patient selector initially
+        if (patientSelectorContainer) {
+            patientSelectorContainer.style.display = 'none';
+        }
+        
+        // Setup mode change handler as fallback
+        if (modeSelector && patientSelectorContainer) {
+            function togglePatientSelector() {
+                const mode = modeSelector.value;
+                if (mode === 'public') {
+                    patientSelectorContainer.style.display = 'none';
+                    patientSelectorContainer.classList.add('hidden-public');
+                } else {
+                    patientSelectorContainer.style.display = 'flex';
+                    patientSelectorContainer.classList.remove('hidden-public');
+                }
+            }
+            
+            // Set initial state
+            togglePatientSelector();
+            
+            // Add event listener
+            modeSelector.addEventListener('change', togglePatientSelector);
+        }
+    });
+</script>
+{% endblock %}

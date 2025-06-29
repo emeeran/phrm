@@ -93,17 +93,13 @@ def dashboard():
     # Get current medications for user and family
     current_medications = []
 
-    # User's current medications
-    for member in [current_user] + list(family_members):
+    # Only family members have current medications (not the user directly)
+    for member in family_members:
         if hasattr(member, "current_medication_entries"):
             for med in member.current_medication_entries:
                 current_medications.append(
                     {
-                        "person": (
-                            f"{member.first_name} {member.last_name}"
-                            if hasattr(member, "last_name")
-                            else member.username
-                        ),
+                        "person": f"{member.first_name} {member.last_name}",
                         "medicine": med.medicine,
                         "strength": med.strength,
                         "morning": med.morning,
